@@ -1,24 +1,23 @@
-{-# LANGUAGE DataKinds                  #-}
-{-# LANGUAGE DeriveAnyClass             #-}
-{-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE DerivingStrategies         #-}
-{-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase                 #-}
-{-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE NoImplicitPrelude          #-}
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE RecordWildCards            #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE TemplateHaskell            #-}
-{-# LANGUAGE TypeApplications           #-}
-{-# LANGUAGE TypeFamilies               #-}
-{-# LANGUAGE TypeOperators              #-}
 
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE DeriveAnyClass        #-}
+{-# LANGUAGE DerivingStrategies    #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NamedFieldPuns        #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE TypeApplications      #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE UndecidableInstances  #-}
+{-# OPTIONS_GHC -Wno-orphans  #-}
 
 module Api.Backend.Factory where
 
-import           Control.Monad                    hiding (fmap)
+import           Control.Monad               (foldM)
 import qualified Data.Map                         as Map
 import           Data.Map                         (Map)
 import           Data.Text                        (Text, pack)
@@ -26,7 +25,11 @@ import           Ledger                           hiding (singleton)
 import qualified Data.ByteString.Char8  as C
 import           Ledger.Constraints               as Constraints
 import qualified Ledger.Typed.Scripts             as Scripts
-import           Control.Monad.Freer              (Eff, Member)
+import           Control.Monad.Freer
+import           Control.Monad.Freer.Internal
+import           Control.Monad.Freer.Error
+import           Control.Monad.Freer.State
+import           Control.Monad.Freer.TH      (makeEffect)
 import           Playground.Contract
 import           PlutusTx.IsData
 import           Plutus.Contract                  hiding (when)
@@ -41,9 +44,11 @@ import           Dex.Contract.OffChain
 import           Ledger.Scripts  (unitRedeemer)
 import           Ledger.Ada
 import           Wallet.Effects
+import           Wallet.Emulator.Wallet         (handleWallet)
 import           Control.Monad.Freer.Error      (Error, throwError)
 import           Control.Monad.Freer.Extras.Log (LogMsg, logDebug, logInfo)
 import           Wallet.Emulator.LogMessages    (TxBalanceMsg (..))
+import           Cardano.Wallet.Types           (MultiWalletEffect(..))
 
 -- createSwapTransaction :: TxOut -> Datum -> TxOutRef -> TxOut -> Datum -> Tx
 -- createSwapTransaction outWithProxy proxyDatum proxyTxOutRef outWithPool poolDatum = do
@@ -73,9 +78,9 @@ createSwapTransaction proxyTxOutRef proxyDatum datum o =
     -- ledgerTx <- submitTxConstraintsWith lookups tx
     --
 
--- tryBalance :: ( Member WalletEffect effs
---     , Member (Error WalletAPIError) effs
+-- tryBalance ::  ( Member NodeClientEffect effs
 --     , Member ChainIndexEffect effs
+--     , Member (State WalletState) effs
 --     , Member (LogMsg TxBalanceMsg) effs
 --     ) => UnbalancedTx -> PubKey -> Eff effs Tx
--- tryBalance unTx pkNotToUse = balanceTx Map.empty pkNotToUse unTx
+-- tryBalance unTx pkNotToUse = handleWallet $ BalanceTx unTx
