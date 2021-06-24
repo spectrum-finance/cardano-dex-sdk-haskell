@@ -1,6 +1,6 @@
 module Api.Backend.EffectsGenerator where
 
-import           Wallet.Effects (WalletEffect(..))
+import           Wallet.Effects (WalletEffect(..), updatePaymentWithChange)
 
-genWalletEffect :: WalletEffect a
-genWalletEffect = BalanceTx
+-- genWalletEffect :: WalletEffect a
+-- genWalletEffect = BalanceTx

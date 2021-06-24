@@ -61,8 +61,7 @@ createSwapTransaction :: TxOutRef -> ProxyDatum -> Datum -> TxOutTx -> Either Mk
 createSwapTransaction proxyTxOutRef proxyDatum datum o =
     let
         value = lovelaceValueOf 10
-        lookups  = Constraints.scriptInstanceLookups proxyInstance <>
-                   Constraints.otherData datum <>
+        lookups  = Constraints.otherData datum <>
                    Constraints.otherScript (Scripts.validatorScript proxyInstance) <>
                    Constraints.unspentOutputs (Map.singleton proxyTxOutRef o)
 
