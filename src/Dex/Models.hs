@@ -8,6 +8,7 @@ import           Plutus.V1.Ledger.Address
 import           Plutus.V1.Ledger.Value
 import           Plutus.V1.Ledger.TxId
 import           Plutus.V1.Ledger.Scripts
+import           Prelude
 
 newtype PoolId = PoolId Builtins.ByteString
 
