@@ -11,6 +11,8 @@ import           Plutus.V1.Ledger.Scripts
 
 newtype PoolId = PoolId Builtins.ByteString
 
+newtype GId = GId Integer
+
 data SwapOpData = SwapOpData {
     poolId :: PoolId
 }
@@ -24,9 +26,17 @@ data RedeemOpData = RedeemOpData {
 }
 
 data Operation a where
-    SwapOperation :: SwapOpData -> Operation SwapOpData
+    SwapOperation    :: SwapOpData -> Operation SwapOpData
     DepositOperation :: DepositOpData -> Operation DepositOpData
-    RedeemOperation :: RedeemOpData -> Operation RedeemOpData
+    RedeemOperation  :: RedeemOpData -> Operation RedeemOpData
+
+data PoolData = PoolData
+
+data Pool = Pool {
+    gId :: GId,
+    poolData :: PoolData,
+    fullTxOut :: FullTxOut
+}
 
 data FullTxOut = FullTxOut {
     txOutRefId     :: TxId,
