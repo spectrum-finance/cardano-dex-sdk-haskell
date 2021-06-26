@@ -9,35 +9,39 @@ import           Plutus.V1.Ledger.Value
 import           Plutus.V1.Ledger.TxId
 import           Plutus.V1.Ledger.Scripts
 import           Prelude
+import           GHC.Generics
+import           Data.Aeson (FromJSON(..), ToJSON(..))
 
-newtype PoolId = PoolId Builtins.ByteString deriving (Show)
+newtype PoolId = PoolId Builtins.ByteString 
+    deriving (Show, Generic, FromJSON, ToJSON)
 
-newtype GId = GId Integer deriving (Show)
+newtype GId = GId Integer 
+    deriving (Show, Generic, FromJSON, ToJSON)
 
 data SwapOpData = SwapOpData {
     poolId :: PoolId
-} deriving (Show)
+} deriving (Show, Generic, FromJSON, ToJSON)
 
 data DepositOpData = DepositOpData {
     poolId :: PoolId
-} deriving (Show)
+} deriving (Show, Generic, FromJSON, ToJSON)
 
 data RedeemOpData = RedeemOpData {
     poolId :: PoolId
-} deriving (Show)
+} deriving (Show, Generic, FromJSON, ToJSON)
 
 data Operation a where
     SwapOperation    :: SwapOpData -> Operation SwapOpData
     DepositOperation :: DepositOpData -> Operation DepositOpData
     RedeemOperation  :: RedeemOpData -> Operation RedeemOpData
 
-data PoolData = PoolData deriving (Show)
+data PoolData = PoolData deriving (Show, Generic, FromJSON, ToJSON)
 
 data Pool = Pool {
     poolId :: PoolId,
     poolData :: PoolData,
     fullTxOut :: FullTxOut
-} deriving (Show)
+} deriving (Show, Generic, FromJSON, ToJSON)
 
 data FullTxOut = FullTxOut {
     gId :: GId,
@@ -46,4 +50,4 @@ data FullTxOut = FullTxOut {
     txOutAddress   :: Address,
     txOutValue     :: Value,
     txOutDatum     :: Datum
-} deriving (Show)
+} deriving (Show, Generic, FromJSON, ToJSON)

@@ -45,7 +45,6 @@ common project-config
                         MultiParamTypeClasses
                         MultiWayIf
                         NamedFieldPuns
-                        NoImplicitPrelude
                         PartialTypeSignatures
                         PatternGuards
                         PolyKinds
@@ -84,4 +83,5 @@ library
         plutus-tx,
         plutus-ledger-api,
         playground-common,
-        bytestring
+        bytestring,
+        aeson
