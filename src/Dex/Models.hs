@@ -10,39 +10,40 @@ import           Plutus.V1.Ledger.TxId
 import           Plutus.V1.Ledger.Scripts
 import           Prelude
 
-newtype PoolId = PoolId Builtins.ByteString
+newtype PoolId = PoolId Builtins.ByteString deriving (Show)
 
-newtype GId = GId Integer
+newtype GId = GId Integer deriving (Show)
 
 data SwapOpData = SwapOpData {
     poolId :: PoolId
-}
+} deriving (Show)
 
 data DepositOpData = DepositOpData {
     poolId :: PoolId
-}
+} deriving (Show)
 
 data RedeemOpData = RedeemOpData {
     poolId :: PoolId
-}
+} deriving (Show)
 
 data Operation a where
     SwapOperation    :: SwapOpData -> Operation SwapOpData
     DepositOperation :: DepositOpData -> Operation DepositOpData
     RedeemOperation  :: RedeemOpData -> Operation RedeemOpData
 
-data PoolData = PoolData
+data PoolData = PoolData deriving (Show)
 
 data Pool = Pool {
-    gId :: GId,
+    poolId :: PoolId,
     poolData :: PoolData,
     fullTxOut :: FullTxOut
-}
+} deriving (Show)
 
 data FullTxOut = FullTxOut {
-    txOutRefId     :: TxId,
-    txOutRefIdx    :: Integer, -- ^ Index into the referenced transaction's outputs
+    gId :: GId,
+    txOutRefId     :: TxId, -- add newtype model
+    txOutRefIdx    :: Integer, -- ^ Index into the referenced transaction's outputs, add newtype model
     txOutAddress   :: Address,
     txOutValue     :: Value,
     txOutDatum     :: Datum
-}
+} deriving (Show)
