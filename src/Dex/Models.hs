@@ -15,7 +15,7 @@ import           Data.Aeson (FromJSON(..), ToJSON(..))
 newtype PoolId = PoolId Builtins.ByteString 
     deriving (Show, Generic, FromJSON, ToJSON)
 
-newtype GId = GId Integer 
+newtype GId = GId { gIx :: Integer }
     deriving (Show, Generic, FromJSON, ToJSON)
 
 data SwapOpData = SwapOpData {
