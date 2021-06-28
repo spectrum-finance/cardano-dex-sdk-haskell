@@ -84,4 +84,5 @@ library
         plutus-ledger-api,
         playground-common,
         bytestring,
-        aeson
+        aeson,
+        servant

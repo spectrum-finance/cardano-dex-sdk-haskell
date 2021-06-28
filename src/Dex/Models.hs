@@ -11,9 +11,10 @@ import           Plutus.V1.Ledger.Scripts
 import           Prelude
 import           GHC.Generics
 import           Data.Aeson (FromJSON(..), ToJSON(..))
+import           Servant.API
 
 newtype PoolId = PoolId Builtins.ByteString 
-    deriving (Show, Generic, FromJSON, ToJSON)
+    deriving (Show, Generic, FromJSON, ToJSON, FromHttpApiData)
 
 newtype GId = GId { gIx :: Integer }
     deriving (Show, Generic, FromJSON, ToJSON)
