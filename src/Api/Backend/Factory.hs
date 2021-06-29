@@ -49,7 +49,7 @@ import           Control.Monad.Freer.Error      (Error, throwError)
 import           Control.Monad.Freer.Extras.Log (LogMsg, logDebug, logInfo)
 import           Wallet.Emulator.LogMessages    (TxBalanceMsg (..))
 import           Cardano.Wallet.Types           (MultiWalletEffect(..))
-import           Proxy.Contract.Types
+import           Proxy.Contract.Models
 
 -- createSwapTransaction :: TxOut -> Datum -> TxOutRef -> TxOut -> Datum -> Tx
 -- createSwapTransaction outWithProxy proxyDatum proxyTxOutRef outWithPool poolDatum = do

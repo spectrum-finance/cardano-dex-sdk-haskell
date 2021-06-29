@@ -8,47 +8,68 @@ import           Plutus.V1.Ledger.Address
 import           Plutus.V1.Ledger.Value
 import           Plutus.V1.Ledger.TxId
 import           Plutus.V1.Ledger.Scripts
-import           Prelude
-import           GHC.Generics
-import           Data.Aeson (FromJSON(..), ToJSON(..))
-import           Servant.API
 
 newtype PoolId = PoolId Builtins.ByteString
-    deriving (Show, Generic, FromJSON, ToJSON, FromHttpApiData)
 
-newtype GId = GId { gIx :: Integer }
-    deriving (Show, Generic, FromJSON, ToJSON)
+newtype GId = GId Integer
 
 data SwapOpData = SwapOpData {
-    poolId :: PoolId
-} deriving (Show, Generic, FromJSON, ToJSON)
+    poolId :: PoolId,
+    inputTokenSymbol :: Builtins.ByteString,
+    inputTokenName :: Builtins.ByteString,
+    minOutputTokenValue :: Integer,
+    dexFee :: Integer,
+    userPubKey :: Builtins.ByteString,
+    proxyBox :: FullTxOut
+}
 
 data DepositOpData = DepositOpData {
-    poolId :: PoolId
-} deriving (Show, Generic, FromJSON, ToJSON)
+    poolId :: PoolId,
+    inputTokenXSymbol :: Builtins.ByteString,
+    inputTokenXName :: Builtins.ByteString,
+    inputTokenYSymbol :: Builtins.ByteString,
+    inputTokenYName :: Builtins.ByteString,
+    dexFee :: Integer,
+    userPubKey :: Builtins.ByteString,
+    proxyBox :: FullTxOut
+}
 
 data RedeemOpData = RedeemOpData {
-    poolId :: PoolId
-} deriving (Show, Generic, FromJSON, ToJSON)
+    poolId :: PoolId,
+    lpTokenXSymbol :: Builtins.ByteString,
+    lpTokenXName :: Builtins.ByteString,
+    dexFee :: Integer,
+    userPubKey :: Builtins.ByteString,
+    proxyBox :: FullTxOut
+}
 
 data Operation a where
     SwapOperation    :: SwapOpData -> Operation SwapOpData
     DepositOperation :: DepositOpData -> Operation DepositOpData
     RedeemOperation  :: RedeemOpData -> Operation RedeemOpData
 
-data PoolData = PoolData deriving (Show, Generic, FromJSON, ToJSON)
+data ParsedOperation = forall a. ParsedOperation { op :: Operation a }
+
+data PoolData = PoolData {
+    poolId :: PoolId,
+    tokenXSymbol :: Builtins.ByteString,
+    tokenXName :: Builtins.ByteString,
+    tokenYSymbol :: Builtins.ByteString,
+    tokenYName :: Builtins.ByteString,
+    tokenLPSymbol :: Builtins.ByteString,
+    tokenLPName :: Builtins.ByteString
+}
 
 data Pool = Pool {
-    poolId :: PoolId,
+    gId :: GId,
     poolData :: PoolData,
     fullTxOut :: FullTxOut
-} deriving (Show, Generic, FromJSON, ToJSON)
+}
 
 data FullTxOut = FullTxOut {
-    gId              :: GId,
-    txOutRefId       :: TxId, -- add newtype model
-    txOutRefIdx      :: Integer, -- ^ Index into the referenced transaction's outputs, add newtype model
+    txOutRefId       :: TxId,
+    txOutRefIdx      :: Integer, -- ^ Index into the referenced transaction's outputs
     txOutAddress     :: Address,
     txOutValue       :: Value,
     fullTxOutDatum   :: Datum
-} deriving (Show, Generic, FromJSON, ToJSON)
+}
