@@ -45,10 +45,10 @@ data Pool = Pool {
 } deriving (Show, Generic, FromJSON, ToJSON)
 
 data FullTxOut = FullTxOut {
-    gId :: GId,
-    txOutRefId     :: TxId, -- add newtype model
-    txOutRefIdx    :: Integer, -- ^ Index into the referenced transaction's outputs, add newtype model
-    txOutAddress   :: Address,
-    txOutValue     :: Value,
-    txOutDatum     :: Datum
+    gId              :: GId,
+    txOutRefId       :: TxId, -- add newtype model
+    txOutRefIdx      :: Integer, -- ^ Index into the referenced transaction's outputs, add newtype model
+    txOutAddress     :: Address,
+    txOutValue       :: Value,
+    fullTxOutDatum   :: Datum
 } deriving (Show, Generic, FromJSON, ToJSON)
