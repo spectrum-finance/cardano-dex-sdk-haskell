@@ -13,7 +13,7 @@ import           GHC.Generics
 import           Data.Aeson (FromJSON(..), ToJSON(..))
 import           Servant.API
 
-newtype PoolId = PoolId { pid :: Builtins.ByteString }
+newtype PoolId = PoolId Builtins.ByteString
     deriving (Show, Generic, FromJSON, ToJSON, FromHttpApiData)
 
 newtype GId = GId { gIx :: Integer }
