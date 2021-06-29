@@ -85,4 +85,6 @@ library
         playground-common,
         bytestring,
         aeson,
-        servant
+        servant,
+        plutus-contract,
+        cardano-dex
