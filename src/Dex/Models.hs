@@ -1,5 +1,7 @@
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE KindSignatures        #-}
 
 module Dex.Models where
 
@@ -9,12 +11,12 @@ import           Plutus.V1.Ledger.Value
 import           Plutus.V1.Ledger.TxId
 import           Plutus.V1.Ledger.Scripts
 
-newtype PoolId = PoolId Builtins.ByteString
+newtype PoolId = PoolId Builtins.ByteString deriving Eq
 
 newtype GId = GId Integer
 
 data SwapOpData = SwapOpData {
-    poolId :: PoolId,
+    swapPoolId :: PoolId,
     inputTokenSymbol :: Builtins.ByteString,
     inputTokenName :: Builtins.ByteString,
     minOutputTokenValue :: Integer,
@@ -23,8 +25,8 @@ data SwapOpData = SwapOpData {
     proxyBox :: FullTxOut
 }
 
-data DepositOpData = DepositOpData {
-    poolId :: PoolId,
+data DepositOpData = DepositOpData{
+    depositPoolId :: PoolId,
     inputTokenXSymbol :: Builtins.ByteString,
     inputTokenXName :: Builtins.ByteString,
     inputTokenYSymbol :: Builtins.ByteString,
@@ -35,9 +37,9 @@ data DepositOpData = DepositOpData {
 }
 
 data RedeemOpData = RedeemOpData {
-    poolId :: PoolId,
-    lpTokenXSymbol :: Builtins.ByteString,
-    lpTokenXName :: Builtins.ByteString,
+    redeemPoolId :: PoolId,
+    lpTokenSymbol :: Builtins.ByteString,
+    lpTokenName :: Builtins.ByteString,
     dexFee :: Integer,
     userPubKey :: Builtins.ByteString,
     proxyBox :: FullTxOut

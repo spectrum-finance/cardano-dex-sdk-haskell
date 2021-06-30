@@ -1,22 +1,39 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards       #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE TypeApplications      #-}
+{-# LANGUAGE GADTs                 #-}
 
 module Dex.Interpreter where
 
 import           Dex.Models
 import           Plutus.V1.Ledger.Tx
 import           Ledger.Constraints               as Constraints
+import qualified PlutusTx.Builtins                as Builtins
+import           Data.Either.Combinators          (maybeToRight)
+import           Dex.Utils
 
-interpretSwapOp :: Operation SwapOpData -> Pool -> Either MkTxError (Tx, TxOut)
-interpretSwapOp op pool = undefined
+--todo: lift MkTxError to dex error
+interpretOp :: Operation a -> Pool -> Either MkTxError (Tx, TxOut)
+interpretOp op pool =
+    do
+        unbalancedTx <- case op of
+                        swap@ (SwapOperation swapData) -> createSwapTransaction swapData pool
+                        deposit@ (DepositOperation depositData) -> createDepositTransaction deposit pool
+                        redeem@ (RedeemOperation redeemData) -> createRedeemTransaction redeem pool
+        tx <- balanceTx unbalancedTx
+        -- todo: use correct error
+        newPoolOutput <- maybeToRight TypedValidatorMissing (getNewPoolOut tx)
+        let result = Right (tx, fullTxOut2TxOut newPoolOutput)
+        result
 
-interpretRedeemOp :: Operation RedeemOpData -> Pool -> Either MkTxError (Tx, TxOut)
-interpretRedeemOp op pool = undefined
+--todo: lift MkTxError to dex error. Set correct errors. Now wip
+createSwapTransaction :: SwapOpData -> Pool -> Either MkTxError UnbalancedTx
+createSwapTransaction SwapOpData{..} Pool{..}
+    | swapPoolId /= (poolId poolData) = Left TypedValidatorMissing -- check that poolid is correct
+    | checkPoolContainsToken inputTokenSymbol inputTokenName poolData /= True = Left TypedValidatorMissing -- check that pool contains token to swap
+    | otherwise = undefined
 
-interpretDepositOp :: Operation DepositOpData -> Pool -> Either MkTxError (Tx, TxOut)
-interpretDepositOp op pool = undefined
-
-createSwapTransaction :: Operation SwapOpData -> Either MkTxError UnbalancedTx
-createSwapTransaction _ = undefined
 -- createSwapTransaction proxyTxOutRef proxyDatum datum o =
     -- let
     --     value = lovelaceValueOf 10
@@ -32,14 +49,17 @@ createSwapTransaction _ = undefined
     --     unTx = Constraints.mkTx @ProxySwapping lookups tx
     -- in unTx
 
-createDepositTransaction :: Operation DepositOpData -> Either MkTxError UnbalancedTx
+createDepositTransaction :: Operation DepositOpData -> Pool -> Either MkTxError UnbalancedTx
 createDepositTransaction _ = undefined
 
-createRedeemTransaction :: Operation RedeemOpData -> Either MkTxError UnbalancedTx
+createRedeemTransaction :: Operation RedeemOpData -> Pool -> Either MkTxError UnbalancedTx
 createRedeemTransaction _ = undefined
 
-balanceTx :: UnbalancedTx -> Tx
+balanceTx :: UnbalancedTx -> Either MkTxError Tx
 balanceTx _ = undefined
 
 getNewPoolOut :: Tx -> Maybe FullTxOut
 getNewPoolOut _ = undefined
+
+checkPoolContainsToken :: Builtins.ByteString -> Builtins.ByteString -> PoolData -> Bool
+checkPoolContainsToken inputTokenSymbol inputTokenName pool = undefined
