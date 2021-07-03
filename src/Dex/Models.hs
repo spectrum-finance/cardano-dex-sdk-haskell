@@ -1,7 +1,10 @@
-{-# LANGUAGE GADTs                 #-}
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE DataKinds             #-}
-{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE GADTs                     #-}
+{-# LANGUAGE DuplicateRecordFields     #-}
+{-# LANGUAGE DataKinds                 #-}
+{-# LANGUAGE KindSignatures            #-}
+{-# LANGUAGE DeriveAnyClass            #-}
+{-# LANGUAGE StandaloneDeriving        #-}
+{-# LANGUAGE ExistentialQuantification #-}
 
 module Dex.Models where
 
@@ -10,10 +13,13 @@ import           Plutus.V1.Ledger.Address
 import           Plutus.V1.Ledger.Value
 import           Plutus.V1.Ledger.TxId
 import           Plutus.V1.Ledger.Scripts
+import           Playground.Contract (FromJSON, Generic, ToJSON, ToSchema)
 
-newtype PoolId = PoolId Builtins.ByteString deriving Eq
+newtype PoolId = PoolId Builtins.ByteString
+    deriving (Show, Generic, FromJSON, ToJSON, Eq, FromHttpApiData)
 
 newtype GId = GId Integer
+    deriving (Show, Generic, FromJSON, ToJSON)
 
 data SwapOpData = SwapOpData {
     swapPoolId :: PoolId,
@@ -23,7 +29,7 @@ data SwapOpData = SwapOpData {
     dexFee :: Integer,
     userPubKey :: Builtins.ByteString,
     proxyBox :: FullTxOut
-}
+} deriving (Show, Generic, FromJSON, ToJSON)
 
 data DepositOpData = DepositOpData{
     depositPoolId :: PoolId,
@@ -34,7 +40,7 @@ data DepositOpData = DepositOpData{
     dexFee :: Integer,
     userPubKey :: Builtins.ByteString,
     proxyBox :: FullTxOut
-}
+} deriving (Show, Generic, FromJSON, ToJSON)
 
 data RedeemOpData = RedeemOpData {
     redeemPoolId :: PoolId,
@@ -43,7 +49,7 @@ data RedeemOpData = RedeemOpData {
     dexFee :: Integer,
     userPubKey :: Builtins.ByteString,
     proxyBox :: FullTxOut
-}
+} deriving (Show, Generic, FromJSON, ToJSON)
 
 data Operation a where
     SwapOperation    :: SwapOpData -> Operation SwapOpData
@@ -60,13 +66,13 @@ data PoolData = PoolData {
     tokenYName :: Builtins.ByteString,
     tokenLPSymbol :: Builtins.ByteString,
     tokenLPName :: Builtins.ByteString
-}
+} deriving (Show, Generic, FromJSON, ToJSON)
 
 data Pool = Pool {
     gId :: GId,
     poolData :: PoolData,
     fullTxOut :: FullTxOut
-}
+} deriving (Show, Generic, FromJSON, ToJSON)
 
 data FullTxOut = FullTxOut {
     txOutRefId       :: TxId,
@@ -74,4 +80,4 @@ data FullTxOut = FullTxOut {
     txOutAddress     :: Address,
     txOutValue       :: Value,
     fullTxOutDatum   :: Datum
-}
+} deriving (Show, Generic, FromJSON, ToJSON)
