@@ -75,7 +75,6 @@ library
     exposed-modules: Dex.Interpreter
                      Dex.Models
                      Dex.Processor
-                     Dex.Types
                      Dex.Utils
 
     build-depends: 
@@ -87,4 +86,6 @@ library
         aeson,
         servant,
         plutus-contract,
-        cardano-dex
+        cardano-dex,
+        singletons,
+        either

@@ -177,4 +177,4 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/ergolabs/cardano-dex
-  tag: 866113bb589f2921ec5c7f03b7a8497069eee894
+  tag: 6f66ed3efff6b2b5626162818f9e5791f4b9eb35
