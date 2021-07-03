@@ -14,6 +14,7 @@ import           Plutus.V1.Ledger.Value
 import           Plutus.V1.Ledger.TxId
 import           Plutus.V1.Ledger.Scripts
 import           Playground.Contract (FromJSON, Generic, ToJSON, ToSchema)
+import           Servant.API
 
 newtype PoolId = PoolId Builtins.ByteString
     deriving (Show, Generic, FromJSON, ToJSON, Eq, FromHttpApiData)
