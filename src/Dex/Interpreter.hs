@@ -12,6 +12,13 @@ import           Ledger.Constraints               as Constraints
 import qualified PlutusTx.Builtins                as Builtins
 import           Data.Either.Combinators          (maybeToRight)
 import           Dex.Utils
+import           PlutusTx.IsData
+import qualified PlutusTx
+import qualified Data.Map                         as Map
+import qualified Ledger.Typed.Scripts             as Scripts
+import           Plutus.Contract                  hiding (when)
+import           Proxy.Contract.OnChain
+import           Dex.Contract.OffChain
 
 --todo: lift MkTxError to dex error
 interpretOp :: Operation a -> Pool -> Either MkTxError (Tx, TxOut)
@@ -32,7 +39,19 @@ createSwapTransaction :: SwapOpData -> Pool -> Either MkTxError UnbalancedTx
 createSwapTransaction SwapOpData{..} Pool{..}
     | swapPoolId /= (poolId poolData) = Left TypedValidatorMissing -- check that poolid is correct
     | checkPoolContainsToken inputTokenSymbol inputTokenName poolData /= True = Left TypedValidatorMissing -- check that pool contains token to swap
-    | otherwise = undefined
+    | otherwise = let
+        value = lovelaceValueOf 10
+        lookups  = Constraints.otherData datum <>
+                   Constraints.otherScript (Scripts.validatorScript proxyInstance) <>
+                   Constraints.unspentOutputs (Map.singleton proxyTxOutRef o)
+
+        redeemer = Redeemer $ PlutusTx.toData Swap
+
+        tx =  Constraints.mustSpendScriptOutput proxyTxOutRef redeemer <>
+              Constraints.mustPayToTheScript proxyDatum value
+
+        unTx = Constraints.mkTx @ProxySwapping lookups tx
+    in unTx
 
 -- createSwapTransaction proxyTxOutRef proxyDatum datum o =
     -- let
