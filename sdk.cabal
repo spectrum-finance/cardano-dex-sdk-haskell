@@ -88,4 +88,7 @@ library
         plutus-contract,
         cardano-dex,
         singletons,
-        either
+        either,
+        aeson-gadt-th,
+        some,
+        dependent-sum-template

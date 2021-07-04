@@ -5,6 +5,14 @@
 {-# LANGUAGE DeriveAnyClass            #-}
 {-# LANGUAGE StandaloneDeriving        #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# OPTIONS_GHC -ddump-splices #-}
 
 module Dex.Models where
 
@@ -15,12 +23,23 @@ import           Plutus.V1.Ledger.TxId
 import           Plutus.V1.Ledger.Scripts
 import           Playground.Contract (FromJSON, Generic, ToJSON, ToSchema)
 import           Servant.API
+import Data.GADT.Compare
+import Data.GADT.Show.TH
+import Data.Aeson.GADT.TH
 
 newtype PoolId = PoolId Builtins.ByteString
     deriving (Show, Generic, FromJSON, ToJSON, Eq, FromHttpApiData)
 
 newtype GId = GId { gIdx :: Integer }
     deriving (Show, Generic, FromJSON, ToJSON)
+
+data FullTxOut = FullTxOut {
+    txOutRefId       :: TxId,
+    txOutRefIdx      :: Integer, -- ^ Index into the referenced transaction's outputs
+    txOutAddress     :: Address,
+    txOutValue       :: Value,
+    fullTxOutDatum   :: Datum
+} deriving (Show, Generic, FromJSON, ToJSON)
 
 data SwapOpData = SwapOpData {
     swapPoolId :: PoolId,
@@ -57,6 +76,8 @@ data Operation a where
     DepositOperation :: DepositOpData -> Operation DepositOpData
     RedeemOperation  :: RedeemOpData -> Operation RedeemOpData
 
+deriveJSONGADT ''Operation
+
 data ParsedOperation = forall a . (Show a, Generic a, FromJSON a, ToJSON a) => ParsedOperation { op :: Operation a }
 
 data PoolData = PoolData {
@@ -73,12 +94,4 @@ data Pool = Pool {
     gId :: GId,
     poolData :: PoolData,
     fullTxOut :: FullTxOut
-} deriving (Show, Generic, FromJSON, ToJSON)
-
-data FullTxOut = FullTxOut {
-    txOutRefId       :: TxId,
-    txOutRefIdx      :: Integer, -- ^ Index into the referenced transaction's outputs
-    txOutAddress     :: Address,
-    txOutValue       :: Value,
-    fullTxOutDatum   :: Datum
 } deriving (Show, Generic, FromJSON, ToJSON)
