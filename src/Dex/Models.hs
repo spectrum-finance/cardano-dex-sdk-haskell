@@ -57,7 +57,7 @@ data Operation a where
     DepositOperation :: DepositOpData -> Operation DepositOpData
     RedeemOperation  :: RedeemOpData -> Operation RedeemOpData
 
-data ParsedOperation = forall a. ParsedOperation { op :: Operation a }
+data ParsedOperation = forall a . (Show a, Generic a, FromJSON a, ToJSON a) => ParsedOperation { op :: Operation a }
 
 data PoolData = PoolData {
     poolId :: PoolId,
