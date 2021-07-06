@@ -36,22 +36,23 @@ interpretOp op pool =
 
 --todo: lift MkTxError to dex error. Set correct errors. Now wip
 createSwapTransaction :: SwapOpData -> Pool -> Either MkTxError UnbalancedTx
-createSwapTransaction SwapOpData{..} Pool{..}
-    | swapPoolId /= (poolId poolData) = Left TypedValidatorMissing -- check that poolid is correct
-    | checkPoolContainsToken inputTokenSymbol inputTokenName poolData /= True = Left TypedValidatorMissing -- check that pool contains token to swap
-    | otherwise = let
-        value = lovelaceValueOf 10
-        lookups  = Constraints.otherData datum <>
-                   Constraints.otherScript (Scripts.validatorScript proxyInstance) <>
-                   Constraints.unspentOutputs (Map.singleton proxyTxOutRef o)
+createSwapTransaction _ _ = undefined
+-- createSwapTransaction SwapOpData{..} Pool{..}
+--     | swapPoolId /= (poolId poolData) = Left TypedValidatorMissing -- check that poolid is correct
+--     | checkPoolContainsToken inputTokenSymbol inputTokenName poolData /= True = Left TypedValidatorMissing -- check that pool contains token to swap
+--     | otherwise = let
+--         value = lovelaceValueOf 10
+--         lookups  = Constraints.otherData datum <>
+--                    Constraints.otherScript (Scripts.validatorScript proxyInstance) <>
+--                    Constraints.unspentOutputs (Map.singleton proxyTxOutRef o)
 
-        redeemer = Redeemer $ PlutusTx.toData Swap
+--         redeemer = Redeemer $ PlutusTx.toData Swap
 
-        tx =  Constraints.mustSpendScriptOutput proxyTxOutRef redeemer <>
-              Constraints.mustPayToTheScript proxyDatum value
+--         tx =  Constraints.mustSpendScriptOutput proxyTxOutRef redeemer <>
+--               Constraints.mustPayToTheScript proxyDatum value
 
-        unTx = Constraints.mkTx @ProxySwapping lookups tx
-    in unTx
+--         unTx = Constraints.mkTx @ProxySwapping lookups tx
+--     in unTx
 
 -- createSwapTransaction proxyTxOutRef proxyDatum datum o =
     -- let

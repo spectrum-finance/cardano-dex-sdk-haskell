@@ -91,4 +91,5 @@ library
         either,
         aeson-gadt-th,
         some,
-        dependent-sum-template
+        dependent-sum-template,
+        containers
