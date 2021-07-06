@@ -4,40 +4,25 @@
 {-# LANGUAGE KindSignatures            #-}
 {-# LANGUAGE DeriveAnyClass            #-}
 {-# LANGUAGE StandaloneDeriving        #-}
+{-# LANGUAGE AllowAmbiguousTypes       #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# OPTIONS_GHC -ddump-splices #-}
 
 module Dex.Models where
 
-import qualified PlutusTx.Builtins   as Builtins
+import qualified PlutusTx.Builtins                as Builtins
 import           Plutus.V1.Ledger.Address
 import           Plutus.V1.Ledger.Value
 import           Plutus.V1.Ledger.TxId
 import           Plutus.V1.Ledger.Scripts
-import           Playground.Contract (FromJSON, Generic, ToJSON, ToSchema)
-import           Servant.API
-import Data.GADT.Compare
-import Data.GADT.Show.TH
-import Data.Aeson.GADT.TH
+import           Ledger.Typed.Scripts             (TypedValidator, ValidatorTypes (..))
+import           Playground.Contract              (FromJSON, Generic, ToJSON, ToSchema)
+import           Ledger.Constraints
 
 newtype PoolId = PoolId Builtins.ByteString
-    deriving (Show, Generic, FromJSON, ToJSON, Eq, FromHttpApiData)
+    deriving (Show, Generic, FromJSON, ToJSON, Eq)
 
-newtype GId = GId { gIdx :: Integer }
+newtype GId = GId Integer
     deriving (Show, Generic, FromJSON, ToJSON)
-
-data FullTxOut = FullTxOut {
-    txOutRefId       :: TxId,
-    txOutRefIdx      :: Integer, -- ^ Index into the referenced transaction's outputs
-    txOutAddress     :: Address,
-    txOutValue       :: Value,
-    fullTxOutDatum   :: Datum
-} deriving (Show, Generic, FromJSON, ToJSON)
 
 data SwapOpData = SwapOpData {
     swapPoolId :: PoolId,
@@ -74,8 +59,6 @@ data Operation a where
     DepositOperation :: DepositOpData -> Operation DepositOpData
     RedeemOperation  :: RedeemOpData -> Operation RedeemOpData
 
-deriveJSONGADT ''Operation
-
 data ParsedOperation = forall a. ParsedOperation { op :: Operation a }
 
 data PoolData = PoolData {
@@ -93,3 +76,19 @@ data Pool = Pool {
     poolData :: PoolData,
     fullTxOut :: FullTxOut
 } deriving (Show, Generic, FromJSON, ToJSON)
+
+data FullTxOut = FullTxOut {
+    txOutRefId       :: TxId,
+    txOutRefIdx      :: Integer, -- ^ Index into the referenced transaction's outputs
+    txOutAddress     :: Address,
+    txOutValue       :: Value,
+    fullTxOutDatum   :: Datum
+} deriving (Show, Generic, FromJSON, ToJSON)
+
+class OperationOps a where
+    getDatum :: a -> Datum
+    getValue :: a -> Value
+    checkPool :: a -> Pool -> Bool
+    generateRedeemer :: a -> Redeemer
+    generatePlutusTxLookups :: a -> ScriptLookups b
+    generatePlutusTxConstraints :: a -> TxConstraints i o

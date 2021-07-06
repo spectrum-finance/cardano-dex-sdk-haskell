@@ -12,7 +12,7 @@ import           PlutusTx.IsData                      (IsData (..))
 import qualified Ledger.Typed.Scripts                 as Scripts
 import           Data.Singletons.Prelude
 import qualified PlutusTx
-import           Ledger
+import qualified Ledger
 import           Proxy.Contract.Models
 
 getPoolOperation :: FullTxOut -> Maybe ParsedOperation
@@ -24,7 +24,7 @@ getPool txOut = fmap producePool (getAcceptableDatum txOut)
 getAcceptableDatum :: (IsData a) => FullTxOut -> Maybe a
 getAcceptableDatum txOut =
     let generalDatum = fullTxOutDatum txOut
-        datumData = getDatum generalDatum
+        datumData = Ledger.getDatum generalDatum
     in PlutusTx.fromData datumData
 
 produceOperation :: ProxyDatum -> ParsedOperation
