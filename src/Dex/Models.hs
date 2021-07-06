@@ -5,8 +5,6 @@
 {-# LANGUAGE DeriveAnyClass            #-}
 {-# LANGUAGE StandaloneDeriving        #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -78,7 +76,7 @@ data Operation a where
 
 deriveJSONGADT ''Operation
 
-data ParsedOperation = forall a . (Show a, Generic a, FromJSON a, ToJSON a) => ParsedOperation { op :: Operation a }
+data ParsedOperation = forall a. ParsedOperation { op :: Operation a }
 
 data PoolData = PoolData {
     poolId :: PoolId,
