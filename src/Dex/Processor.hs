@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE TypeInType                #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE RecordWildCards           #-}
+{-# LANGUAGE DuplicateRecordFields     #-}
 
 module Dex.Processor where
 
@@ -14,9 +16,10 @@ import           Data.Singletons.Prelude
 import qualified PlutusTx
 import qualified Ledger
 import           Proxy.Contract.Models
+import           Plutus.V1.Ledger.Value as Value
 
 getPoolOperation :: FullTxOut -> Maybe ParsedOperation
-getPoolOperation txOut = fmap produceOperation (getAcceptableDatum txOut)
+getPoolOperation txOut = fmap (produceOperation txOut) (getAcceptableDatum txOut)
 
 getPool :: FullTxOut -> Maybe Pool
 getPool txOut = fmap producePool (getAcceptableDatum txOut)
@@ -27,24 +30,56 @@ getAcceptableDatum txOut =
         datumData = Ledger.getDatum generalDatum
     in PlutusTx.fromData datumData
 
-produceOperation :: ProxyDatum -> ParsedOperation
-produceOperation proxyDatum =
+produceOperation :: FullTxOut -> ProxyDatum -> ParsedOperation
+produceOperation txOut proxyDatum =
     case (action proxyDatum) of
         Swap -> let
-            swapOpData = produceSwapOpData proxyDatum
+            swapOpData = produceSwapOpData txOut proxyDatum
             in ParsedOperation (SwapOperation swapOpData)
         Return -> let
-            redeemOpData = produceRedeemOpData proxyDatum
+            redeemOpData = produceRedeemOpData txOut proxyDatum
             in ParsedOperation (RedeemOperation redeemOpData)
 
 producePool :: ErgoDexPool -> Pool
 producePool txOut = undefined
 
-produceSwapOpData :: ProxyDatum -> SwapOpData
-produceSwapOpData _ = undefined
+--todo: check
+produceSwapOpData :: FullTxOut -> ProxyDatum -> SwapOpData
+produceSwapOpData fulltxOut ProxyDatum{..} =
+    let
+        currentOutputValue = valueOf (txOutValue fulltxOut) (CurrencySymbol $ fromCurSymbol) (TokenName $ fromTokenName)
+        minValue = (currentOutputValue * rate) * (100 - slippageTolerance)
+    in SwapOpData {
+        swapPoolId = PoolId targetPoolId,
+        inputTokenSymbol = fromCurSymbol,
+        inputTokenName = fromTokenName,
+        minOutputTokenValue = minValue,
+        dexFee = dexFeeDatum,
+        userPubKey = userPubKey,
+        proxyBox = fulltxOut
+       }
 
-produceRedeemOpData :: ProxyDatum -> RedeemOpData
-produceRedeemOpData _ = undefined
+produceRedeemOpData :: FullTxOut -> ProxyDatum -> RedeemOpData
+produceRedeemOpData fulltxOut ProxyDatum{..} =
+    RedeemOpData {
+        redeemPoolId = PoolId targetPoolId,
+        lpTokenSymbol = lpTokenSymbol,
+        lpTokenName = lpTokenName,
+        dexFee = dexFeeDatum,
+        userPubKey = userPubKey,
+        proxyBox = fulltxOut
+    }
 
-produceDepositOpData :: ProxyDatum -> DepositOpData
-produceDepositOpData _ = undefined
+--todo: rename toSymbol, toTokenName because it is not real returned token
+produceDepositOpData :: FullTxOut -> ProxyDatum -> DepositOpData
+produceDepositOpData fulltxOut ProxyDatum{..} =
+    DepositOpData {
+        depositPoolId = PoolId targetPoolId,
+        inputTokenXSymbol = fromCurSymbol,
+        inputTokenXName = fromTokenName,
+        inputTokenYSymbol = toSymbol,
+        inputTokenYName = toTokenName,
+        dexFee = dexFeeDatum,
+        userPubKey = userPubKey,
+        proxyBox = fulltxOut
+    }
