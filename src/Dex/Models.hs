@@ -10,6 +10,8 @@
 module Dex.Models where
 
 import qualified PlutusTx.Builtins                as Builtins
+import qualified Data.Set                         as Set
+import           Plutus.V1.Ledger.Tx
 import           Plutus.V1.Ledger.Address
 import           Plutus.V1.Ledger.Value
 import           Plutus.V1.Ledger.TxId
@@ -85,10 +87,8 @@ data FullTxOut = FullTxOut {
     fullTxOutDatum   :: Datum
 } deriving (Show, Generic, FromJSON, ToJSON)
 
+--todo:
 class OperationOps a where
-    getDatum :: a -> Datum
-    getValue :: a -> Value
+    getInputs :: a -> Set.Set TxIn
+    generateOutputs :: a -> Pool -> [TxOut]
     checkPool :: a -> Pool -> Bool
-    generateRedeemer :: a -> Redeemer
-    generatePlutusTxLookups :: a -> ScriptLookups b
-    generatePlutusTxConstraints :: a -> TxConstraints i o

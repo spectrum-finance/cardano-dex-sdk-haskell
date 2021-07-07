@@ -8,10 +8,12 @@ module Dex.Interpreter where
 
 import           Control.Monad.Freer
 import           Dex.Models
+import           Dex.Utils
 import           Plutus.V1.Ledger.Tx
 import           Plutus.V1.Ledger.Scripts         (Redeemer(..))
 import           Ledger.Constraints               as Constraints
 import qualified PlutusTx.Builtins                as Builtins
+import qualified Data.Set                         as Set
 import           Data.Either.Combinators          (maybeToRight)
 import           Dex.Utils
 import           PlutusTx.IsData
@@ -21,34 +23,44 @@ import qualified Ledger.Typed.Scripts             as Scripts
 import           Plutus.Contract                  hiding (when)
 import           Proxy.Contract.Models
 import           Proxy.Contract.OnChain
+import qualified Data.Map                  as Map
 import           Dex.Contract.OffChain
 import           Dex.Instances
 import           Wallet.Emulator.Wallet
 import           Wallet.Effects                   (WalletEffect(..))
+import           Wallet.API
 
 --todo: lift MkTxError to dex error
 interpretOp :: Operation a -> Pool -> Either MkTxError (Tx, TxOut)
 interpretOp op pool =
     do
-        unbalancedTx <- createUnbalancedTx op pool
-        tx <- makeTxFromUnbalanced unbalancedTx
+        tx <- createTx op pool
         -- todo: use correct error
         newPoolOutput <- maybeToRight TypedValidatorMissing (getNewPoolOut tx)
         let result = Right (tx, fullTxOut2TxOut newPoolOutput)
         result
 
 --todo: lift MkTxError to dex error. Set correct errors. Now wip
-createUnbalancedTx :: (Operation a) -> Pool -> Either MkTxError UnbalancedTx
-createUnbalancedTx operation pool
+createTx :: (Operation a) -> Pool -> Either MkTxError Tx
+createTx operation pool
     | checkPool operation pool /= True = Left TypedValidatorMissing
-    -- | swapPoolId /= (poolId poolData) = Left TypedValidatorMissing -- check that poolid is correct
-    -- | checkPoolContainsToken inputTokenSymbol inputTokenName poolData /= True = Left TypedValidatorMissing -- check that pool contains token to swap
     | otherwise = let
-        value = getValue operation
-        lookups = generatePlutusTxLookups operation
-        redeemer = generateRedeemer operation
-        tx = generatePlutusTxConstraints operation
-    in Constraints.mkTx @ProxySwapping lookups tx
+        inputs = getInputs operation
+        outputs = generateOutputs operation pool
+    --todo: remove generateEmptyValue and empty sets after tests
+    in Right (
+        Tx {
+            txInputs = inputs,
+            txCollateral = Set.empty,
+            txOutputs = outputs,
+            txForge = generateEmptyValue,
+            txFee = generateEmptyValue,
+            txValidRange = defaultSlotRange,
+            txForgeScripts = Set.empty,
+            txSignatures = Map.empty,
+            txData = Map.empty
+        }
+    )
 
 -- createSwapTransaction proxyTxOutRef proxyDatum datum o =
     -- let
@@ -64,13 +76,5 @@ createUnbalancedTx operation pool
 
     --     unTx = Constraints.mkTx @ProxySwapping lookups tx
     -- in unTx
-
-makeTxFromUnbalanced :: UnbalancedTx -> Either MkTxError Tx
-makeTxFromUnbalanced unTx =
-    run . handleWallet (balanceTx unTx)
-
 getNewPoolOut :: Tx -> Maybe FullTxOut
 getNewPoolOut _ = undefined
-
-checkPoolContainsToken :: Builtins.ByteString -> Builtins.ByteString -> PoolData -> Bool
-checkPoolContainsToken inputTokenSymbol inputTokenName pool = undefined
