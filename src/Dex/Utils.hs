@@ -3,7 +3,7 @@
 module Dex.Utils where
 
 import           Dex.Models as ROp  (RedeemOpData(..)) 
-import           Dex.Models as ROp  (RedeemOpData(..)) 
+import           Dex.Models as DOp  (DepositOpData(..)) 
 import           Dex.Models
 import           Ledger                           hiding (txOutValue)
 import qualified PlutusTx.Builtins                as Builtins
@@ -31,16 +31,56 @@ generatePoolSwapOutput swapData pool = undefined
     -- in TxOut {}
 
 generateUserDepositOutput :: DepositOpData -> Pool -> TxOut
-generateUserDepositOutput depositData poolData = undefined
-    -- let
-
-    -- in TxOut {}
+generateUserDepositOutput depositData pool = 
+    let address = Dex.Models.txOutAddress $ fullTxOut pool
+        currentPoolData = poolData pool
+        poolValue = txOutValue $ fullTxOut pool
+        reward = rewardLP depositData pool
+        poolLPTokenValue = valueOf poolValue (CurrencySymbol $ tokenLPSymbol currentPoolData) (TokenName $ tokenLPName currentPoolData)
+        newAmountLP = poolLPTokenValue - reward
+        lpValue = Value.singleton (CurrencySymbol $ tokenLPSymbol currentPoolData) (TokenName $ tokenLPName currentPoolData) newAmountLP
+        poolDatum = fullTxOutDatum $ fullTxOut pool
+        poolDatumHash = datumHash poolDatum
+    in TxOut address lpValue (Just poolDatumHash)
 
 generatePoolDepositOutput :: DepositOpData -> Pool -> TxOut
-generatePoolDepositOutput depositData poolData = undefined
-    -- let
+generatePoolDepositOutput depositData pool =
+    let address = Dex.Models.txOutAddress $ fullTxOut pool
+        depositValue = txOutValue $ DOp.proxyBox depositData
+        currentPoolData = poolData pool
+        poolValue = txOutValue $ fullTxOut pool
+        reward = rewardLP depositData pool
+        poolXTokenValue = valueOf poolValue (CurrencySymbol $ tokenXSymbol currentPoolData) (TokenName $ tokenXName currentPoolData)
+        poolYTokenValue = valueOf poolValue (CurrencySymbol $ tokenYSymbol currentPoolData) (TokenName $ tokenYName currentPoolData)
+        poolLPTokenValue = valueOf poolValue (CurrencySymbol $ tokenLPSymbol currentPoolData) (TokenName $ tokenLPName currentPoolData)
+        depositXValue = valueOf depositValue (CurrencySymbol $ inputTokenXSymbol depositData) (TokenName $ inputTokenXName depositData)
+        depositYValue = valueOf depositValue (CurrencySymbol $ inputTokenYSymbol depositData) (TokenName $ inputTokenYName depositData)
+        newAmountLP = poolLPTokenValue - reward
+        newAmountX = poolXTokenValue + depositXValue
+        newAmountY = poolYTokenValue + depositYValue
+        xValue = Value.singleton (CurrencySymbol $ tokenXSymbol currentPoolData) (TokenName $ tokenXName currentPoolData) newAmountX
+        yValue = Value.singleton (CurrencySymbol $ tokenYSymbol currentPoolData) (TokenName $ tokenYName currentPoolData) newAmountY
+        lpValue = Value.singleton (CurrencySymbol $ tokenLPSymbol currentPoolData) (TokenName $ tokenLPName currentPoolData) newAmountLP
+        resultedValue = xValue <> yValue <> lpValue
+        poolDatum = fullTxOutDatum $ fullTxOut pool
+        poolDatumHash = datumHash poolDatum
+    in TxOut address resultedValue (Just poolDatumHash)
 
-    -- in TxOut {}
+rewardLP :: DepositOpData -> Pool -> Integer
+rewardLP depositData pool =
+    let depositValue = txOutValue $ DOp.proxyBox depositData
+        currentPoolData = poolData pool
+        poolValue = txOutValue $ fullTxOut pool
+        depositXValue = valueOf depositValue (CurrencySymbol $ inputTokenXSymbol depositData) (TokenName $ inputTokenXName depositData)
+        depositYValue = valueOf depositValue (CurrencySymbol $ inputTokenYSymbol depositData) (TokenName $ inputTokenYName depositData)
+        poolXTokenValue = valueOf poolValue (CurrencySymbol $ tokenXSymbol currentPoolData) (TokenName $ tokenXName currentPoolData)
+        poolYTokenValue = valueOf poolValue (CurrencySymbol $ tokenYSymbol currentPoolData) (TokenName $ tokenYName currentPoolData)
+        poolLPTokenValue = valueOf poolValue (CurrencySymbol $ tokenLPSymbol currentPoolData) (TokenName $ tokenLPName currentPoolData)
+        currentSupply = totalEmissionLP - poolLPTokenValue
+        minX = depositXValue * currentSupply `div` poolXTokenValue
+        minY = depositYValue * currentSupply `div` poolYTokenValue
+        result = if (minX < minY) then minX else minY
+    in result
 
 generateUserRedeemOutput :: RedeemOpData -> Pool -> TxOut
 generateUserRedeemOutput redeemData pool =
@@ -91,7 +131,7 @@ sharesLP redeemData pool =
         xValue = redeemLPToken * poolXTokenValue `div` supplyLP
         yValue = redeemLPToken * poolYTokenValue `div` supplyLP
     in (xValue, yValue)
-    
+
 generateEmptyValue :: Value
 generateEmptyValue = Value Map.empty
 
