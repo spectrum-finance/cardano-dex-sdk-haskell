@@ -2,8 +2,8 @@
 
 module Dex.Utils where
 
-import           Dex.Models as ROp  (RedeemOpData(..)) 
-import           Dex.Models as DOp  (DepositOpData(..)) 
+import           Dex.Models as ROp  (RedeemOpData(..))
+import           Dex.Models as DOp  (DepositOpData(..))
 import           Dex.Models
 import           Ledger                           hiding (txOutValue)
 import qualified PlutusTx.Builtins                as Builtins
@@ -18,20 +18,60 @@ generateUserSwapOutput :: SwapOpData -> Pool -> TxOut
 generateUserSwapOutput SwapOpData{..} Pool{..} =
     let
         address = pubKeyHashAddress $ PubKeyHash userPubKey
-        toSwapTokenSymbol = if (inputTokenSymbol == (tokenXSymbol poolData)) then (tokenYSymbol poolData) else (tokenXSymbol poolData)
+        boxToSwapValue = txOutValue proxyBox
+        tokenSymbolToSwap = if (inputTokenSymbol == (tokenXSymbol poolData)) then (tokenYSymbol poolData) else (tokenXSymbol poolData)
         toSwapTokenName = if (inputTokenName == (tokenXName poolData)) then (tokenYName poolData) else (tokenXName poolData)
-        currentRate = calculateSwapRate toSwapTokenSymbol toSwapTokenName (txOutValue proxyBox) fullTxOut
-        -- value = Value { Map.Map toSwapToken }
-    in undefined --TxOut {}
+        poolValue = txOutValue $ fullTxOut
+        boxXTokenValue = valueOf boxToSwapValue (CurrencySymbol $ tokenXSymbol poolData) (TokenName $ tokenXName poolData)
+        boxYTokenValue = valueOf boxToSwapValue (CurrencySymbol $ tokenYSymbol poolData) (TokenName $ tokenYName poolData)
+        poolXTokenValue = valueOf poolValue (CurrencySymbol $ tokenXSymbol poolData) (TokenName $ tokenXName poolData)
+        poolYTokenValue = valueOf poolValue (CurrencySymbol $ tokenYSymbol poolData) (TokenName $ tokenYName poolData)
+        newXDelta =
+            if (tokenSymbolToSwap == (tokenXSymbol poolData))
+                then boxXTokenValue
+                else -poolYTokenValue * boxYTokenValue * (poolFee poolData) `div` (poolXTokenValue * feeDenominator + boxXTokenValue * (poolFee poolData))
+        newYDelta =
+            if (tokenSymbolToSwap == (tokenYSymbol poolData))
+                then boxYTokenValue
+                else -poolXTokenValue * boxXTokenValue * (poolFee poolData) `div` (poolYTokenValue * feeDenominator + boxYTokenValue * (poolFee poolData))
+        swapValue =
+            if (tokenSymbolToSwap /= tokenXSymbol poolData)
+                then Value.singleton (CurrencySymbol $ tokenXSymbol poolData) (TokenName $ tokenXName poolData) ( -newXDelta )
+                else Value.singleton (CurrencySymbol $ tokenYSymbol poolData) (TokenName $ tokenYName poolData) ( -newYDelta )
+        newValue = swapValue
+    in TxOut address newValue Nothing
 
 generatePoolSwapOutput :: SwapOpData -> Pool -> TxOut
-generatePoolSwapOutput swapData pool = undefined
-    -- let
-
-    -- in TxOut {}
+generatePoolSwapOutput SwapOpData{..} Pool{..} =
+    let
+        address = Dex.Models.txOutAddress fullTxOut
+        boxToSwapValue = txOutValue proxyBox
+        tokenSymbolToSwap = if (inputTokenSymbol == (tokenXSymbol poolData)) then (tokenYSymbol poolData) else (tokenXSymbol poolData)
+        toSwapTokenName = if (inputTokenName == (tokenXName poolData)) then (tokenYName poolData) else (tokenXName poolData)
+        poolValue = txOutValue $ fullTxOut
+        boxXTokenValue = valueOf boxToSwapValue (CurrencySymbol $ tokenXSymbol poolData) (TokenName $ tokenXName poolData)
+        boxYTokenValue = valueOf boxToSwapValue (CurrencySymbol $ tokenYSymbol poolData) (TokenName $ tokenYName poolData)
+        poolXTokenValue = valueOf poolValue (CurrencySymbol $ tokenXSymbol poolData) (TokenName $ tokenXName poolData)
+        poolYTokenValue = valueOf poolValue (CurrencySymbol $ tokenYSymbol poolData) (TokenName $ tokenYName poolData)
+        poolLPTokenValue = valueOf poolValue (CurrencySymbol $ tokenLPSymbol poolData) (TokenName $ tokenLPName poolData)
+        newXDelta =
+            if (tokenSymbolToSwap == (tokenXSymbol poolData))
+                then boxXTokenValue
+                else -poolYTokenValue * boxYTokenValue * (poolFee poolData) `div` (poolXTokenValue * feeDenominator + boxXTokenValue * (poolFee poolData))
+        newYDelta =
+            if (tokenSymbolToSwap == (tokenYSymbol poolData))
+                then boxYTokenValue
+                else -poolXTokenValue * boxXTokenValue * (poolFee poolData) `div` (poolYTokenValue * feeDenominator + boxYTokenValue * (poolFee poolData))
+        xValue = Value.singleton (CurrencySymbol $ tokenXSymbol poolData) (TokenName $ tokenXName poolData) (poolXTokenValue + newXDelta)
+        yValue = Value.singleton (CurrencySymbol $ tokenYSymbol poolData) (TokenName $ tokenYName poolData) (poolYTokenValue + newYDelta)
+        lpValue = Value.singleton (CurrencySymbol $ tokenLPSymbol poolData) (TokenName $ tokenLPName poolData) poolLPTokenValue
+        newValue = xValue <> yValue <> lpValue
+        poolDatum = fullTxOutDatum fullTxOut
+        poolDatumHash = datumHash poolDatum
+    in TxOut address newValue (Just poolDatumHash)
 
 generateUserDepositOutput :: DepositOpData -> Pool -> TxOut
-generateUserDepositOutput depositData pool = 
+generateUserDepositOutput depositData pool =
     let address = Dex.Models.txOutAddress $ fullTxOut pool
         currentPoolData = poolData pool
         poolValue = txOutValue $ fullTxOut pool
@@ -135,5 +175,5 @@ sharesLP redeemData pool =
 generateEmptyValue :: Value
 generateEmptyValue = Value Map.empty
 
-calculateSwapRate :: Builtins.ByteString -> Builtins.ByteString -> Value -> FullTxOut -> Integer
-calculateSwapRate tokenSymbolToSwap tokenNameToSwap boxToSwapValue currentPool = undefined
+feeDenominator :: Integer
+feeDenominator = 1000

@@ -65,6 +65,7 @@ data ParsedOperation = forall a. ParsedOperation { op :: Operation a }
 
 data PoolData = PoolData {
     poolId :: PoolId,
+    poolFee :: Integer,
     tokenXSymbol :: Builtins.ByteString,
     tokenXName :: Builtins.ByteString,
     tokenYSymbol :: Builtins.ByteString,
