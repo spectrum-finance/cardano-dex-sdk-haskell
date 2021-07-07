@@ -18,15 +18,15 @@ instance OperationOps (Operation a) where
             userOutput = generateUserSwapOutput swapData poolToSwap
             poolOutput = generatePoolSwapOutput swapData poolToSwap
         in [userOutput, poolOutput]
-    generateOutputs (DepositOperation depositData) Pool{..} =
+    generateOutputs (DepositOperation depositData) pool =
         let
-            userOutput = generateUserDepositOutput depositData poolData
-            poolOutput = generatePoolDepositOutput depositData poolData
+            userOutput = generateUserDepositOutput depositData pool
+            poolOutput = generatePoolDepositOutput depositData pool
         in [userOutput, poolOutput]
-    generateOutputs (RedeemOperation redeemData) Pool{..} =
+    generateOutputs (RedeemOperation redeemData) pool =
         let
-            userOutput = generateUserRedeemOutput redeemData poolData
-            poolOutput = generatePoolRedeemOutput redeemData poolData
+            userOutput = generateUserRedeemOutput redeemData pool
+            poolOutput = generatePoolRedeemOutput redeemData pool
         in [userOutput, poolOutput]
     checkPool (SwapOperation swapData) pool = undefined
     checkPool (DepositOperation depositData) pool = undefined

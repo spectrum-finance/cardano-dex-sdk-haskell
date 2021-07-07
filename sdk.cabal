@@ -92,4 +92,5 @@ library
         aeson-gadt-th,
         some,
         dependent-sum-template,
-        containers
+        containers,
+        freer-simple

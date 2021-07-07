@@ -2,10 +2,12 @@
 
 module Dex.Utils where
 
+import           Dex.Models as ROp  (RedeemOpData(..)) 
+import           Dex.Models as ROp  (RedeemOpData(..)) 
 import           Dex.Models
 import           Ledger                           hiding (txOutValue)
 import qualified PlutusTx.Builtins                as Builtins
-import           Plutus.V1.Ledger.Value
+import           Plutus.V1.Ledger.Value as Value
 import qualified PlutusTx.AssocMap                as Map
 import           Plutus.V1.Ledger.Address
 
@@ -28,30 +30,68 @@ generatePoolSwapOutput swapData pool = undefined
 
     -- in TxOut {}
 
-generateUserDepositOutput :: DepositOpData -> PoolData -> TxOut
+generateUserDepositOutput :: DepositOpData -> Pool -> TxOut
 generateUserDepositOutput depositData poolData = undefined
     -- let
 
     -- in TxOut {}
 
-generatePoolDepositOutput :: DepositOpData -> PoolData -> TxOut
+generatePoolDepositOutput :: DepositOpData -> Pool -> TxOut
 generatePoolDepositOutput depositData poolData = undefined
     -- let
 
     -- in TxOut {}
 
-generateUserRedeemOutput :: RedeemOpData -> PoolData -> TxOut
-generateUserRedeemOutput redeemData poolData = undefined
-    -- let
+generateUserRedeemOutput :: RedeemOpData -> Pool -> TxOut
+generateUserRedeemOutput redeemData pool =
+    let address = pubKeyHashAddress $ PubKeyHash $ ROp.userPubKey redeemData
+        currentPoolData = poolData pool
+        (shareX, shareY) = sharesLP redeemData pool
+        xValue = Value.singleton (CurrencySymbol $ tokenXSymbol currentPoolData) (TokenName $ tokenXName currentPoolData) shareX
+        yValue = Value.singleton (CurrencySymbol $ tokenYSymbol currentPoolData) (TokenName $ tokenYName currentPoolData) shareY
+        -- redeemBox.value - minerFeeBox.value - dexFeeBox.value ???
+        newValue = xValue <> yValue
+        poolDatum = fullTxOutDatum $ fullTxOut pool
+        poolDatumHash = datumHash poolDatum
+    in TxOut address newValue (Just poolDatumHash)
 
-    -- in TxOut {}
+generatePoolRedeemOutput :: RedeemOpData -> Pool -> TxOut
+generatePoolRedeemOutput redeemData pool =
+    let address = Dex.Models.txOutAddress $ fullTxOut pool
+        currentPoolData = poolData pool
+        poolValue = txOutValue $ fullTxOut pool
+        poolXTokenValue = valueOf poolValue (CurrencySymbol $ tokenXSymbol currentPoolData) (TokenName $ tokenXName currentPoolData)
+        poolYTokenValue = valueOf poolValue (CurrencySymbol $ tokenYSymbol currentPoolData) (TokenName $ tokenYName currentPoolData)
+        poolLPTokenValue = valueOf poolValue (CurrencySymbol $ tokenLPSymbol currentPoolData) (TokenName $ tokenLPName currentPoolData)
+        redeemLPToken = valueOf (txOutValue $ ROp.proxyBox redeemData) (CurrencySymbol $ tokenLPSymbol currentPoolData) (TokenName $ tokenLPName currentPoolData)
+        (shareX, shareY) = sharesLP redeemData pool
+        newAmountLP = poolLPTokenValue + redeemLPToken
+        newAmountX = poolXTokenValue - shareX
+        newAmountY = poolYTokenValue - shareY
+        xValue = Value.singleton (CurrencySymbol $ tokenXSymbol currentPoolData) (TokenName $ tokenXName currentPoolData) newAmountX
+        yValue = Value.singleton (CurrencySymbol $ tokenYSymbol currentPoolData) (TokenName $ tokenYName currentPoolData) newAmountY
+        lpValue = Value.singleton (CurrencySymbol $ tokenLPSymbol currentPoolData) (TokenName $ tokenLPName currentPoolData) newAmountLP
+        newValue = xValue <> yValue <> lpValue
+        poolDatum = fullTxOutDatum $ fullTxOut pool
+        poolDatumHash = datumHash poolDatum
+    in TxOut address newValue (Just poolDatumHash)
 
-generatePoolRedeemOutput :: RedeemOpData -> PoolData -> TxOut
-generatePoolRedeemOutput redeemData poolData = undefined
-    -- let
+totalEmissionLP :: Integer
+totalEmissionLP = 0x7fffffffffffffff
 
-    -- in TxOut {}
-
+sharesLP :: RedeemOpData -> Pool -> (Integer, Integer)
+sharesLP redeemData pool =
+    let poolValue = txOutValue $ fullTxOut pool
+        currentPoolData = poolData pool
+        poolLPTokenValue = valueOf poolValue (CurrencySymbol $ tokenLPSymbol currentPoolData) (TokenName $ tokenLPName currentPoolData)
+        redeemLPToken = valueOf (txOutValue $ ROp.proxyBox redeemData) (CurrencySymbol $ tokenLPSymbol currentPoolData) (TokenName $ tokenLPName currentPoolData)
+        poolXTokenValue = valueOf poolValue (CurrencySymbol $ tokenXSymbol currentPoolData) (TokenName $ tokenXName currentPoolData)
+        poolYTokenValue = valueOf poolValue (CurrencySymbol $ tokenYSymbol currentPoolData) (TokenName $ tokenYName currentPoolData)
+        supplyLP = totalEmissionLP - poolLPTokenValue
+        xValue = redeemLPToken * poolXTokenValue `div` supplyLP
+        yValue = redeemLPToken * poolYTokenValue `div` supplyLP
+    in (xValue, yValue)
+    
 generateEmptyValue :: Value
 generateEmptyValue = Value Map.empty
 
