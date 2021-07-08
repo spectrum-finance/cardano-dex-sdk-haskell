@@ -76,6 +76,7 @@ library
                      Dex.Models
                      Dex.Processor
                      Dex.Utils
+                     Dex.Instances
 
     build-depends: 
         plutus-ledger,
