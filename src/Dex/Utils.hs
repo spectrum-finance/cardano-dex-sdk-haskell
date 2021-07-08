@@ -106,6 +106,9 @@ generatePoolDepositOutput depositData pool =
         poolDatumHash = datumHash poolDatum
     in TxOut address resultedValue (Just poolDatumHash)
 
+test :: Integer
+test = undefined
+
 rewardLP :: DepositOpData -> Pool -> Integer
 rewardLP depositData pool =
     let depositValue = txOutValue $ DOp.proxyBox depositData

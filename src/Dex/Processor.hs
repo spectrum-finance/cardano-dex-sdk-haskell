@@ -36,7 +36,7 @@ produceOperation txOut proxyDatum =
         Swap -> let
             swapOpData = produceSwapOpData txOut proxyDatum
             in ParsedOperation (SwapOperation swapOpData)
-        Return -> let
+        Redeem -> let
             redeemOpData = produceRedeemOpData txOut proxyDatum
             in ParsedOperation (RedeemOperation redeemOpData)
 

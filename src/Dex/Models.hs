@@ -6,6 +6,7 @@
 {-# LANGUAGE StandaloneDeriving        #-}
 {-# LANGUAGE AllowAmbiguousTypes       #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE DuplicateRecordFields     #-}
 
 module Dex.Models where
 
@@ -77,12 +78,13 @@ data PoolData = PoolData {
 data Pool = Pool {
     gId :: GId,
     poolData :: PoolData,
-    fullTxOut :: FullTxOut
+    fullTxOut :: FullTxOut,
+    poolTxIn :: TxOutRef
 } deriving (Show, Generic, FromJSON, ToJSON)
 
 data FullTxOut = FullTxOut {
-    txOutRefId       :: TxId,
-    txOutRefIdx      :: Integer, -- ^ Index into the referenced transaction's outputs
+    refId            :: TxId,
+    refIdx           :: Integer, -- ^ Index into the referenced transaction's outputs
     txOutAddress     :: Address,
     txOutValue       :: Value,
     fullTxOutDatum   :: Datum
@@ -90,6 +92,6 @@ data FullTxOut = FullTxOut {
 
 --todo:
 class OperationOps a where
-    getInputs :: a -> Set.Set TxIn
+    getInputs :: a -> Pool -> Set.Set TxIn
     generateOutputs :: a -> Pool -> [TxOut]
     checkPool :: a -> Pool -> Bool

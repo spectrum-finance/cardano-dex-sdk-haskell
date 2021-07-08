@@ -45,7 +45,7 @@ createTx :: (Operation a) -> Pool -> Either MkTxError Tx
 createTx operation pool
     | checkPool operation pool /= True = Left TypedValidatorMissing
     | otherwise = let
-        inputs = getInputs operation
+        inputs = getInputs operation pool
         outputs = generateOutputs operation pool
     --todo: remove generateEmptyValue and empty sets after tests
     in Right (
