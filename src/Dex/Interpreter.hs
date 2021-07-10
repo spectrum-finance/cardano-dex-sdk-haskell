@@ -4,7 +4,10 @@
 {-# LANGUAGE TypeApplications      #-}
 {-# LANGUAGE GADTs                 #-}
 
-module Dex.Interpreter where
+module Dex.Interpreter
+    ( InterpreterService(..)
+    , mkInterpreterService
+    ) where
 
 import           Control.Monad.Freer
 import           Dex.Models
@@ -30,19 +33,28 @@ import           Wallet.Emulator.Wallet
 import           Wallet.Effects                   (WalletEffect(..))
 import           Wallet.API
 
+data InterpreterService a b = InterpreterService
+    { interpretOp :: Operation a -> Pool -> Either MkTxError (Tx, TxOut)
+    , createTx :: (Operation b) -> Pool -> Either MkTxError Tx
+    , getNewPoolOut :: Tx -> Maybe FullTxOut
+    }
+
+mkInterpreterService :: InterpreterService a b
+mkInterpreterService = InterpreterService interpretOp' createTx' getNewPoolOut'
+
 --todo: lift MkTxError to dex error
-interpretOp :: Operation a -> Pool -> Either MkTxError (Tx, TxOut)
-interpretOp op pool =
+interpretOp' :: Operation a -> Pool -> Either MkTxError (Tx, TxOut)
+interpretOp' op pool =
     do
-        tx <- createTx op pool
+        tx <- createTx' op pool
         -- todo: use correct error
-        newPoolOutput <- maybeToRight TypedValidatorMissing (getNewPoolOut tx)
+        newPoolOutput <- maybeToRight TypedValidatorMissing (getNewPoolOut' tx)
         let result = Right (tx, fullTxOut2TxOut newPoolOutput)
         result
 
 --todo: lift MkTxError to dex error. Set correct errors. Now wip
-createTx :: (Operation a) -> Pool -> Either MkTxError Tx
-createTx operation pool
+createTx' :: (Operation a) -> Pool -> Either MkTxError Tx
+createTx' operation pool
     | checkPool operation pool /= True = Left TypedValidatorMissing
     | otherwise = let
         inputs = getInputs operation pool
@@ -76,5 +88,5 @@ createTx operation pool
 
     --     unTx = Constraints.mkTx @ProxySwapping lookups tx
     -- in unTx
-getNewPoolOut :: Tx -> Maybe FullTxOut
-getNewPoolOut _ = undefined
+getNewPoolOut' :: Tx -> Maybe FullTxOut
+getNewPoolOut' _ = undefined

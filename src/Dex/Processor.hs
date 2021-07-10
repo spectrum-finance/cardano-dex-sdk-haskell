@@ -4,25 +4,32 @@
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE DuplicateRecordFields     #-}
 
-module Dex.Processor where
+module Dex.Processor
+    ( ProcessorService(..)
+    , mkProcessorService
+    ) where
 
 import           Dex.Models
 import           Dex.Contract.Models
-import           Proxy.Contract.OnChain
-import           Data.Maybe
 import           PlutusTx.IsData                      (IsData (..))
-import qualified Ledger.Typed.Scripts                 as Scripts
-import           Data.Singletons.Prelude
 import qualified PlutusTx
 import qualified Ledger
 import           Proxy.Contract.Models
 import           Plutus.V1.Ledger.Value as Value
 
-getPoolOperation :: FullTxOut -> Maybe ParsedOperation
-getPoolOperation txOut = fmap (produceOperation txOut) (getAcceptableDatum txOut)
+data ProcessorService = ProcessorService
+    { getPoolOperation :: FullTxOut -> Maybe ParsedOperation
+    , getPool :: FullTxOut -> Maybe Pool
+    }
 
-getPool :: FullTxOut -> Maybe Pool
-getPool txOut = fmap producePool (getAcceptableDatum txOut)
+mkProcessorService :: ProcessorService
+mkProcessorService = ProcessorService getPoolOperation' getPool'
+
+getPoolOperation' :: FullTxOut -> Maybe ParsedOperation
+getPoolOperation' txOut = fmap (produceOperation' txOut) (getAcceptableDatum txOut)
+
+getPool' :: FullTxOut -> Maybe Pool
+getPool' txOut = fmap producePool (getAcceptableDatum txOut)
 
 getAcceptableDatum :: (IsData a) => FullTxOut -> Maybe a
 getAcceptableDatum txOut =
@@ -30,22 +37,22 @@ getAcceptableDatum txOut =
         datumData = Ledger.getDatum generalDatum
     in PlutusTx.fromData datumData
 
-produceOperation :: FullTxOut -> ProxyDatum -> ParsedOperation
-produceOperation txOut proxyDatum =
+produceOperation' :: FullTxOut -> ProxyDatum -> ParsedOperation
+produceOperation' txOut proxyDatum =
     case (action proxyDatum) of
         Swap -> let
-            swapOpData = produceSwapOpData txOut proxyDatum
+            swapOpData = produceSwapOpData' txOut proxyDatum
             in ParsedOperation (SwapOperation swapOpData)
         Redeem -> let
-            redeemOpData = produceRedeemOpData txOut proxyDatum
+            redeemOpData = produceRedeemOpData' txOut proxyDatum
             in ParsedOperation (RedeemOperation redeemOpData)
 
 producePool :: ErgoDexPool -> Pool
 producePool txOut = undefined
 
 --todo: check
-produceSwapOpData :: FullTxOut -> ProxyDatum -> SwapOpData
-produceSwapOpData fulltxOut ProxyDatum{..} =
+produceSwapOpData' :: FullTxOut -> ProxyDatum -> SwapOpData
+produceSwapOpData' fulltxOut ProxyDatum{..} =
     let
         currentOutputValue = valueOf (txOutValue fulltxOut) (CurrencySymbol $ fromCurSymbol) (TokenName $ fromTokenName)
         minValue = (currentOutputValue * rate) * (100 - slippageTolerance)
@@ -59,8 +66,8 @@ produceSwapOpData fulltxOut ProxyDatum{..} =
         proxyBox = fulltxOut
        }
 
-produceRedeemOpData :: FullTxOut -> ProxyDatum -> RedeemOpData
-produceRedeemOpData fulltxOut ProxyDatum{..} =
+produceRedeemOpData' :: FullTxOut -> ProxyDatum -> RedeemOpData
+produceRedeemOpData' fulltxOut ProxyDatum{..} =
     RedeemOpData {
         redeemPoolId = PoolId targetPoolId,
         lpTokenSymbol = lpTokenSymbol,
@@ -71,8 +78,8 @@ produceRedeemOpData fulltxOut ProxyDatum{..} =
     }
 
 --todo: rename toSymbol, toTokenName because it is not real returned token
-produceDepositOpData :: FullTxOut -> ProxyDatum -> DepositOpData
-produceDepositOpData fulltxOut ProxyDatum{..} =
+produceDepositOpData' :: FullTxOut -> ProxyDatum -> DepositOpData
+produceDepositOpData' fulltxOut ProxyDatum{..} =
     DepositOpData {
         depositPoolId = PoolId targetPoolId,
         inputTokenXSymbol = fromCurSymbol,
