@@ -24,7 +24,7 @@ import           Ledger.Constraints
 newtype PoolId = PoolId Builtins.ByteString
     deriving (Show, Generic, FromJSON, ToJSON, Eq)
 
-newtype GId = GId Integer
+newtype GId = GId { gIdx :: Integer }
     deriving (Show, Generic, FromJSON, ToJSON)
 
 data SwapOpData = SwapOpData {
