@@ -34,13 +34,13 @@ import           Wallet.Effects                   (WalletEffect(..))
 import           Wallet.API
 
 data InterpreterService a b = InterpreterService
-    { interpretOp :: Operation a -> Pool -> Either MkTxError (Tx, TxOut)
-    , createTx :: (Operation b) -> Pool -> Either MkTxError Tx
-    , getNewPoolOut :: Tx -> Maybe FullTxOut
+    { deposit :: (Operation SwapOpData) -> Pool -> Either MkTxError Tx
+    , redeem :: (Operation DepositOpData) -> Pool -> Either MkTxError Tx
+    , swap :: (Operation RedeemOpData) -> Pool -> Either MkTxError Tx
     }
 
 mkInterpreterService :: InterpreterService a b
-mkInterpreterService = InterpreterService interpretOp' createTx' getNewPoolOut'
+mkInterpreterService = InterpreterService deposit' redeem' swap'
 
 --todo: lift MkTxError to dex error
 interpretOp' :: Operation a -> Pool -> Either MkTxError (Tx, TxOut)
@@ -74,19 +74,14 @@ createTx' operation pool
         }
     )
 
--- createSwapTransaction proxyTxOutRef proxyDatum datum o =
-    -- let
-    --     value = lovelaceValueOf 10
-    --     lookups  = Constraints.otherData datum <>
-    --                Constraints.otherScript (Scripts.validatorScript proxyInstance) <>
-    --                Constraints.unspentOutputs (Map.singleton proxyTxOutRef o)
-
-    --     redeemer = Redeemer $ PlutusTx.toData Swap
-
-    --     tx =  Constraints.mustSpendScriptOutput proxyTxOutRef redeemer <>
-    --           Constraints.mustPayToTheScript proxyDatum value
-
-    --     unTx = Constraints.mkTx @ProxySwapping lookups tx
-    -- in unTx
 getNewPoolOut' :: Tx -> Maybe FullTxOut
 getNewPoolOut' _ = undefined
+
+deposit' :: Operation SwapOpData -> Pool -> Either MkTxError Tx
+deposit' = createTx'
+
+redeem' :: Operation DepositOpData -> Pool -> Either MkTxError Tx
+redeem' = createTx'
+
+swap' :: Operation RedeemOpData -> Pool -> Either MkTxError Tx
+swap' = createTx'
