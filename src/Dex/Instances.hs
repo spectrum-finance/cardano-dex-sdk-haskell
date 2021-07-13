@@ -24,7 +24,7 @@ instance OperationOps (Operation a) where
     getInputs (SwapOperation swapData) Pool{..} =
       let
         swapProxyRedeemer = Redeemer $ PlutusTx.toData Swap
-        inputWithProxyTxType = ConsumeScriptAddress dexValidator swapProxyRedeemer (fullTxOutDatum $ SOp.proxyBox swapData)
+        inputWithProxyTxType = ConsumeScriptAddress proxyValidator swapProxyRedeemer (fullTxOutDatum $ SOp.proxyBox swapData)
         inputWithProxyContract = TxIn {
           txInRef = TxOutRef {
             txOutRefId = refId (SOp.proxyBox swapData),
@@ -45,7 +45,7 @@ instance OperationOps (Operation a) where
     getInputs (DepositOperation depositData) Pool{..} =
       let
         depositProxyRedeemer = Redeemer $ PlutusTx.toData Deposit
-        inputWithProxyTxType = ConsumeScriptAddress dexValidator depositProxyRedeemer (fullTxOutDatum $ DOp.proxyBox depositData)
+        inputWithProxyTxType = ConsumeScriptAddress proxyValidator depositProxyRedeemer (fullTxOutDatum $ DOp.proxyBox depositData)
         inputWithProxyContract = TxIn {
           txInRef = TxOutRef {
             txOutRefId = refId (DOp.proxyBox depositData),
@@ -66,7 +66,7 @@ instance OperationOps (Operation a) where
     getInputs (RedeemOperation redeemData) Pool{..} =
       let
         redeemProxyRedeemer = Redeemer $ PlutusTx.toData Redeem
-        inputWithProxyTxType = ConsumeScriptAddress dexValidator redeemProxyRedeemer (fullTxOutDatum $ ROp.proxyBox redeemData)
+        inputWithProxyTxType = ConsumeScriptAddress proxyValidator redeemProxyRedeemer (fullTxOutDatum $ ROp.proxyBox redeemData)
         inputWithProxyContract = TxIn {
           txInRef = TxOutRef {
             txOutRefId = refId (ROp.proxyBox redeemData),
@@ -102,49 +102,33 @@ instance OperationOps (Operation a) where
     checkPool (SwapOperation swapData) pool =
         let currentPoolData = poolData pool
             poolValue = txOutValue $ fullTxOut pool
+            qtyOfSwapToken = assetClassValueOf poolValue (toGetCoin swapData)
+            qtyOfGetTokenInPool = assetClassValueOf poolValue (toSwapCoin swapData)
             isCorrectPoolId = poolId currentPoolData == swapPoolId swapData
-            isCorrectXTokenSymbol = inputTokenSymbol swapData == tokenXSymbol currentPoolData
-            isCorrectXTokenName = inputTokenName swapData == tokenXName currentPoolData
-            isCorrectYTokenSymbol = inputTokenSymbol swapData == tokenYSymbol currentPoolData
-            isCorrectYTokenName = inputTokenName swapData == tokenYName currentPoolData
-            poolXTokenValue = valueOf poolValue (CurrencySymbol $ tokenLPSymbol currentPoolData) (TokenName $ tokenLPName currentPoolData)
-            poolYTokenValue = valueOf poolValue (CurrencySymbol $ tokenXSymbol currentPoolData) (TokenName $ tokenXName currentPoolData)
-            isCorrectXAmount = poolXTokenValue - (minOutputTokenValue swapData) > 0
-            isCorrectYAmount = poolYTokenValue - (minOutputTokenValue swapData) > 0
-        in (isCorrectXAmount || isCorrectYAmount) && ((isCorrectXTokenSymbol && isCorrectXTokenName) || (isCorrectYTokenSymbol && isCorrectYTokenName))
+            getTokenBoundCheck = qtyOfGetTokenInPool - (minOutputTokenValue swapData) > 0
+        in isCorrectPoolId && getTokenBoundCheck
     checkPool (DepositOperation depositData) pool =
         let currentPoolData = poolData pool
             poolValue = txOutValue $ fullTxOut pool
-            isCorrectXTokenSymbol = inputTokenXSymbol depositData == tokenXSymbol currentPoolData
-            isCorrectXTokenName = inputTokenXName depositData == tokenXName currentPoolData
-            isCorrectYTokenSymbol = inputTokenYSymbol depositData == tokenYSymbol currentPoolData
-            isCorrectYTokenName = inputTokenYName depositData == tokenYName currentPoolData
+            depositValue = txOutValue $ DOp.proxyBox depositData
+            qtyOfCoinXDeposit = assetClassValueOf depositValue (xPoolCoin currentPoolData)
+            qtyOfCoinYDeposit = assetClassValueOf depositValue (yPoolCoin currentPoolData)
+            qtyOfLpCoinInPool = assetClassValueOf poolValue (lpPoolCoin currentPoolData)
             isCorrectPoolId = poolId currentPoolData == depositPoolId depositData
             reward = rewardLP depositData pool
-            poolLPTokenValue = valueOf poolValue (CurrencySymbol $ tokenLPSymbol currentPoolData) (TokenName $ tokenLPName currentPoolData)
-            isCorrectAmount = poolLPTokenValue - reward > 0
-        in isCorrectXTokenSymbol && isCorrectXTokenName && isCorrectYTokenSymbol && isCorrectYTokenName && isCorrectPoolId && isCorrectAmount
+            lpCoinBoundCheck = qtyOfLpCoinInPool - reward > 0
+        in (qtyOfCoinXDeposit > 0) && (qtyOfCoinYDeposit > 0) && lpCoinBoundCheck && isCorrectPoolId
 
     checkPool (RedeemOperation redeemData) pool =
         let currentPoolData = poolData pool
             poolValue = txOutValue $ fullTxOut pool
             redeemValue = txOutValue $ ROp.proxyBox redeemData
-            isCorrectLPTokenSymbol = ROp.lpTokenSymbol redeemData == tokenLPSymbol currentPoolData
-            lpTokenNameCheck = ROp.lpTokenName redeemData == tokenLPName currentPoolData
+            qtyOfLpCoinToRedeemm = assetClassValueOf redeemValue (lpPoolCoin currentPoolData)
             isCorrectPoolId = poolId currentPoolData == redeemPoolId redeemData
-            poolLPTokenValue = valueOf poolValue (CurrencySymbol $ tokenLPSymbol currentPoolData) (TokenName $ tokenLPName currentPoolData)
-            poolXTokenValue = valueOf poolValue (CurrencySymbol $ tokenLPSymbol currentPoolData) (TokenName $ tokenLPName currentPoolData)
-            poolYTokenValue = valueOf poolValue (CurrencySymbol $ tokenXSymbol currentPoolData) (TokenName $ tokenXName currentPoolData)
-            redeemLPTokenValue = valueOf poolValue (CurrencySymbol $ tokenYSymbol currentPoolData) (TokenName $ tokenYName currentPoolData)
-            (shareX, shareY) = sharesLP redeemData pool
-            isCorrectXAmount = poolXTokenValue - shareX > 0
-            isCorrectYAmount = poolYTokenValue - shareY > 0
-        in isCorrectLPTokenSymbol && lpTokenNameCheck && isCorrectXAmount && isCorrectYAmount && isCorrectPoolId
+        in (qtyOfLpCoinToRedeemm > 0) && isCorrectPoolId
 
 
---checkPoolContainsToken :: Builtins.ByteString -> Builtins.ByteString -> PoolData -> Bool
---checkPoolContainsToken inputTokenSymbol inputTokenName pool = undefined
---    -- Constraints.otherData datum <>
+    -- Constraints.otherData datum <>
     --                Constraints.otherScript (Scripts.validatorScript proxyInstance) <>
     --                Constraints.unspentOutputs (Map.singleton proxyTxOutRef o)
 

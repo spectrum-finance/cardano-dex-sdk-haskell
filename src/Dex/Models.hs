@@ -17,6 +17,7 @@ import           Plutus.V1.Ledger.Address
 import           Plutus.V1.Ledger.Value
 import           Plutus.V1.Ledger.TxId
 import           Plutus.V1.Ledger.Scripts
+import           Plutus.V1.Ledger.Crypto
 import           Ledger.Typed.Scripts             (TypedValidator, ValidatorTypes (..))
 import           Playground.Contract              (FromJSON, Generic, ToJSON, ToSchema)
 import           Ledger.Constraints
@@ -29,31 +30,28 @@ newtype GId = GId { gIdx :: Integer }
 
 data SwapOpData = SwapOpData {
     swapPoolId :: PoolId,
-    inputTokenSymbol :: Builtins.ByteString,
-    inputTokenName :: Builtins.ByteString,
+    toSwapCoin :: AssetClass,
+    toGetCoin :: AssetClass,
     minOutputTokenValue :: Integer,
     dexFee :: Integer,
-    userPubKey :: Builtins.ByteString,
+    userAddress :: Address,
     proxyBox :: FullTxOut
 } deriving (Show, Generic, FromJSON, ToJSON)
 
 data DepositOpData = DepositOpData{
     depositPoolId :: PoolId,
-    inputTokenXSymbol :: Builtins.ByteString,
-    inputTokenXName :: Builtins.ByteString,
-    inputTokenYSymbol :: Builtins.ByteString,
-    inputTokenYName :: Builtins.ByteString,
+    depositXCoin :: AssetClass,
+    depositYCoin :: AssetClass,
     dexFee :: Integer,
-    userPubKey :: Builtins.ByteString,
+    userAddress :: Address,
     proxyBox :: FullTxOut
 } deriving (Show, Generic, FromJSON, ToJSON)
 
 data RedeemOpData = RedeemOpData {
     redeemPoolId :: PoolId,
-    lpTokenSymbol :: Builtins.ByteString,
-    lpTokenName :: Builtins.ByteString,
+    redeemLpCoin :: AssetClass,
     dexFee :: Integer,
-    userPubKey :: Builtins.ByteString,
+    userAddress :: Address,
     proxyBox :: FullTxOut
 } deriving (Show, Generic, FromJSON, ToJSON)
 
@@ -67,12 +65,9 @@ data ParsedOperation = forall a. ParsedOperation { op :: Operation a }
 data PoolData = PoolData {
     poolId :: PoolId,
     poolFee :: Integer,
-    tokenXSymbol :: Builtins.ByteString,
-    tokenXName :: Builtins.ByteString,
-    tokenYSymbol :: Builtins.ByteString,
-    tokenYName :: Builtins.ByteString,
-    tokenLPSymbol :: Builtins.ByteString,
-    tokenLPName :: Builtins.ByteString
+    xPoolCoin :: AssetClass,
+    yPoolCoin :: AssetClass,
+    lpPoolCoin :: AssetClass
 } deriving (Show, Generic, FromJSON, ToJSON)
 
 data Pool = Pool {

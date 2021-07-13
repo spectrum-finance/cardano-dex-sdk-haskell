@@ -11,6 +11,9 @@ module Dex.Processor
 
 import           Dex.Models
 import           Dex.Contract.Models
+import           Plutus.V1.Ledger.Address
+import           Plutus.V1.Ledger.Crypto
+import           Plutus.V1.Ledger.Value
 import           PlutusTx.IsData                      (IsData (..))
 import qualified PlutusTx
 import qualified Ledger
@@ -54,15 +57,15 @@ producePool txOut = undefined
 produceSwapOpData' :: FullTxOut -> ProxyDatum -> SwapOpData
 produceSwapOpData' fulltxOut ProxyDatum{..} =
     let
-        currentOutputValue = valueOf (txOutValue fulltxOut) (CurrencySymbol $ fromCurSymbol) (TokenName $ fromTokenName)
+        currentOutputValue = assetClassValueOf (txOutValue fulltxOut) xProxyToken
         minValue = (currentOutputValue * rate) * (100 - slippageTolerance)
     in SwapOpData {
         swapPoolId = PoolId targetPoolId,
-        inputTokenSymbol = fromCurSymbol,
-        inputTokenName = fromTokenName,
+        toSwapCoin = xProxyToken,
+        toGetCoin = yProxyToken,
         minOutputTokenValue = minValue,
         dexFee = dexFeeDatum,
-        userPubKey = userPubKey,
+        userAddress = pubKeyHashAddress $ PubKeyHash userPubKeyHash,
         proxyBox = fulltxOut
        }
 
@@ -70,10 +73,9 @@ produceRedeemOpData' :: FullTxOut -> ProxyDatum -> RedeemOpData
 produceRedeemOpData' fulltxOut ProxyDatum{..} =
     RedeemOpData {
         redeemPoolId = PoolId targetPoolId,
-        lpTokenSymbol = lpTokenSymbol,
-        lpTokenName = lpTokenName,
+        redeemLpCoin = lpProxyToken,
         dexFee = dexFeeDatum,
-        userPubKey = userPubKey,
+        userAddress = pubKeyHashAddress $ PubKeyHash userPubKeyHash,
         proxyBox = fulltxOut
     }
 
@@ -82,11 +84,9 @@ produceDepositOpData' :: FullTxOut -> ProxyDatum -> DepositOpData
 produceDepositOpData' fulltxOut ProxyDatum{..} =
     DepositOpData {
         depositPoolId = PoolId targetPoolId,
-        inputTokenXSymbol = fromCurSymbol,
-        inputTokenXName = fromTokenName,
-        inputTokenYSymbol = toSymbol,
-        inputTokenYName = toTokenName,
+        depositXCoin = xProxyToken,
+        depositYCoin = yProxyToken,
         dexFee = dexFeeDatum,
-        userPubKey = userPubKey,
+        userAddress = pubKeyHashAddress $ PubKeyHash userPubKeyHash,
         proxyBox = fulltxOut
     }
