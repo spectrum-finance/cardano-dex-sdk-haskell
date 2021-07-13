@@ -24,7 +24,7 @@ instance OperationOps (Operation a) where
     getInputs (SwapOperation swapData) Pool{..} =
       let
         swapProxyRedeemer = Redeemer $ PlutusTx.toData Swap
-        inputWithProxyTxType = ConsumeScriptAddress proxyValidator swapProxyRedeemer (fullTxOutDatum $ SOp.proxyBox swapData)
+        inputWithProxyTxType = ConsumeScriptAddress dexValidator swapProxyRedeemer (fullTxOutDatum $ SOp.proxyBox swapData)
         inputWithProxyContract = TxIn {
           txInRef = TxOutRef {
             txOutRefId = refId (SOp.proxyBox swapData),
@@ -45,7 +45,7 @@ instance OperationOps (Operation a) where
     getInputs (DepositOperation depositData) Pool{..} =
       let
         depositProxyRedeemer = Redeemer $ PlutusTx.toData Deposit
-        inputWithProxyTxType = ConsumeScriptAddress proxyValidator depositProxyRedeemer (fullTxOutDatum $ DOp.proxyBox depositData)
+        inputWithProxyTxType = ConsumeScriptAddress dexValidator depositProxyRedeemer (fullTxOutDatum $ DOp.proxyBox depositData)
         inputWithProxyContract = TxIn {
           txInRef = TxOutRef {
             txOutRefId = refId (DOp.proxyBox depositData),
@@ -66,7 +66,7 @@ instance OperationOps (Operation a) where
     getInputs (RedeemOperation redeemData) Pool{..} =
       let
         redeemProxyRedeemer = Redeemer $ PlutusTx.toData Redeem
-        inputWithProxyTxType = ConsumeScriptAddress proxyValidator redeemProxyRedeemer (fullTxOutDatum $ ROp.proxyBox redeemData)
+        inputWithProxyTxType = ConsumeScriptAddress dexValidator redeemProxyRedeemer (fullTxOutDatum $ ROp.proxyBox redeemData)
         inputWithProxyContract = TxIn {
           txInRef = TxOutRef {
             txOutRefId = refId (ROp.proxyBox redeemData),
