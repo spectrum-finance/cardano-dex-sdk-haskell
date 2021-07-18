@@ -32,6 +32,17 @@ import           Dex.Instances
 import           Wallet.Emulator.Wallet
 import           Wallet.Effects                   (WalletEffect(..))
 import           Wallet.API
+import Plutus.V1.Ledger.Address 
+import qualified PlutusTx.AssocMap                as MapValue
+import Plutus.V1.Ledger.Value
+import qualified PlutusTx
+import Dex.Contract.Models
+import PlutusTx.Data
+import Plutus.V1.Ledger.Scripts
+import Plutus.V1.Ledger.Credential
+import Plutus.V1.Ledger.TxId
+import PlutusTx.Builtins
+import Plutus.V1.Ledger.Crypto
 
 data InterpreterService = InterpreterService
     { deposit :: (Operation SwapOpData) -> Pool -> Either MkTxError Tx
@@ -75,7 +86,16 @@ createTx' operation pool
     )
 
 getNewPoolOut' :: Tx -> Maybe FullTxOut
-getNewPoolOut' tx = undefined
+getNewPoolOut' tx = Just $ FullTxOut {
+    refId = TxId "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9",
+    refIdx = 3,
+    txOutAddress = Address {
+        addressCredential = PubKeyCredential $ PubKeyHash "21fe31dfa154a261626bf854046fd2271b7bed4b6abe45aa58877ef47f9721b9",
+        addressStakingCredential = Nothing
+    },
+    txOutValue = Value MapValue.empty,
+    fullTxOutDatum = Datum ammDatumTestData
+}
 
 deposit' :: Operation SwapOpData -> Pool -> Either MkTxError Tx
 deposit' = createTx'
@@ -85,3 +105,43 @@ redeem' = createTx'
 
 swap' :: Operation RedeemOpData -> Pool -> Either MkTxError Tx
 swap' = createTx'
+
+ergoDexPoolTest :: ErgoDexPool
+ergoDexPoolTest = 
+    ErgoDexPool {
+        feeNum = 10,
+        xCoin = AssetClass {
+            unAssetClass = (
+                CurrencySymbol {
+                    unCurrencySymbol = emptyByteString
+                }, 
+                TokenName {
+                    unTokenName = emptyByteString
+                }
+            )
+        } ,
+        yCoin = AssetClass {
+            unAssetClass = (
+                CurrencySymbol {
+                    unCurrencySymbol = emptyByteString
+                }, 
+                TokenName {
+                    unTokenName = emptyByteString
+                }
+            )
+        }  ,
+        lpCoin = AssetClass {
+            unAssetClass = (
+                CurrencySymbol {
+                    unCurrencySymbol = emptyByteString
+                }, 
+                TokenName {
+                    unTokenName = emptyByteString
+                }
+            )
+        } 
+    }
+
+ammDatumTestData :: Data
+ammDatumTestData = 
+    PlutusTx.toData ergoDexPoolTest
