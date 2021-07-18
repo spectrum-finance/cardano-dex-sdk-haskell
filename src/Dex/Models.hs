@@ -71,7 +71,6 @@ data PoolData = PoolData {
 } deriving (Show, Generic, FromJSON, ToJSON)
 
 data Pool = Pool {
-    gId :: GId,
     poolData :: PoolData,
     fullTxOut :: FullTxOut,
     poolTxIn :: TxOutRef

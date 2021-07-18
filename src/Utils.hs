@@ -49,6 +49,8 @@ import           Plutus.V1.Ledger.TxId
 import           Plutus.V1.Ledger.Scripts
 import qualified PlutusTx
 import           PlutusTx.Prelude
+import           Dex.Models           (PoolId(..))
+import           Data.ByteString.Hash
 
 data CoinA = CoinA
 
@@ -137,13 +139,19 @@ calculateValueInOutputs outputs coinValue =
 currentContractHash :: DatumHash
 currentContractHash = datumHashFromString "dexContractDatumHash"
 
---refactor
 {-# INLINABLE inputsLockedByDatumHash #-}
 inputsLockedByDatumHash :: DatumHash -> ScriptContext -> [TxInInfo]
 inputsLockedByDatumHash hash sCtx = [ proxyInput
                                     | proxyInput <- txInfoInputs (scriptContextTxInfo sCtx)
                                     , txOutDatumHash (txInInfoResolved proxyInput) == Just hash
                                     ]
+
+{-# INLINABLE inputsLockedByUserPubKeyHash #-}
+inputsLockedByUserPubKeyHash :: PubKeyHash -> ScriptContext -> [TxOut]
+inputsLockedByUserPubKeyHash pubKeyHash sCtx = [ output
+                                               | output <- getContinuingOutputs sCtx
+                                               , txOutAddress output == (pubKeyHashAddress pubKeyHash)
+                                               ]
 
 {-# INLINABLE ownOutput #-}
 ownOutput :: ScriptContext -> TxOut
@@ -154,4 +162,12 @@ ownOutput sCtx = case [ o
                 [o] -> o
                 _   -> traceError "expected exactly one output to the same liquidity pool"
 
-
+getPoolId :: ErgoDexPool -> PoolId
+getPoolId ErgoDexPool{..} =
+  let
+    (xCoinCurSymbol, xCoinName) = unAssetClass xCoin
+    (yCoinCurSymbol, yCoinName) = unAssetClass yCoin
+    (lpCoinCurSymbol, lpCoinName) = unAssetClass lpCoin
+    toHash = (unCurrencySymbol xCoinCurSymbol) <> (unTokenName xCoinName) <> (unCurrencySymbol yCoinCurSymbol) <> (unTokenName yCoinName) <> (unCurrencySymbol lpCoinCurSymbol) <> (unTokenName lpCoinName)
+    poolHash = sha3 toHash
+  in PoolId poolHash

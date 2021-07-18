@@ -33,13 +33,13 @@ import           Wallet.Emulator.Wallet
 import           Wallet.Effects                   (WalletEffect(..))
 import           Wallet.API
 
-data InterpreterService = InterpreterService
+data InterpreterService a b = InterpreterService
     { deposit :: (Operation SwapOpData) -> Pool -> Either MkTxError Tx
     , redeem :: (Operation DepositOpData) -> Pool -> Either MkTxError Tx
     , swap :: (Operation RedeemOpData) -> Pool -> Either MkTxError Tx
     }
 
-mkInterpreterService :: InterpreterService
+mkInterpreterService :: InterpreterService a b
 mkInterpreterService = InterpreterService deposit' redeem' swap'
 
 --todo: lift MkTxError to dex error
@@ -75,7 +75,7 @@ createTx' operation pool
     )
 
 getNewPoolOut' :: Tx -> Maybe FullTxOut
-getNewPoolOut' _ = undefined
+getNewPoolOut' tx = undefined
 
 deposit' :: Operation SwapOpData -> Pool -> Either MkTxError Tx
 deposit' = createTx'

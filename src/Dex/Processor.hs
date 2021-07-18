@@ -13,12 +13,14 @@ import           Dex.Models
 import           Dex.Contract.Models
 import           Plutus.V1.Ledger.Address
 import           Plutus.V1.Ledger.Crypto
+import           Plutus.V1.Ledger.Tx                  (TxOutRef (..))
 import           Plutus.V1.Ledger.Value
 import           PlutusTx.IsData                      (IsData (..))
 import qualified PlutusTx
 import qualified Ledger
 import           Proxy.Contract.Models
 import           Plutus.V1.Ledger.Value as Value
+import           Utils                                (getPoolId)
 
 data ProcessorService = ProcessorService
     { getPoolOperation :: FullTxOut -> Maybe ParsedOperation
@@ -32,7 +34,7 @@ getPoolOperation' :: FullTxOut -> Maybe ParsedOperation
 getPoolOperation' txOut = fmap (produceOperation' txOut) (getAcceptableDatum txOut)
 
 getPool' :: FullTxOut -> Maybe Pool
-getPool' txOut = fmap producePool (getAcceptableDatum txOut)
+getPool' txOut = fmap (producePool txOut) (getAcceptableDatum txOut)
 
 getAcceptableDatum :: (IsData a) => FullTxOut -> Maybe a
 getAcceptableDatum txOut =
@@ -50,20 +52,33 @@ produceOperation' txOut proxyDatum =
             redeemOpData = produceRedeemOpData' txOut proxyDatum
             in ParsedOperation (RedeemOperation redeemOpData)
 
-producePool :: ErgoDexPool -> Pool
-producePool txOut = undefined
+producePool :: FullTxOut -> ErgoDexPool -> Pool
+producePool txOut pool =
+    Pool {
+        poolData = PoolData {
+            poolId = getPoolId pool ,
+            poolFee = feeNum pool,
+            xPoolCoin = xCoin pool,
+            yPoolCoin = yCoin pool,
+            lpPoolCoin = lpCoin pool
+        },
+        fullTxOut = txOut,
+        poolTxIn = TxOutRef {
+            txOutRefId = refId txOut,
+            txOutRefIdx = refIdx txOut
+        }
+    }
 
 --todo: check
 produceSwapOpData' :: FullTxOut -> ProxyDatum -> SwapOpData
 produceSwapOpData' fulltxOut ProxyDatum{..} =
     let
         currentOutputValue = assetClassValueOf (txOutValue fulltxOut) xProxyToken
-        minValue = (currentOutputValue * rate) * (100 - slippageTolerance)
     in SwapOpData {
         swapPoolId = PoolId targetPoolId,
         toSwapCoin = xProxyToken,
         toGetCoin = yProxyToken,
-        minOutputTokenValue = minValue,
+        minOutputTokenValue = minOutputValue,
         dexFee = dexFeeDatum,
         userAddress = pubKeyHashAddress $ PubKeyHash userPubKeyHash,
         proxyBox = fulltxOut
