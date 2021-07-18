@@ -20,7 +20,7 @@ import qualified PlutusTx
 import qualified Ledger
 import           Proxy.Contract.Models
 import           Plutus.V1.Ledger.Value as Value
-import           Utils                                (getPoolId)
+import           Utils                                (getPoolId, PoolId (..))
 
 data ProcessorService = ProcessorService
     { getPoolOperation :: FullTxOut -> Maybe ParsedOperation

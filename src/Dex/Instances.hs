@@ -19,6 +19,7 @@ import           Dex.Contract.OffChain
 import           Dex.Contract.Models
 import           Proxy.Contract.Models
 import           Proxy.Contract.OnChain
+import           Utils                            (PoolId(..))
 
 instance OperationOps (Operation a) where
     getInputs (SwapOperation swapData) Pool{..} =

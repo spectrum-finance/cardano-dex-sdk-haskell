@@ -12,6 +12,7 @@ import           Plutus.V1.Ledger.Value as Value
 import qualified PlutusTx.AssocMap                as Map
 import           Plutus.V1.Ledger.Address
 import           Dex.Contract.Models
+import           Utils
 
 fullTxOut2TxOut :: FullTxOut -> TxOut
 fullTxOut2TxOut _ = undefined

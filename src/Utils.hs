@@ -49,8 +49,10 @@ import           Plutus.V1.Ledger.TxId
 import           Plutus.V1.Ledger.Scripts
 import qualified PlutusTx
 import           PlutusTx.Prelude
-import           Dex.Models           (PoolId(..))
 import           Data.ByteString.Hash
+
+newtype PoolId = PoolId Builtins.ByteString
+    deriving (Haskell.Show, Generic, FromJSON, ToJSON, Haskell.Eq)
 
 data CoinA = CoinA
 
@@ -171,3 +173,5 @@ getPoolId ErgoDexPool{..} =
     toHash = (unCurrencySymbol xCoinCurSymbol) <> (unTokenName xCoinName) <> (unCurrencySymbol yCoinCurSymbol) <> (unTokenName yCoinName) <> (unCurrencySymbol lpCoinCurSymbol) <> (unTokenName lpCoinName)
     poolHash = sha3 toHash
   in PoolId poolHash
+
+

@@ -21,9 +21,7 @@ import           Plutus.V1.Ledger.Crypto
 import           Ledger.Typed.Scripts             (TypedValidator, ValidatorTypes (..))
 import           Playground.Contract              (FromJSON, Generic, ToJSON, ToSchema)
 import           Ledger.Constraints
-
-newtype PoolId = PoolId Builtins.ByteString
-    deriving (Show, Generic, FromJSON, ToJSON, Eq)
+import           Utils
 
 newtype GId = GId { gIdx :: Integer }
     deriving (Show, Generic, FromJSON, ToJSON)
