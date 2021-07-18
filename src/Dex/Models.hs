@@ -27,30 +27,30 @@ newtype GId = GId { gIdx :: Integer }
     deriving (Show, Generic, FromJSON, ToJSON)
 
 data SwapOpData = SwapOpData {
-    swapPoolId :: PoolId,
-    toSwapCoin :: AssetClass,
-    toGetCoin :: AssetClass,
+    swapPoolId          :: PoolId,
+    toSwapCoin          :: AssetClass,
+    toGetCoin           :: AssetClass,
     minOutputTokenValue :: Integer,
-    dexFee :: Integer,
-    userAddress :: Address,
-    proxyBox :: FullTxOut
+    dexFee              :: Integer,
+    userAddress         :: Address,
+    proxyBox            :: FullTxOut
 } deriving (Show, Generic, FromJSON, ToJSON)
 
 data DepositOpData = DepositOpData{
-    depositPoolId :: PoolId,
-    depositXCoin :: AssetClass,
-    depositYCoin :: AssetClass,
-    dexFee :: Integer,
-    userAddress :: Address,
-    proxyBox :: FullTxOut
+    depositPoolId   :: PoolId,
+    depositXCoin    :: AssetClass,
+    depositYCoin    :: AssetClass,
+    dexFee          :: Integer,
+    userAddress     :: Address,
+    proxyBox        :: FullTxOut
 } deriving (Show, Generic, FromJSON, ToJSON)
 
 data RedeemOpData = RedeemOpData {
-    redeemPoolId :: PoolId,
-    redeemLpCoin :: AssetClass,
-    dexFee :: Integer,
-    userAddress :: Address,
-    proxyBox :: FullTxOut
+    redeemPoolId    :: PoolId,
+    redeemLpCoin    :: AssetClass,
+    dexFee          :: Integer,
+    userAddress     :: Address,
+    proxyBox        :: FullTxOut
 } deriving (Show, Generic, FromJSON, ToJSON)
 
 data Operation a where
@@ -61,20 +61,22 @@ data Operation a where
 data ParsedOperation = forall a. ParsedOperation { op :: Operation a }
 
 data PoolData = PoolData {
-    poolId :: PoolId,
-    poolFee :: Integer,
-    xPoolCoin :: AssetClass,
-    yPoolCoin :: AssetClass,
-    lpPoolCoin :: AssetClass
+    poolId      :: PoolId,
+    poolFee     :: Integer,
+    xPoolCoin   :: AssetClass,
+    yPoolCoin   :: AssetClass,
+    lpPoolCoin  :: AssetClass
 } deriving (Show, Generic, FromJSON, ToJSON)
 
 data Pool = Pool {
-    poolData :: PoolData,
+    poolGId   :: GId,
+    poolData  :: PoolData,
     fullTxOut :: FullTxOut,
-    poolTxIn :: TxOutRef
+    poolTxIn  :: TxOutRef
 } deriving (Show, Generic, FromJSON, ToJSON)
 
 data FullTxOut = FullTxOut {
+    outGId           :: GId,
     refId            :: TxId,
     refIdx           :: Integer, -- ^ Index into the referenced transaction's outputs
     txOutAddress     :: Address,
