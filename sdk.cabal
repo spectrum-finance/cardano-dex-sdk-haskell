@@ -94,4 +94,5 @@ library
         some,
         dependent-sum-template,
         containers,
-        freer-simple
+        freer-simple,
+        plutus-core
