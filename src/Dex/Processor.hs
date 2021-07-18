@@ -55,7 +55,6 @@ produceOperation' txOut proxyDatum =
 producePool :: FullTxOut -> ErgoDexPool -> Pool
 producePool txOut pool =
     Pool {
-        poolGId = outGId txOut,
         poolData = PoolData {
             poolId = getPoolId pool ,
             poolFee = feeNum pool,
