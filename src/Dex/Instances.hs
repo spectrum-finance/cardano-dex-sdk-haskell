@@ -103,8 +103,8 @@ instance OperationOps (Operation a) where
     checkPool (SwapOperation swapData) pool =
         let currentPoolData = poolData pool
             poolValue = txOutValue $ fullTxOut pool
-            qtyOfSwapToken = assetClassValueOf poolValue (toGetCoin swapData)
-            qtyOfGetTokenInPool = assetClassValueOf poolValue (toSwapCoin swapData)
+            qtyOfSwapToken = assetClassValueOf poolValue (toSwapCoin swapData)
+            qtyOfGetTokenInPool = assetClassValueOf poolValue (toGetCoin swapData)
             isCorrectPoolId = poolId currentPoolData == swapPoolId swapData
             getTokenBoundCheck = qtyOfGetTokenInPool - (minOutputTokenValue swapData) > 0
         in isCorrectPoolId && getTokenBoundCheck
