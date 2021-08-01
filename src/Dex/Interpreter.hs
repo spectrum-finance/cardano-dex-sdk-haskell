@@ -44,29 +44,27 @@ import Plutus.V1.Ledger.TxId
 import PlutusTx.Builtins
 import Plutus.V1.Ledger.Crypto
 
+-- InterpreterService produce tx by interpreting Operation with some data with corresponding pool
 data InterpreterService = InterpreterService
-    { deposit :: (Operation SwapOpData) -> Pool -> Either MkTxError Tx
-    , redeem :: (Operation DepositOpData) -> Pool -> Either MkTxError Tx
-    , swap :: (Operation RedeemOpData) -> Pool -> Either MkTxError Tx
+    { swap :: (Operation SwapOpData) -> Pool -> Either ProcError Tx
+    , deposit :: (Operation DepositOpData) -> Pool -> Either ProcError Tx
+    , redeem :: (Operation RedeemOpData) -> Pool -> Either ProcError Tx
     }
 
 mkInterpreterService :: InterpreterService
-mkInterpreterService = InterpreterService deposit' redeem' swap'
+mkInterpreterService = InterpreterService swap' deposit' redeem'
 
---todo: lift MkTxError to dex error
-interpretOp' :: Operation a -> Pool -> Either MkTxError (Tx, TxOut)
+interpretOp' :: Operation a -> Pool -> Either ProcError (Tx, TxOut)
 interpretOp' op pool =
     do
         tx <- createTx' op pool
-        -- todo: use correct error
-        newPoolOutput <- maybeToRight TypedValidatorMissing (getNewPoolOut' tx)
+        newPoolOutput <- maybeToRight (OutputWithPoolGenerationFailed "OutputWithPoolGenerationFailed") (getNewPoolOut' tx)
         let result = Right (tx, fullTxOut2TxOut newPoolOutput)
         result
 
---todo: lift MkTxError to dex error. Set correct errors. Now wip
-createTx' :: (Operation a) -> Pool -> Either MkTxError Tx
+createTx' :: (Operation a) -> Pool -> Either ProcError Tx
 createTx' operation pool
-    | checkPool operation pool /= True = Left TypedValidatorMissing
+    | checkPool operation pool /= True = Left (IncorrectPool ("Incorrect pool" ++ (show pool)))
     | otherwise = let
         inputs = getInputs operation pool
         outputs = generateOutputs operation pool

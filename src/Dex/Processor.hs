@@ -7,6 +7,7 @@
 module Dex.Processor
     ( ProcessorService(..)
     , mkProcessorService
+    , getPoolOperation'
     ) where
 
 import           Dex.Models
@@ -22,6 +23,7 @@ import           Proxy.Contract.Models
 import           Plutus.V1.Ledger.Value as Value
 import           Utils                                (getPoolId, PoolId (..))
 
+-- ProcessorService determine the existing of pool or Operation in FullTxOut
 data ProcessorService = ProcessorService
     { getPoolOperation :: FullTxOut -> Maybe ParsedOperation
     , getPool :: FullTxOut -> Maybe Pool
@@ -69,7 +71,6 @@ producePool txOut pool =
         }
     }
 
---todo: check
 produceSwapOpData' :: FullTxOut -> ProxyDatum -> SwapOpData
 produceSwapOpData' fulltxOut ProxyDatum{..} =
     let
@@ -94,7 +95,6 @@ produceRedeemOpData' fulltxOut ProxyDatum{..} =
         proxyBox = fulltxOut
     }
 
---todo: rename toSymbol, toTokenName because it is not real returned token
 produceDepositOpData' :: FullTxOut -> ProxyDatum -> DepositOpData
 produceDepositOpData' fulltxOut ProxyDatum{..} =
     DepositOpData {

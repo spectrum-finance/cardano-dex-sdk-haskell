@@ -128,7 +128,7 @@ instance OperationOps (Operation a) where
             isCorrectPoolId = poolId currentPoolData == redeemPoolId redeemData
         in (qtyOfLpCoinToRedeemm > 0) && isCorrectPoolId
 
-
+-- Produce tx output with new user value after swap
 generateUserSwapOutput :: SwapOpData -> Pool -> TxOut
 generateUserSwapOutput SwapOpData{..} Pool{..} =
     let
@@ -137,11 +137,11 @@ generateUserSwapOutput SwapOpData{..} Pool{..} =
         toSwapXQty = assetClassValueOf boxToSwapValue toSwapCoin
         xQtyInPool = assetClassValueOf poolValue toSwapCoin
         yQtyInPool = assetClassValueOf poolValue toGetCoin
-        -- newSwapCoinAmount = xQtyInPool + toSwapXQty
         newGetCoinDelta = xQtyInPool * toSwapXQty * (poolFee poolData) `div` (yQtyInPool * feeDenominator + toSwapXQty * (poolFee poolData))
         newValue = assetClassValue toGetCoin newGetCoinDelta
     in TxOut userAddress newValue Nothing
 
+-- Produce tx output with new pool value after swap
 generatePoolSwapOutput :: SwapOpData -> Pool -> TxOut
 generatePoolSwapOutput SwapOpData{..} Pool{..} =
     let
@@ -161,12 +161,14 @@ generatePoolSwapOutput SwapOpData{..} Pool{..} =
         poolDatumHash = datumHash poolDatum
     in TxOut address newValue (Just poolDatumHash)
 
+-- Produce tx output with new user value after deposit
 generateUserDepositOutput :: DepositOpData -> Pool -> TxOut
 generateUserDepositOutput depositData pool =
     let reward = rewardLP depositData pool
         userLpValue = assetClassValue (lpPoolCoin $ poolData pool) reward
     in TxOut (DOp.userAddress depositData) userLpValue Nothing
 
+-- Produce tx output with new pool value after user depositing
 generatePoolDepositOutput :: DepositOpData -> Pool -> TxOut
 generatePoolDepositOutput depositData pool =
     let address = Dex.Models.txOutAddress $ fullTxOut pool
@@ -186,6 +188,7 @@ generatePoolDepositOutput depositData pool =
         poolDatumHash = datumHash poolDatum
     in TxOut address resultedValue (Just poolDatumHash)
 
+-- Compute qty of lp token which should be get by user after depositing
 rewardLP :: DepositOpData -> Pool -> Integer
 rewardLP DepositOpData{..} Pool{..} =
     let depositValue = txOutValue proxyBox
@@ -201,6 +204,7 @@ rewardLP DepositOpData{..} Pool{..} =
         result = if (minX < minY) then minX else minY
     in result
 
+-- Produce tx output with new user value after redeem
 generateUserRedeemOutput :: RedeemOpData -> Pool -> TxOut
 generateUserRedeemOutput redeemData pool =
     let (shareXQty, shareYQty) = sharesLP redeemData pool
@@ -209,6 +213,7 @@ generateUserRedeemOutput redeemData pool =
         newValue = shareX <> shareY
     in TxOut (ROp.userAddress redeemData) newValue Nothing
 
+-- Produce tx output with new pool value after user redeem
 generatePoolRedeemOutput :: RedeemOpData -> Pool -> TxOut
 generatePoolRedeemOutput redeemData pool =
     let address = Dex.Models.txOutAddress $ fullTxOut pool

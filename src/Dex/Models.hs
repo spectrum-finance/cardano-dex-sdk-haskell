@@ -83,7 +83,12 @@ data FullTxOut = FullTxOut {
     fullTxOutDatum   :: Datum
 } deriving (Show, Generic, FromJSON, ToJSON)
 
---todo:
+data ProcError =
+    PlutusError String
+    | IncorrectPool String
+    | OutputWithPoolGenerationFailed String
+    deriving (Eq, Show, Generic)
+
 class OperationOps a where
     getInputs :: a -> Pool -> Set.Set TxIn
     generateOutputs :: a -> Pool -> [TxOut]
