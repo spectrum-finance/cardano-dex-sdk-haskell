@@ -15,10 +15,10 @@ import           Dex.Models                       as DOp    (DepositOpData(..))
 import           Dex.Models                       as SOp    (SwapOpData(..))
 import           Dex.Models
 import           Dex.Utils
-import           Dex.Contract.OffChain
 import           Dex.Contract.Models
 import           Proxy.Contract.Models
 import           Proxy.Contract.OnChain
+import           Dex.Contract.OnChain
 import           Utils                            (PoolId(..))
 
 instance OperationOps (Operation a) where

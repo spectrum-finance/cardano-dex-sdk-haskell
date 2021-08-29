@@ -21,7 +21,8 @@ import qualified PlutusTx
 import qualified Ledger
 import           Proxy.Contract.Models
 import           Plutus.V1.Ledger.Value as Value
-import           Utils                                (getPoolId, PoolId (..))
+import           Utils                                (PoolId (..))
+import           Dex.Utils
 
 -- ProcessorService determine the existing of pool or Operation in FullTxOut
 data ProcessorService = ProcessorService

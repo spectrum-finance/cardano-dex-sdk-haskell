@@ -13,6 +13,7 @@ import qualified PlutusTx.AssocMap                as Map
 import           Plutus.V1.Ledger.Address
 import           Dex.Contract.Models
 import           Utils
+import           Data.ByteString.Hash
 
 fullTxOut2TxOut :: FullTxOut -> TxOut
 fullTxOut2TxOut _ = undefined
@@ -22,9 +23,6 @@ generateEmptyValue = Value Map.empty
 
 feeDenominator :: Integer
 feeDenominator = 1000
-
-getPoolId :: ErgoDexPool -> PoolId
-getPoolId pool = undefined
 
 totalEmissionLP :: Integer
 totalEmissionLP = 0x7fffffffffffffff
@@ -41,3 +39,13 @@ sharesLP RedeemOpData{..} Pool{..} =
         xValue = lpQtyInBox * xQtyInPool `div` supplyLP
         yValue = lpQtyInBox * yQtyInPool `div` supplyLP
     in (xValue, yValue)
+
+getPoolId :: ErgoDexPool -> PoolId
+getPoolId ErgoDexPool{..} =
+  let
+    (xCoinCurSymbol, xCoinName) = unAssetClass xCoin
+    (yCoinCurSymbol, yCoinName) = unAssetClass yCoin
+    (lpCoinCurSymbol, lpCoinName) = unAssetClass lpCoin
+    toHash = (unCurrencySymbol xCoinCurSymbol) <> (unTokenName xCoinName) <> (unCurrencySymbol yCoinCurSymbol) <> (unTokenName yCoinName) <> (unCurrencySymbol lpCoinCurSymbol) <> (unTokenName lpCoinName)
+    poolHash = sha3 toHash
+  in PoolId poolHash
