@@ -19,7 +19,6 @@ common project-config
 
   default-extensions:   OverloadedStrings
                         DeriveAnyClass
-                        AutoDeriveTypeable
                         BangPatterns
                         BinaryLiterals
                         ConstraintKinds
@@ -41,7 +40,6 @@ common project-config
                         InstanceSigs
                         KindSignatures
                         LambdaCase
-                        MonadFailDesugaring
                         MultiParamTypeClasses
                         MultiWayIf
                         NamedFieldPuns
@@ -72,11 +70,9 @@ library
 
     hs-source-dirs: src
     
-    exposed-modules: Dex.Interpreter
-                     Dex.Models
-                     Dex.Processor
-                     Dex.Utils
-                     Dex.Instances
+    exposed-modules: ErgoDex.Amm.Orders
+                     ErgoDex.Amm.Types
+                     ErgoDex.Types
 
     build-depends: 
         plutus-ledger,
