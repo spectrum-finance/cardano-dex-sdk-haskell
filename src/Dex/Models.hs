@@ -36,7 +36,7 @@ data SwapOpData = SwapOpData {
     proxyBox            :: FullTxOut
 } deriving (Show, Generic, FromJSON, ToJSON)
 
-data DepositOpData = DepositOpData{
+data DepositOpData = DepositOpData {
     depositPoolId   :: PoolId,
     depositXCoin    :: AssetClass,
     depositYCoin    :: AssetClass,
@@ -78,7 +78,7 @@ data FullTxOut = FullTxOut {
     outGId           :: GId,
     refId            :: TxId,
     refIdx           :: Integer, -- ^ Index into the referenced transaction's outputs
-    txOutAddress     :: Address,
+    txOutAddress     :: AddressPubKeyHash,
     txOutValue       :: Value,
     fullTxOutDatum   :: Datum
 } deriving (Show, Generic, FromJSON, ToJSON)
