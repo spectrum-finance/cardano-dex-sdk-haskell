@@ -26,8 +26,20 @@ data Redeem = Redeem
   , redeemRewardPkh :: PubKeyHash
   } deriving (Show, Eq)
 
-data OrderAction a = SwapAction Swap | DepositAction Deposit | RedeemAction Redeem
-  deriving (Show, Eq)
+data OrderAction a where
+  SwapAction    :: Swap -> OrderAction Swap
+  DepositAction :: Deposit -> OrderAction Deposit
+  RedeemAction  :: Redeem -> OrderAction Redeem
+
+instance Show (OrderAction a) where
+  show (SwapAction swap)       = show swap
+  show (DepositAction deposit) = show deposit
+  show (RedeemAction redeem)   = show redeem
+
+instance Eq (OrderAction a) where
+  (SwapAction x) == (SwapAction y)       = x == y
+  (DepositAction x) == (DepositAction y) = x == y
+  (RedeemAction x) == (RedeemAction y)   = x == y
 
 data Order a = Order { orderPoolId :: PoolId, orderAction :: OrderAction a }
   deriving (Show, Eq)

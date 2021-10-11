@@ -71,6 +71,7 @@ library
     hs-source-dirs: src
     
     exposed-modules: ErgoDex.Amm.Orders
+                     ErgoDex.Amm.Pool
                      ErgoDex.Amm.Types
                      ErgoDex.Types
 
