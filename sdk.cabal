@@ -70,7 +70,9 @@ library
 
     hs-source-dirs: src
     
-    exposed-modules: ErgoDex.Amm.Orders
+    exposed-modules: Cardano.Types
+                     Cardano.Models
+                     ErgoDex.Amm.Orders
                      ErgoDex.Amm.Pool
                      ErgoDex.Amm.Types
                      ErgoDex.Types
