@@ -1,3 +1,6 @@
+{-# LANGUAGE StandaloneDeriving          #-}
+{-# LANGUAGE ExistentialQuantification   #-}
+
 module ErgoDex.Amm.Orders where
 
 import Data.Tuple.Extra
@@ -121,7 +124,9 @@ data Order a = Order
   , orderAction :: OrderAction a
   } deriving (Show, Eq)
 
-data AnyOrder = forall a . AnyOrder
+data AnyOrder = forall a . (Show a) => AnyOrder
   { anyOrderPoolId :: PoolId
   , anyOrderAction :: OrderAction a
   }
+
+deriving instance Show AnyOrder

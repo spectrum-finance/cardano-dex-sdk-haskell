@@ -1,6 +1,6 @@
 module ErgoDex.Types where
 
-import Prelude (Show, Eq, Integer, ($), (==), (<>), negate)
+import Prelude (Show, Eq, Integer, Maybe, ($), (==), (<>), (>>=), negate, fmap)
 
 import           Ledger
 import           Ledger.Value      (AssetClass(..), assetClassValueOf, assetClassValue, Value(..))
@@ -64,6 +64,14 @@ assetAmountPairOf (AssetEntry (ac, av), AssetEntry (bc, bv)) c =
 assetAmountValueOf :: Value -> Coin a -> AssetAmount a
 assetAmountValueOf v c =
   AssetAmount c (Amount $ assetClassValueOf v (unCoin c))
+
+getAssetAmountFromValueByCoin :: Value -> Coin a -> Maybe (AssetAmount a)
+getAssetAmountFromValueByCoin Value{..} coin@Coin{..} =
+    fmap (assetAmountCoinOf coin) maybeTokenValue
+  where
+    (curSymbolToSearch, tokenNameToSearch) = unAssetClass unCoin
+    maybeTokenMapWithAmount = Map.lookup curSymbolToSearch getValue
+    maybeTokenValue = maybeTokenMapWithAmount >>= Map.lookup tokenNameToSearch
 
 data ExFeePerToken = ExFeePerToken
   { exFeePerTokenNum :: Integer

@@ -4,19 +4,27 @@ module ErgoDex.Amm.PoolActions
   , mkPoolActions
   ) where
 
-import Control.Monad  (when)
-import Data.Bifunctor
+import           Control.Monad                   (when)
+import           Data.Bifunctor
+import           Data.Either.Combinators         (maybeToRight)
 
-import           Ledger         (PubKeyHash(..), Redeemer(..), pubKeyHashAddress)
-import qualified Ledger.Ada     as Ada
-import           Ledger.Scripts (unitRedeemer)
-import           PlutusTx       (toBuiltinData)
+import           Ledger                          (PubKeyHash(..), Redeemer(..), pubKeyHashAddress)
+import qualified Ledger.Typed.Scripts.Validators as Validators
+import           Ledger.Address
+import           Plutus.V1.Ledger.Value
+import qualified Ledger.Ada                      as Ada
+import           Ledger.Scripts                  (unitRedeemer, Datum(..), Redeemer(..))
+import           PlutusTx                        (toBuiltinData)
+import qualified PlutusTx.AssocMap               as Map
+import           PlutusTx.Sqrt
 
 import           ErgoDex.Types
 import           ErgoDex.State
 import           ErgoDex.Amm.Orders
 import           ErgoDex.Amm.Pool
+import           ErgoDex.Errors
 import qualified ErgoDex.Contracts.Pool as P
+import           ErgoDex.OffChain
 import           ErgoDex.Contracts.Types
 import           Cardano.Models
 import           Cardano.Utils
@@ -27,6 +35,8 @@ data PoolActions = PoolActions
   { runSwap    :: Confirmed Swap    -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
   , runDeposit :: Confirmed Deposit -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
   , runRedeem  :: Confirmed Redeem  -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
+  , runInit    :: [FullTxIn]        -> Confirmed Pool -> Address -> Either TxCandidateCreationErr TxCandidate
+  , runDeploy  :: [FullTxIn]        -> P.PoolParams   -> Address -> Either TxCandidateCreationErr TxCandidate
   }
 
 mkPoolActions :: PubKeyHash -> PoolActions
@@ -34,6 +44,8 @@ mkPoolActions executorPkh = PoolActions
   { runSwap    = runSwap' executorPkh
   , runDeposit = runDeposit' executorPkh
   , runRedeem  = runRedeem' executorPkh
+  , runInit    = runInit'
+  , runDeploy  = runDeploy'
   }
 
 runSwap' :: PubKeyHash -> Confirmed Swap -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
@@ -95,11 +107,11 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut po
       }
 
     rewardOut =
-      TxOutCandidate
-        { txOutCandidateAddress = pubKeyHashAddress depositRewardPkh
-        , txOutCandidateValue   = rewardValue
-        , txOutCandidateDatum   = Nothing
-        }
+        TxOutCandidate
+          { txOutCandidateAddress = pubKeyHashAddress depositRewardPkh
+          , txOutCandidateValue   = rewardValue
+          , txOutCandidateDatum   = Nothing
+          }
       where
         lqOutput        = liquidityAmount pool (inX, inY)
         initValue       = fullTxOutValue depositOut
@@ -141,3 +153,93 @@ runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool)
     outputs = [nextPoolOut, rewardOut, executorOut]
 
   Right (TxCandidate inputs outputs, pp)
+
+runInit' :: [FullTxIn] -> Confirmed Pool -> Address -> Either TxCandidateCreationErr TxCandidate
+runInit' toInput (Confirmed poolOut Pool{..}) changeAddr = do
+  let commonValue = foldr ( (<>) . fullTxOutValue . fullTxInTxOut) mempty toInput
+
+  coinX   <-
+    maybeToRight (coinNotFoundError poolCoinX) (getAssetAmountFromValueByCoin commonValue poolCoinX)
+
+  coinY   <-
+    maybeToRight (coinNotFoundError poolCoinY) (getAssetAmountFromValueByCoin commonValue poolCoinY)
+
+  coinNft <-
+    maybeToRight (coinNotFoundError (unPoolId poolId)) (getAssetAmountFromValueByCoin commonValue (unPoolId poolId))
+
+  let
+    coinXAmount     = unAmount $ getAmount coinX
+    coinYAmount     = unAmount $ getAmount coinY
+    outputPoolValue = coinXValue <> coinYValue <> coinNftValue
+      where
+        coinXValue   = assetAmountValue coinX
+        coinYValue   = assetAmountValue coinY
+        coinNftValue = assetAmountValue coinNft
+    poolRedeemer    = Redeemer $ PlutusTx.toBuiltinData P.Init
+    poolInputMaybe  = fromTxOut2TxIn poolOut (Just poolRedeemer)
+    inputs          =
+      case poolInputMaybe of
+        Just p  -> p : toInput
+        Nothing -> toInput
+
+  lpAmount <-
+    case isqrt (coinXAmount * coinYAmount) of
+      Exactly l | l > 0       -> Right l
+      Approximately l | l > 0 -> Right $ l + 1
+      _                       -> Left incorrectLpAmountError
+
+  let
+    outputWithPool =
+      TxOutCandidate
+        { txOutCandidateAddress = Validators.validatorAddress poolInstance
+        , txOutCandidateValue   = outputPoolValue
+        , txOutCandidateDatum   = fullTxOutDatum poolOut
+        }
+
+    userValue = valueWithAssets <> valueWithLp
+      where
+        assetClasses2drop = [unCoin $ getAsset coinX, unCoin $ getAsset coinY, unCoin $ getAsset coinNft]
+        valueWithAssets   = foldr removeAssetClassFromValue commonValue assetClasses2drop
+        valueWithLp       = assetClassValue (unCoin poolCoinLq) lpAmount
+
+    outputs = [outputWithPool, userOutput]
+      where
+        userOutput =
+          TxOutCandidate
+            { txOutCandidateAddress = changeAddr
+            , txOutCandidateValue   = userValue
+            , txOutCandidateDatum   = Nothing
+            }
+
+  Right $ TxCandidate { txCandidateInputs = inputs, txCandidateOutputs = outputs }
+
+runDeploy' :: [FullTxIn] -> P.PoolParams -> Address -> Either TxCandidateCreationErr TxCandidate
+runDeploy' inputs poolParams@P.PoolParams{..} changeAddr = do
+  let commonValue  = foldr ( (<>) . fullTxOutValue . fullTxInTxOut) mempty inputs
+  coinNft <- maybeToRight (coinNotFoundError poolNft) (getAssetAmountFromValueByCoin commonValue poolNft)
+  let
+    userValue = foldr removeAssetClassFromValue commonValue assetClasses2drop
+      where
+        assetClasses2drop = [unCoin $ getAsset coinNft]
+    poolDatum       = Datum $ PlutusTx.toBuiltinData poolParams
+    outputPoolValue = assetAmountValue coinNft
+    outputWithPool =
+      TxOutCandidate
+        { txOutCandidateAddress = Validators.validatorAddress poolInstance
+        , txOutCandidateValue   = outputPoolValue
+        , txOutCandidateDatum   = Just poolDatum
+        }
+    outputs =
+        if (userValueIsEmpty)
+        then [outputWithPool]
+        else [outputWithPool, userOutput]
+      where
+        userValueIsEmpty = getValue userValue == Map.empty
+        userOutput       =
+          TxOutCandidate
+            { txOutCandidateAddress = changeAddr
+            , txOutCandidateValue   = userValue
+            , txOutCandidateDatum   = Nothing
+            }
+
+  Right $ TxCandidate { txCandidateInputs = inputs, txCandidateOutputs = outputs }
