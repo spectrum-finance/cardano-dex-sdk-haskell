@@ -82,9 +82,9 @@ instance FromLedger Redeem where
         case filter (\(s, _, _) -> s /= Ada.adaSymbol) (flattenValue txOutValue) of
           [(ac, tn, v)] ->
               Just $ Redeem
-                { redeemPoolId     = PoolId poolNft
-                , redeemLqIn       = Amount v
-                , redeemLq         = Coin $ AssetClass (ac, tn)
+                { redeemPoolId    = PoolId poolNft
+                , redeemLqIn      = Amount v
+                , redeemLq        = Coin $ AssetClass (ac, tn)
                 , redeemExFee     = ExFee $ Amount exFee
                 , redeemRewardPkh = rewardPkh
                 }
