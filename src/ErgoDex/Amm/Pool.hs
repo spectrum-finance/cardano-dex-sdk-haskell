@@ -48,21 +48,29 @@ instance FromLedger Pool where
 
 deposit :: Pool -> Amount X -> Amount Y -> Predicted Pool
 deposit p@Pool{..} inX inY =
-    Predicted $ p { poolReservesX = poolReservesX + inX, poolReservesY = poolReservesY + inY, poolLiquidity = poolLiquidity + unlockedLq }
+    Predicted $ p
+      { poolReservesX = poolReservesX + inX
+      , poolReservesY = poolReservesY + inY
+      , poolLiquidity = poolLiquidity + unlockedLq
+      }
   where
     inX'           = unAmount inX
     inY'           = unAmount inY
-    poolReservesX'         = unAmount poolReservesX
-    poolReservesY'         = unAmount poolReservesY
+    poolReservesX' = unAmount poolReservesX
+    poolReservesY' = unAmount poolReservesY
     poolLiquidity' = unAmount poolLiquidity
     unlockedLq     = Amount $ min (inX' * poolLiquidity' `div` poolReservesX') (inY' * poolLiquidity' `div` poolReservesY')
 
 redeem :: Pool -> Amount Liquidity -> Predicted Pool
 redeem p@Pool{..} burnedLq =
-    Predicted $ p { poolReservesX = poolReservesX - outX, poolReservesY = poolReservesY - outY, poolLiquidity = poolLiquidity - burnedLq }
+    Predicted $ p
+      { poolReservesX = poolReservesX - outX
+      , poolReservesY = poolReservesY - outY
+      , poolLiquidity = poolLiquidity - burnedLq
+      }
   where
-    poolReservesX'         = unAmount poolReservesX
-    poolReservesY'         = unAmount poolReservesY
+    poolReservesX' = unAmount poolReservesX
+    poolReservesY' = unAmount poolReservesY
     burnedLq'      = unAmount burnedLq
     poolLiquidity' = unAmount poolLiquidity
     outX           = Amount $ burnedLq' * poolReservesX' `div` poolLiquidity'
@@ -71,16 +79,20 @@ redeem p@Pool{..} burnedLq =
 swap :: Pool -> AssetAmount Base -> Predicted Pool
 swap p@Pool{poolFee=PoolFee{..}, ..} base =
   Predicted $
-    if xy then
-      p { poolReservesX = Amount $ poolReservesX' + baseAmount, poolReservesY = Amount $ poolReservesY' - quoteAmount }
-    else
-      p { poolReservesX = Amount $ poolReservesX' - quoteAmount, poolReservesY = Amount $ poolReservesY' + baseAmount }
+    if xy then p
+      { poolReservesX = Amount $ poolReservesX' + baseAmount
+      , poolReservesY = Amount $ poolReservesY' - quoteAmount
+      }
+    else p
+      { poolReservesX = Amount $ poolReservesX' - quoteAmount
+      , poolReservesY = Amount $ poolReservesY' + baseAmount
+      }
   where
-    xy          = (unCoin $ getAsset base) == (unCoin poolCoinX)
-    baseAmount  = unAmount $ getAmount base
-    poolReservesX'      = unAmount poolReservesX
-    poolReservesY'      = unAmount poolReservesY
-    quoteAmount =
+    xy             = (unCoin $ getAsset base) == (unCoin poolCoinX)
+    baseAmount     = unAmount $ getAmount base
+    poolReservesX' = unAmount poolReservesX
+    poolReservesY' = unAmount poolReservesY
+    quoteAmount    =
       if xy then
         (poolReservesY' * baseAmount * poolFeeNum) `div` (poolReservesX' * poolFeeDen + baseAmount * poolFeeNum)
       else
