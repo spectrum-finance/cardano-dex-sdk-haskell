@@ -1,5 +1,6 @@
 module ErgoDex.InterpreterService
     ( InterpreterService(..)
+    , Err
     , mkInterpreterService
     ) where
 
