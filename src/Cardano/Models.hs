@@ -4,7 +4,7 @@ import Ledger
 
 import Cardano.Types
 
-data TxOut = TxOut
+data FullTxOut = FullTxOut
   { txOutGix     :: Gix
   , txOutRef     :: TxOutRef
   , txOutAddress :: Address
