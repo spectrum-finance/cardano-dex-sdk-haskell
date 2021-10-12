@@ -1,30 +1,96 @@
 module ErgoDex.Amm.Orders where
 
-import Ledger
+import           Ledger
+import           PlutusTx.IsData.Class
+import           Ledger.Value           (AssetClass(..), assetClassValueOf, flattenValue)
+import qualified Ledger.Ada             as Ada
 
+import Cardano.Class
+import Cardano.Models
 import ErgoDex.Types
-import ErgoDex.Amm.Types
+import ErgoDex.Amm.Pool                 (PoolId(..))
 import ErgoDex.Contracts.Types
+import ErgoDex.Contracts.Proxy.Swap
+import ErgoDex.Contracts.Proxy.Deposit
+import ErgoDex.Contracts.Proxy.Redeem
 
 data Swap = Swap
-  { swapBaseIn      :: Amount Base
+  { swapPoolId      :: PoolId
+  , swapBaseIn      :: Amount Base
   , swapMinQuoteOut :: Amount Quote
+  , swapBase        :: Coin Base
+  , swapQuote       :: Coin Quote
   , swapExFee       :: ExFeePerToken
   , swapRewardPkh   :: PubKeyHash
   } deriving (Show, Eq)
 
+instance FromLedger Swap where
+  parseFromLedger FullTxOut{txOutDatum=(Just (Datum d)), ..} =
+    case fromBuiltinData d of
+      (Just SwapDatum{..}) ->
+          Just $ Swap
+            { swapPoolId      = PoolId poolNft
+            , swapBaseIn      = baseIn
+            , swapMinQuoteOut = minQuoteAmount
+            , swapBase        = base
+            , swapQuote       = quote
+            , swapExFee       = ExFeePerToken exFeePerTokenNum exFeePerTokenDen
+            , swapRewardPkh   = rewardPkh
+            }
+        where
+          baseIn = Amount $ assetClassValueOf txOutValue (unCoin base)
+      _ -> Nothing
+  parseFromLedger _ = Nothing
+
 data Deposit = Deposit
-  { depositX         :: Amount X
-  , depositY         :: Amount Y
+  { depositPoolId    :: PoolId
+  , depositPair      :: (AssetEntry, AssetEntry)
   , depositExFee     :: ExFee
   , depositRewardPkh :: PubKeyHash
   } deriving (Show, Eq)
 
+instance FromLedger Deposit where
+  parseFromLedger FullTxOut{txOutDatum=(Just (Datum d)), ..} =
+    case fromBuiltinData d of
+      (Just DepositDatum{..}) ->
+        case filter (\(s, _, _) -> s /= Ada.adaSymbol) (flattenValue txOutValue) of
+          [(xs, xt, xv), (ys, yt, yv)] ->
+              Just $ Deposit
+                { depositPoolId    = PoolId poolNft
+                , depositPair      = pair
+                , depositExFee     = ExFee $ Amount exFee
+                , depositRewardPkh = rewardPkh
+                }
+            where
+              pair = (assetEntry xs xt xv, assetEntry ys yt yv)
+          _ -> Nothing
+      _ -> Nothing
+  parseFromLedger _ = Nothing
+
 data Redeem = Redeem
-  { redeemLq        :: Amount Liquidity
+  { redeemPoolId    :: PoolId
+  , redeemLqIn      :: Amount Liquidity
+  , redeemLq        :: Coin Liquidity
   , redeemExFee     :: ExFee
   , redeemRewardPkh :: PubKeyHash
   } deriving (Show, Eq)
+
+instance FromLedger Redeem where
+  parseFromLedger FullTxOut{txOutDatum=(Just (Datum d)), ..} =
+    case fromBuiltinData d of
+      (Just RedeemDatum{..}) ->
+        case filter (\(s, _, _) -> s /= Ada.adaSymbol) (flattenValue txOutValue) of
+          [(ac, tn, v)] ->
+              Just $ Redeem
+                { redeemPoolId     = PoolId poolNft
+                , redeemLqIn       = Amount v
+                , redeemLq         = Coin $ AssetClass (ac, tn)
+                , redeemExFee     = ExFee $ Amount exFee
+                , redeemRewardPkh = rewardPkh
+                }
+          _ -> Nothing
+      _ -> Nothing
+  parseFromLedger _ = Nothing
 
 data OrderAction a where
   SwapAction    :: Swap -> OrderAction Swap

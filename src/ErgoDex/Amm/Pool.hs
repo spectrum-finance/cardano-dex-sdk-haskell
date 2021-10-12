@@ -4,12 +4,14 @@ import Ledger
 import Ledger.Value          (assetClassValueOf)
 import PlutusTx.IsData.Class
 
-import ErgoDex.Types
-import ErgoDex.Amm.Types
-import ErgoDex.Contracts.Types
-import ErgoDex.Contracts.Pool
 import Cardano.Models
 import Cardano.Class
+import ErgoDex.Types
+import ErgoDex.Contracts.Types
+import ErgoDex.Contracts.Pool
+
+newtype PoolId = PoolId { unPoolId :: Coin Nft }
+  deriving (Show, Eq)
 
 data PoolFee = PoolFee
   { poolFeeNum :: Integer
