@@ -75,8 +75,8 @@ library
                      Cardano.Class
                      ErgoDex.Amm.Orders
                      ErgoDex.Amm.Pool
+                     ErgoDex.Amm.PoolActions
                      ErgoDex.Types
-                     ErgoDex.InterpreterService
 
     build-depends: 
         plutus-ledger,
