@@ -8,27 +8,30 @@ import           Ledger.Tx
 import           Ledger.Scripts (unitRedeemer)
 import qualified PlutusTx
 
-import ErgoDex.Amm.Orders
-import ErgoDex.Amm.Pool
+import           ErgoDex.Types
+import           ErgoDex.State
+import           ErgoDex.Amm.Orders
+import           ErgoDex.Amm.Pool
 import qualified ErgoDex.Contracts.Pool as P
-import Cardano.Models
+import           Cardano.Models
 
 data OrderExecErr
 
 data PoolActions = PoolActions
-  { runSwap    :: OrderAction Swap    -> Pool -> Either OrderExecErr (TxCandidate, Pool)
-  , runDeposit :: OrderAction Deposit -> Pool -> Either OrderExecErr (TxCandidate, Pool)
-  , runRedeem  :: OrderAction Redeem  -> Pool -> Either OrderExecErr (TxCandidate, Pool)
+  { runSwap    :: Confirmed Swap    -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
+  , runDeposit :: Confirmed Deposit -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
+  , runRedeem  :: Confirmed Redeem  -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
   }
 
 mkPoolActions :: PoolActions
 mkPoolActions = undefined
 
-runSwap' :: OrderAction Swap -> Pool -> Either OrderExecErr (TxCandidate, Pool)
-runSwap' (SwapAction Swap{..}) Pool{..} = undefined
--- runSwap' (OrderAction Swap{..}) Pool{..} = do
+runSwap' :: Confirmed Swap -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
+runSwap' (Confirmed swapOut Swap{..}) (Confirmed poolOut Pool{..}) = undefined
 --   let
 --     orderIn = FullTxIn swapOutput Pay2Script (Just $ Redeemer $ unitRedeemer)
 --     poolIn  = FullTxIn poolOutput Pay2Script (Just $ Redeemer $ PlutusTx.toData P.Swap)
 --     inputs  = [orderIn, poolIn]
+--     pool'   = swap pool (AssetAmount swapBase swapBaseIn) -- calculate next pool box along the way
+
 

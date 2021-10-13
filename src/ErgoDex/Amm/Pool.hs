@@ -5,8 +5,9 @@ import Ledger.Value          (assetClassValueOf)
 import PlutusTx.IsData.Class
 
 import Cardano.Models
-import Cardano.Class
+import ErgoDex.Class
 import ErgoDex.Types
+import ErgoDex.State
 import ErgoDex.Contracts.Types
 import ErgoDex.Contracts.Pool
 import Playground.Contract (FromJSON, ToJSON, Generic)
@@ -27,14 +28,13 @@ data Pool = Pool
   , poolCoinX     :: Coin X
   , poolCoinY     :: Coin Y
   , poolFee       :: PoolFee
-  , poolOutput    :: FullTxOut
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 instance FromLedger Pool where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
       (Just (PoolDatum PoolParams{..} lq)) ->
-          Just $ Pool
+          Just $ Confirmed fout Pool
             { poolId        = PoolId poolNft
             , poolReservesX = rx
             , poolReservesY = ry
@@ -42,7 +42,6 @@ instance FromLedger Pool where
             , poolCoinX     = poolX
             , poolCoinY     = poolY
             , poolFee       = PoolFee feeNum feeDen
-            , poolOutput    = fout
             }
         where
           rx     = Amount $ assetClassValueOf fullTxOutValue (unCoin poolX)
@@ -53,7 +52,7 @@ instance FromLedger Pool where
 
 deposit :: Pool -> Amount X -> Amount Y -> Predicted Pool
 deposit p@Pool{..} inX inY =
-    Predicted $ p
+    Predicted nextPoolOut p
       { poolReservesX = poolReservesX + inX
       , poolReservesY = poolReservesY + inY
       , poolLiquidity = poolLiquidity + unlockedLq
@@ -66,9 +65,11 @@ deposit p@Pool{..} inX inY =
     poolLiquidity' = unAmount poolLiquidity
     unlockedLq     = Amount $ min (inX' * poolLiquidity' `div` poolReservesX') (inY' * poolLiquidity' `div` poolReservesY')
 
+    nextPoolOut = undefined
+
 redeem :: Pool -> Amount Liquidity -> Predicted Pool
 redeem p@Pool{..} burnedLq =
-    Predicted $ p
+    Predicted nextPoolOut p
       { poolReservesX = poolReservesX - outX
       , poolReservesY = poolReservesY - outY
       , poolLiquidity = poolLiquidity - burnedLq
@@ -81,9 +82,11 @@ redeem p@Pool{..} burnedLq =
     outX           = Amount $ burnedLq' * poolReservesX' `div` poolLiquidity'
     outY           = Amount $ burnedLq' * poolReservesY' `div` poolLiquidity'
 
+    nextPoolOut = undefined
+
 swap :: Pool -> AssetAmount Base -> Predicted Pool
 swap p@Pool{poolFee=PoolFee{..}, ..} base =
-  Predicted $
+  Predicted nextPoolOut $
     if xy then p
       { poolReservesX = Amount $ poolReservesX' + baseAmount
       , poolReservesY = Amount $ poolReservesY' - quoteAmount
@@ -102,3 +105,5 @@ swap p@Pool{poolFee=PoolFee{..}, ..} base =
         (poolReservesY' * baseAmount * poolFeeNum) `div` (poolReservesX' * poolFeeDen + baseAmount * poolFeeNum)
       else
         (poolReservesX' * baseAmount * poolFeeNum) `div` (poolReservesY' * poolFeeDen + baseAmount * poolFeeNum)
+
+    nextPoolOut = undefined

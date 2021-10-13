@@ -5,9 +5,10 @@ import           PlutusTx.IsData.Class
 import           Ledger.Value           (AssetClass(..), assetClassValueOf, flattenValue)
 import qualified Ledger.Ada             as Ada
 
-import Cardano.Class
 import Cardano.Models
 import ErgoDex.Types
+import ErgoDex.Class
+import ErgoDex.State
 import ErgoDex.Amm.Pool                 (PoolId(..))
 import ErgoDex.Contracts.Types
 import ErgoDex.Contracts.Proxy.Swap
@@ -22,14 +23,13 @@ data Swap = Swap
   , swapQuote       :: Coin Quote
   , swapExFee       :: ExFeePerToken
   , swapRewardPkh   :: PubKeyHash
-  , swapOutput      :: FullTxOut
   } deriving (Show, Eq)
 
 instance FromLedger Swap where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
       (Just SwapDatum{..}) ->
-          Just $ Swap
+          Just $ Confirmed fout Swap
             { swapPoolId      = PoolId poolNft
             , swapBaseIn      = baseIn
             , swapMinQuoteOut = minQuoteAmount
@@ -37,7 +37,6 @@ instance FromLedger Swap where
             , swapQuote       = quote
             , swapExFee       = ExFeePerToken exFeePerTokenNum exFeePerTokenDen
             , swapRewardPkh   = rewardPkh
-            , swapOutput      = fout
             }
         where
           baseIn = Amount $ assetClassValueOf fullTxOutValue (unCoin base)
@@ -49,7 +48,6 @@ data Deposit = Deposit
   , depositPair      :: (AssetEntry, AssetEntry)
   , depositExFee     :: ExFee
   , depositRewardPkh :: PubKeyHash
-  , depositOutput    :: FullTxOut
   } deriving (Show, Eq)
 
 instance FromLedger Deposit where
@@ -58,12 +56,11 @@ instance FromLedger Deposit where
       (Just DepositDatum{..}) ->
         case filter (\(s, _, _) -> s /= Ada.adaSymbol) (flattenValue fullTxOutValue) of
           [(xs, xt, xv), (ys, yt, yv)] ->
-              Just $ Deposit
+              Just $ Confirmed fout Deposit
                 { depositPoolId    = PoolId poolNft
                 , depositPair      = pair
                 , depositExFee     = ExFee $ Amount exFee
                 , depositRewardPkh = rewardPkh
-                , depositOutput    = fout
                 }
             where
               pair = (assetEntry xs xt xv, assetEntry ys yt yv)
@@ -77,7 +74,6 @@ data Redeem = Redeem
   , redeemLq        :: Coin Liquidity
   , redeemExFee     :: ExFee
   , redeemRewardPkh :: PubKeyHash
-  , redeemOutput    :: FullTxOut
   } deriving (Show, Eq)
 
 instance FromLedger Redeem where
@@ -86,13 +82,12 @@ instance FromLedger Redeem where
       (Just RedeemDatum{..}) ->
         case filter (\(s, _, _) -> s /= Ada.adaSymbol) (flattenValue fullTxOutValue) of
           [(ac, tn, v)] ->
-              Just $ Redeem
+              Just $ Confirmed fout Redeem
                 { redeemPoolId    = PoolId poolNft
                 , redeemLqIn      = Amount v
                 , redeemLq        = Coin $ AssetClass (ac, tn)
                 , redeemExFee     = ExFee $ Amount exFee
                 , redeemRewardPkh = rewardPkh
-                , redeemOutput    = fout
                 }
           _ -> Nothing
       _ -> Nothing

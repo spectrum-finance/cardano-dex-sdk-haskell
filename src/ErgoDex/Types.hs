@@ -49,6 +49,3 @@ data ExFeePerToken = ExFeePerToken
 
 newtype ExFee = ExFee { unExFee :: Amount Lovelace }
   deriving (Show, Eq)
-
-newtype Predicted a = Predicted { unPredicted :: a }
-  deriving (Show, Eq)
