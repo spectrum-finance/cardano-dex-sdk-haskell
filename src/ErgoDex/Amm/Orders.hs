@@ -22,10 +22,11 @@ data Swap = Swap
   , swapQuote       :: Coin Quote
   , swapExFee       :: ExFeePerToken
   , swapRewardPkh   :: PubKeyHash
+  , swapOutput      :: FullTxOut
   } deriving (Show, Eq)
 
 instance FromLedger Swap where
-  parseFromLedger FullTxOut{txOutDatum=(Just (Datum d)), ..} =
+  parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
       (Just SwapDatum{..}) ->
           Just $ Swap
@@ -36,9 +37,10 @@ instance FromLedger Swap where
             , swapQuote       = quote
             , swapExFee       = ExFeePerToken exFeePerTokenNum exFeePerTokenDen
             , swapRewardPkh   = rewardPkh
+            , swapOutput      = fout
             }
         where
-          baseIn = Amount $ assetClassValueOf txOutValue (unCoin base)
+          baseIn = Amount $ assetClassValueOf fullTxOutValue (unCoin base)
       _ -> Nothing
   parseFromLedger _ = Nothing
 
@@ -47,19 +49,21 @@ data Deposit = Deposit
   , depositPair      :: (AssetEntry, AssetEntry)
   , depositExFee     :: ExFee
   , depositRewardPkh :: PubKeyHash
+  , depositOutput    :: FullTxOut
   } deriving (Show, Eq)
 
 instance FromLedger Deposit where
-  parseFromLedger FullTxOut{txOutDatum=(Just (Datum d)), ..} =
+  parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
       (Just DepositDatum{..}) ->
-        case filter (\(s, _, _) -> s /= Ada.adaSymbol) (flattenValue txOutValue) of
+        case filter (\(s, _, _) -> s /= Ada.adaSymbol) (flattenValue fullTxOutValue) of
           [(xs, xt, xv), (ys, yt, yv)] ->
               Just $ Deposit
                 { depositPoolId    = PoolId poolNft
                 , depositPair      = pair
                 , depositExFee     = ExFee $ Amount exFee
                 , depositRewardPkh = rewardPkh
+                , depositOutput    = fout
                 }
             where
               pair = (assetEntry xs xt xv, assetEntry ys yt yv)
@@ -73,13 +77,14 @@ data Redeem = Redeem
   , redeemLq        :: Coin Liquidity
   , redeemExFee     :: ExFee
   , redeemRewardPkh :: PubKeyHash
+  , redeemOutput    :: FullTxOut
   } deriving (Show, Eq)
 
 instance FromLedger Redeem where
-  parseFromLedger FullTxOut{txOutDatum=(Just (Datum d)), ..} =
+  parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
       (Just RedeemDatum{..}) ->
-        case filter (\(s, _, _) -> s /= Ada.adaSymbol) (flattenValue txOutValue) of
+        case filter (\(s, _, _) -> s /= Ada.adaSymbol) (flattenValue fullTxOutValue) of
           [(ac, tn, v)] ->
               Just $ Redeem
                 { redeemPoolId    = PoolId poolNft
@@ -87,6 +92,7 @@ instance FromLedger Redeem where
                 , redeemLq        = Coin $ AssetClass (ac, tn)
                 , redeemExFee     = ExFee $ Amount exFee
                 , redeemRewardPkh = rewardPkh
+                , redeemOutput    = fout
                 }
           _ -> Nothing
       _ -> Nothing

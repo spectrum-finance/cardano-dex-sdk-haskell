@@ -27,10 +27,11 @@ data Pool = Pool
   , poolCoinX     :: Coin X
   , poolCoinY     :: Coin Y
   , poolFee       :: PoolFee
+  , poolOutput    :: FullTxOut
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 instance FromLedger Pool where
-  parseFromLedger FullTxOut{txOutDatum=(Just (Datum d)), ..} =
+  parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
       (Just (PoolDatum PoolParams{..} lq)) ->
           Just $ Pool
@@ -41,10 +42,11 @@ instance FromLedger Pool where
             , poolCoinX     = poolX
             , poolCoinY     = poolY
             , poolFee       = PoolFee feeNum feeDen
+            , poolOutput    = fout
             }
         where
-          rx     = Amount $ assetClassValueOf txOutValue (unCoin poolX)
-          ry     = Amount $ assetClassValueOf txOutValue (unCoin poolY)
+          rx     = Amount $ assetClassValueOf fullTxOutValue (unCoin poolX)
+          ry     = Amount $ assetClassValueOf fullTxOutValue (unCoin poolY)
           feeDen = 1000
       _ -> Nothing
   parseFromLedger _ = Nothing
