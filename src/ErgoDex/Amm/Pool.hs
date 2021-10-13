@@ -9,14 +9,15 @@ import Cardano.Class
 import ErgoDex.Types
 import ErgoDex.Contracts.Types
 import ErgoDex.Contracts.Pool
+import Playground.Contract (FromJSON, ToJSON, Generic)
 
 newtype PoolId = PoolId { unPoolId :: Coin Nft }
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 data PoolFee = PoolFee
   { poolFeeNum :: Integer
   , poolFeeDen :: Integer
-  } deriving (Show, Eq)
+  } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 data Pool = Pool
   { poolId        :: PoolId
@@ -26,7 +27,7 @@ data Pool = Pool
   , poolCoinX     :: Coin X
   , poolCoinY     :: Coin Y
   , poolFee       :: PoolFee
-  } deriving (Show, Eq)
+  } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 instance FromLedger Pool where
   parseFromLedger FullTxOut{txOutDatum=(Just (Datum d)), ..} =
