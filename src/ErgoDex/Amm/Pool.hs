@@ -54,8 +54,8 @@ instance FromLedger Pool where
       _ -> Nothing
   parseFromLedger _ = Nothing
 
-deposit :: Pool -> Amount X -> Amount Y -> Predicted Pool
-deposit p@Pool{..} inX inY =
+applyDeposit :: Pool -> (Amount X, Amount Y) -> Predicted Pool
+applyDeposit p@Pool{..} (inX, inY) =
     Predicted nextPoolOut p
       { poolReservesX = poolReservesX + inX
       , poolReservesY = poolReservesY + inY
@@ -67,12 +67,12 @@ deposit p@Pool{..} inX inY =
     poolReservesX' = unAmount poolReservesX
     poolReservesY' = unAmount poolReservesY
     poolLiquidity' = unAmount poolLiquidity
-    unlockedLq     = getAmount (liquidityAmount p inX inY)
+    unlockedLq     = getAmount (liquidityAmount p (inX, inY))
 
     nextPoolOut = undefined
 
-redeem :: Pool -> Amount Liquidity -> Predicted Pool
-redeem p@Pool{..} burnedLq =
+applyRedeem :: Pool -> Amount Liquidity -> Predicted Pool
+applyRedeem p@Pool{..} burnedLq =
     Predicted nextPoolOut p
       { poolReservesX = poolReservesX - outX
       , poolReservesY = poolReservesY - outY
@@ -87,8 +87,8 @@ redeem p@Pool{..} burnedLq =
 
     nextPoolOut = undefined
 
-swap :: Pool -> AssetAmount Base -> Predicted Pool
-swap p@Pool{poolFee=PoolFee{..}, ..} base =
+applySwap :: Pool -> AssetAmount Base -> Predicted Pool
+applySwap p@Pool{poolFee=PoolFee{..}, ..} base =
   Predicted nextPoolOut $
     if xy then p
       { poolReservesX = Amount $ poolReservesX' + baseAmount
@@ -107,8 +107,8 @@ swap p@Pool{poolFee=PoolFee{..}, ..} base =
 
     nextPoolOut = undefined
 
-liquidityAmount :: Pool -> Amount X -> Amount Y -> AssetAmount Liquidity
-liquidityAmount p@Pool{..} inX inY =
+liquidityAmount :: Pool -> (Amount X, Amount Y) -> AssetAmount Liquidity
+liquidityAmount p@Pool{..} (inX, inY) =
     assetAmountCoinOf poolCoinLq $
       (min (inX' * poolLiquidity' `div` poolReservesX') (inY' * poolLiquidity' `div` poolReservesY'))
   where

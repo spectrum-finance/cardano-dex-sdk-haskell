@@ -99,9 +99,9 @@ data OrderAction a where
   RedeemAction  :: Redeem -> OrderAction Redeem
 
 instance Show (OrderAction a) where
-  show (SwapAction swap)       = show swap
-  show (DepositAction deposit) = show deposit
-  show (RedeemAction redeem)   = show redeem
+  show (SwapAction applySwap)       = show applySwap
+  show (DepositAction applyDeposit) = show applyDeposit
+  show (RedeemAction applyRedeem)   = show applyRedeem
 
 instance Eq (OrderAction a) where
   (SwapAction x) == (SwapAction y)       = x == y

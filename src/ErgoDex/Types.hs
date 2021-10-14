@@ -15,6 +15,9 @@ data Lovelace = Lovelace
 newtype AssetEntry = AssetEntry { unAssetEntry :: (AssetClass, Integer) }
   deriving (Show, Eq)
 
+assetEntryClass :: AssetEntry -> AssetClass
+assetEntryClass (AssetEntry (cls, _)) = cls
+
 assetEntry :: CurrencySymbol -> TokenName -> Integer -> AssetEntry
 assetEntry cs tn v = AssetEntry (AssetClass (cs, tn), v)
 
