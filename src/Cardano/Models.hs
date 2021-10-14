@@ -31,5 +31,5 @@ data FullTxIn = FullTxIn
 
 data TxCandidate = TxCandidate
   { txCandidateInputs  :: [FullTxIn]
-  , txCandidateOutputs :: [FullTxOut]
+  , txCandidateOutputs :: [TxOutCandidate]
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)

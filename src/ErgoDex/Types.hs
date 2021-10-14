@@ -3,7 +3,7 @@ module ErgoDex.Types where
 import Prelude                 (Show, Eq, Integer, ($), (==))
 
 import Ledger
-import Ledger.Value            (CurrencySymbol, TokenName, AssetClass(..), assetClassValueOf)
+import Ledger.Value            (CurrencySymbol, TokenName, AssetClass(..), assetClassValueOf, assetClassValue)
 import PlutusTx.Numeric        (AdditiveSemigroup(..), MultiplicativeSemigroup(..))
 
 import ErgoDex.Contracts.Types
@@ -28,8 +28,20 @@ instance AdditiveSemigroup (AssetAmount a) where
 instance MultiplicativeSemigroup (AssetAmount a) where
   a0 * a1 = a0 { getAmount = (getAmount a0) * (getAmount a1) }
 
+retagCoin :: forall a b . Coin a -> Coin b
+retagCoin (Coin ac) = Coin ac
+
+assetAmountRawValue :: AssetAmount a -> Integer
+assetAmountRawValue AssetAmount{getAmount=Amount v} = v
+
+assetAmountValue :: AssetAmount a -> Value
+assetAmountValue AssetAmount{getAsset=Coin ac, getAmount=Amount v} = assetClassValue ac v
+
 assetAmountOf :: AssetEntry -> AssetAmount a
 assetAmountOf (AssetEntry (ac, v)) = AssetAmount (Coin ac) (Amount v)
+
+assetAmountCoinOf :: Coin a -> Integer -> AssetAmount a
+assetAmountCoinOf c v = AssetAmount c (Amount v)
 
 assetAmountPairOf :: (AssetEntry, AssetEntry) -> Coin a -> AssetAmount a
 assetAmountPairOf (AssetEntry (ac, av), AssetEntry (bc, bv)) c =

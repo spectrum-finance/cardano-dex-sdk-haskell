@@ -1,5 +1,7 @@
 module ErgoDex.Amm.Pool where
 
+import Data.Bifunctor
+
 import Ledger
 import Ledger.Value          (assetClassValueOf)
 import PlutusTx.IsData.Class
@@ -27,6 +29,7 @@ data Pool = Pool
   , poolLiquidity :: Amount Liquidity
   , poolCoinX     :: Coin X
   , poolCoinY     :: Coin Y
+  , poolCoinLq    :: Coin Liquidity
   , poolFee       :: PoolFee
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
@@ -41,6 +44,7 @@ instance FromLedger Pool where
             , poolLiquidity = lq
             , poolCoinX     = poolX
             , poolCoinY     = poolY
+            , poolCoinLq    = poolLq
             , poolFee       = PoolFee feeNum feeDen
             }
         where
@@ -63,7 +67,7 @@ deposit p@Pool{..} inX inY =
     poolReservesX' = unAmount poolReservesX
     poolReservesY' = unAmount poolReservesY
     poolLiquidity' = unAmount poolLiquidity
-    unlockedLq     = Amount $ min (inX' * poolLiquidity' `div` poolReservesX') (inY' * poolLiquidity' `div` poolReservesY')
+    unlockedLq     = getAmount (liquidityAmount p inX inY)
 
     nextPoolOut = undefined
 
@@ -79,8 +83,7 @@ redeem p@Pool{..} burnedLq =
     poolReservesY' = unAmount poolReservesY
     burnedLq'      = unAmount burnedLq
     poolLiquidity' = unAmount poolLiquidity
-    outX           = Amount $ burnedLq' * poolReservesX' `div` poolLiquidity'
-    outY           = Amount $ burnedLq' * poolReservesY' `div` poolLiquidity'
+    (outX, outY)   = bimap getAmount getAmount (sharesAmount p burnedLq)
 
     nextPoolOut = undefined
 
@@ -100,10 +103,42 @@ swap p@Pool{poolFee=PoolFee{..}, ..} base =
     baseAmount     = unAmount $ getAmount base
     poolReservesX' = unAmount poolReservesX
     poolReservesY' = unAmount poolReservesY
-    quoteAmount    =
-      if xy then
-        (poolReservesY' * baseAmount * poolFeeNum) `div` (poolReservesX' * poolFeeDen + baseAmount * poolFeeNum)
-      else
-        (poolReservesX' * baseAmount * poolFeeNum) `div` (poolReservesY' * poolFeeDen + baseAmount * poolFeeNum)
+    quoteAmount    = assetAmountRawValue (outputAmount p base)
 
     nextPoolOut = undefined
+
+liquidityAmount :: Pool -> Amount X -> Amount Y -> AssetAmount Liquidity
+liquidityAmount p@Pool{..} inX inY =
+    assetAmountCoinOf poolCoinLq $
+      (min (inX' * poolLiquidity' `div` poolReservesX') (inY' * poolLiquidity' `div` poolReservesY'))
+  where
+    inX'           = unAmount inX
+    inY'           = unAmount inY
+    poolReservesX' = unAmount poolReservesX
+    poolReservesY' = unAmount poolReservesY
+    poolLiquidity' = unAmount poolLiquidity
+
+sharesAmount :: Pool -> Amount Liquidity -> (AssetAmount X, AssetAmount Y)
+sharesAmount p@Pool{..} burnedLq =
+    ( assetAmountCoinOf poolCoinX (burnedLq' * poolReservesX' `div` poolLiquidity')
+    , assetAmountCoinOf poolCoinY (burnedLq' * poolReservesY' `div` poolLiquidity')
+    )
+  where
+    poolReservesX' = unAmount poolReservesX
+    poolReservesY' = unAmount poolReservesY
+    burnedLq'      = unAmount burnedLq
+    poolLiquidity' = unAmount poolLiquidity
+
+outputAmount :: Pool -> AssetAmount Base -> AssetAmount Quote
+outputAmount p@Pool{poolFee=PoolFee{..}, ..} base =
+    if xy then
+      assetAmountCoinOf (retagCoin poolCoinY) $
+        ((poolReservesY' * baseAmount * poolFeeNum) `div` (poolReservesX' * poolFeeDen + baseAmount * poolFeeNum))
+    else
+      assetAmountCoinOf (retagCoin poolCoinX) $
+        ((poolReservesX' * baseAmount * poolFeeNum) `div` (poolReservesY' * poolFeeDen + baseAmount * poolFeeNum))
+  where
+    xy             = (unCoin $ getAsset base) == (unCoin poolCoinX)
+    baseAmount     = assetAmountRawValue base
+    poolReservesX' = unAmount poolReservesX
+    poolReservesY' = unAmount poolReservesY

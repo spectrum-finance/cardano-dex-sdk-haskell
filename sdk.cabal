@@ -96,4 +96,5 @@ library
         dependent-sum-template,
         containers,
         freer-simple,
-        plutus-core
+        plutus-core,
+        extra
