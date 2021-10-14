@@ -1,10 +1,12 @@
 module ErgoDex.Types where
 
-import Prelude                 (Show, Eq, Integer, ($), (==))
+import Prelude                            (Show, Eq, Integer, ($), (==))
 
 import Ledger
-import Ledger.Value            (CurrencySymbol, TokenName, AssetClass(..), assetClassValueOf, assetClassValue)
-import PlutusTx.Numeric        (AdditiveSemigroup(..), MultiplicativeSemigroup(..))
+import Ledger.Value                       (CurrencySymbol, TokenName, AssetClass(..), assetClassValueOf, assetClassValue, Value(..))
+import PlutusTx.Numeric                   (AdditiveSemigroup(..), MultiplicativeSemigroup(..))
+import qualified PlutusTx.AssocMap        as Map
+import qualified Prelude                  as P
 
 import ErgoDex.Contracts.Types
 
@@ -53,6 +55,11 @@ assetAmountPairOf (AssetEntry (ac, av), AssetEntry (bc, bv)) c =
 assetAmountValueOf :: Value -> Coin a -> AssetAmount a
 assetAmountValueOf v c =
   AssetAmount c (Amount $ assetClassValueOf v (unCoin c))
+
+assetAmountSubstract :: Value -> AssetAmount a -> Value
+assetAmountSubstract v AssetAmount{..} = let
+	assetValue = Value $ Map.fromList [((P.fst $ unAssetClass (unCoin getAsset)), Map.fromList [((P.snd $ unAssetClass (unCoin getAsset)), (P.negate(unAmount getAmount)))])]
+	in v P.<> assetValue
 
 data ExFeePerToken = ExFeePerToken
   { exFeePerTokenNum :: Integer
