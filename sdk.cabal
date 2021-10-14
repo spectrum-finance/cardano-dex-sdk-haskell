@@ -72,6 +72,7 @@ library
     
     exposed-modules: Cardano.Types
                      Cardano.Models
+                     Cardano.Utils
                      ErgoDex.Class
                      ErgoDex.State
                      ErgoDex.Amm.Orders
