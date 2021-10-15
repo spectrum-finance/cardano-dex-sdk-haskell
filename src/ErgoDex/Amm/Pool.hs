@@ -66,8 +66,8 @@ instance ToLedger Pool where
     where
       nft       = unPoolId poolId
       poolValue = (assetClassValue (unCoin nft) 1) <>
-                      (assetAmountValue $ (AssetAmount poolCoinX poolReservesX)) <>
-                      (assetAmountValue $ (AssetAmount poolCoinY poolReservesY))
+                  (assetAmountValue $ (AssetAmount poolCoinX poolReservesX)) <>
+                  (assetAmountValue $ (AssetAmount poolCoinY poolReservesY))
 
       poolParams = PoolParams
         { poolNft = nft
