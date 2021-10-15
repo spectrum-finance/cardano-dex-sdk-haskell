@@ -37,13 +37,13 @@ mkPoolActions executorPkh = PoolActions
   }
 
 runSwap' :: PubKeyHash -> Confirmed Swap -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (Confirmed poolOut pool@Pool{..}) = do
+runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (Confirmed poolOut pool) = do
   let
     poolIn  = FullTxIn poolOut Pay2Script (Just $ Redeemer $ toBuiltinData P.Swap)
     orderIn = FullTxIn swapOut Pay2Script (Just unitRedeemer)
     inputs  = [poolIn, orderIn]
 
-    pp@(Predicted nextPoolOut pool') = applySwap pool (AssetAmount swapBase swapBaseIn)
+    pp@(Predicted nextPoolOut _) = applySwap pool (AssetAmount swapBase swapBaseIn)
 
     quoteOutput = outputAmount pool (AssetAmount swapBase swapBaseIn)
 
@@ -85,7 +85,7 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut po
       where
         entryAmount (AssetEntry (_, v)) = Amount v
 
-    pp@(Predicted nextPoolOut pool') = applyDeposit pool (inX, inY)
+    pp@(Predicted nextPoolOut _) = applyDeposit pool (inX, inY)
 
     executorFee = unExFee depositExFee
     executorOut = TxOutCandidate
@@ -111,13 +111,13 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut po
   Right (TxCandidate inputs outputs, pp)
 
 runRedeem' :: PubKeyHash -> Confirmed Redeem -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool@Pool{..}) = do
+runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool) = do
   let
     poolIn  = FullTxIn poolOut Pay2Script (Just $ Redeemer $ toBuiltinData P.Redeem)
     orderIn = FullTxIn redeemOut Pay2Script (Just unitRedeemer)
     inputs  = [poolIn, orderIn]
 
-    pp@(Predicted nextPoolOut pool') = applyRedeem pool redeemLqIn
+    pp@(Predicted nextPoolOut _) = applyRedeem pool redeemLqIn
 
     executorFee = unExFee redeemExFee
     executorOut = TxOutCandidate
