@@ -108,5 +108,12 @@ instance Eq (OrderAction a) where
   (DepositAction x) == (DepositAction y) = x == y
   (RedeemAction x) == (RedeemAction y)   = x == y
 
-data Order a = Order { orderPoolId :: PoolId, orderAction :: OrderAction a }
-  deriving (Show, Eq)
+data Order a = Order
+  { orderPoolId :: PoolId
+  , orderAction :: OrderAction a
+  } deriving (Show, Eq)
+
+data AnyOrder = forall a . AnyOrder
+  { orderPoolId :: PoolId
+  , orderAction :: OrderAction a
+  } deriving (Show, Eq)
