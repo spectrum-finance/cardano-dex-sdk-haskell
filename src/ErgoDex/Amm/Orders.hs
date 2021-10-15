@@ -114,6 +114,6 @@ data Order a = Order
   } deriving (Show, Eq)
 
 data AnyOrder = forall a . AnyOrder
-  { orderPoolId :: PoolId
-  , orderAction :: OrderAction a
+  { anyOrderPoolId :: PoolId
+  , anyOrderAction :: OrderAction a
   } deriving (Show, Eq)
