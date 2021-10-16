@@ -1,6 +1,7 @@
 module ErgoDex.Amm.Orders where
 
 import Data.Tuple.Extra
+import Data.Bifunctor
 
 import           Ledger
 import           PlutusTx.IsData.Class
@@ -65,7 +66,8 @@ instance FromLedger Deposit where
                 , depositRewardPkh = rewardPkh
                 }
             where
-              pair = (uncurry3 assetEntry assetX, uncurry3 assetEntry assetY)
+              toEntry = uncurry3 assetEntry
+              pair    = bimap toEntry toEntry (assetX, assetY)
           _ -> Nothing
       _ -> Nothing
   parseFromLedger _ = Nothing
