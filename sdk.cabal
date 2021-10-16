@@ -73,6 +73,7 @@ library
     exposed-modules: Cardano.Types
                      Cardano.Models
                      Cardano.Utils
+                     Cardano.Address
                      ErgoDex.Class
                      ErgoDex.State
                      ErgoDex.Amm.Orders
@@ -98,4 +99,6 @@ library
         containers,
         freer-simple,
         plutus-core,
-        extra
+        extra,
+        cardano-api,
+        text
