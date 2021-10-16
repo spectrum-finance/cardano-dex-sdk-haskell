@@ -1,5 +1,7 @@
 module ErgoDex.Amm.Orders where
 
+import Data.Tuple.Extra
+
 import           Ledger
 import           PlutusTx.IsData.Class
 import           Ledger.Value           (AssetClass(..), assetClassValueOf, flattenValue)
@@ -54,8 +56,8 @@ instance FromLedger Deposit where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
       (Just DepositDatum{..}) ->
-        case filter (\(s, _, _) -> s /= Ada.adaSymbol) (flattenValue fullTxOutValue) of
-          [(xs, xt, xv), (ys, yt, yv)] ->
+        case excludeAdaFlattened fullTxOutValue of
+          [assetX, assetY] ->
               Just $ Confirmed fout Deposit
                 { depositPoolId    = PoolId poolNft
                 , depositPair      = pair
@@ -63,7 +65,7 @@ instance FromLedger Deposit where
                 , depositRewardPkh = rewardPkh
                 }
             where
-              pair = (assetEntry xs xt xv, assetEntry ys yt yv)
+              pair = (uncurry3 assetEntry assetX, uncurry3 assetEntry assetY)
           _ -> Nothing
       _ -> Nothing
   parseFromLedger _ = Nothing
@@ -80,7 +82,7 @@ instance FromLedger Redeem where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
       (Just RedeemDatum{..}) ->
-        case filter (\(s, _, _) -> s /= Ada.adaSymbol) (flattenValue fullTxOutValue) of
+        case excludeAdaFlattened fullTxOutValue of
           [(ac, tn, v)] ->
               Just $ Confirmed fout Redeem
                 { redeemPoolId    = PoolId poolNft
@@ -93,10 +95,14 @@ instance FromLedger Redeem where
       _ -> Nothing
   parseFromLedger _ = Nothing
 
+-- Flatten value filtering out ADA along the way.
+excludeAdaFlattened :: Value -> [(CurrencySymbol, TokenName, Integer)]
+excludeAdaFlattened v = filter (\(s, _, _) -> s /= Ada.adaSymbol) (flattenValue v)
+
 data OrderAction a where
-  SwapAction    :: Swap -> OrderAction Swap
+  SwapAction    :: Swap    -> OrderAction Swap
   DepositAction :: Deposit -> OrderAction Deposit
-  RedeemAction  :: Redeem -> OrderAction Redeem
+  RedeemAction  :: Redeem  -> OrderAction Redeem
 
 instance Show (OrderAction a) where
   show (SwapAction applySwap)       = show applySwap
