@@ -51,18 +51,18 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
 
     executorFee = (assetAmountRawValue quoteOutput) * exFeePerTokenNum `div` exFeePerTokenDen
     executorOut = TxOutCandidate
-      { txOutCandidateAddress         = pubKeyHashAddress executorPkh
-      , txOutCandidateValue           = Ada.lovelaceValueOf executorFee
-      , txOutCandidateDatum           = Nothing
-      , txOutCandidateMintingPolicies = []
+      { txOutCandidateAddress = pubKeyHashAddress executorPkh
+      , txOutCandidateValue   = Ada.lovelaceValueOf executorFee
+      , txOutCandidateDatum   = Nothing
+      , txOutCandidateMps     = []
       }
 
     rewardOut =
       TxOutCandidate
-        { txOutCandidateAddress         = pubKeyHashAddress swapRewardPkh
-        , txOutCandidateValue           = rewardValue
-        , txOutCandidateDatum           = Nothing
-        , txOutCandidateMintingPolicies = []
+        { txOutCandidateAddress = pubKeyHashAddress swapRewardPkh
+        , txOutCandidateValue   = rewardValue
+        , txOutCandidateDatum   = Nothing
+        , txOutCandidateMps     = []
         }
       where
         initValue   = fullTxOutValue swapOut
@@ -93,18 +93,18 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut po
 
     executorFee = unExFee depositExFee
     executorOut = TxOutCandidate
-      { txOutCandidateAddress         = pubKeyHashAddress executorPkh
-      , txOutCandidateValue           = Ada.lovelaceValueOf $ unAmount executorFee
-      , txOutCandidateDatum           = Nothing
-      , txOutCandidateMintingPolicies = []
+      { txOutCandidateAddress = pubKeyHashAddress executorPkh
+      , txOutCandidateValue   = Ada.lovelaceValueOf $ unAmount executorFee
+      , txOutCandidateDatum   = Nothing
+      , txOutCandidateMps     = []
       }
 
     rewardOut =
       TxOutCandidate
-        { txOutCandidateAddress         = pubKeyHashAddress depositRewardPkh
-        , txOutCandidateValue           = rewardValue
-        , txOutCandidateDatum           = Nothing
-        , txOutCandidateMintingPolicies = []
+        { txOutCandidateAddress = pubKeyHashAddress depositRewardPkh
+        , txOutCandidateValue   = rewardValue
+        , txOutCandidateDatum   = Nothing
+        , txOutCandidateMps     = []
         }
       where
         lqOutput        = liquidityAmount pool (inX, inY)
@@ -127,18 +127,18 @@ runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool)
 
     executorFee = unExFee redeemExFee
     executorOut = TxOutCandidate
-      { txOutCandidateAddress         = pubKeyHashAddress executorPkh
-      , txOutCandidateValue           = Ada.lovelaceValueOf $ unAmount executorFee
-      , txOutCandidateDatum           = Nothing
-      , txOutCandidateMintingPolicies = []
+      { txOutCandidateAddress = pubKeyHashAddress executorPkh
+      , txOutCandidateValue   = Ada.lovelaceValueOf $ unAmount executorFee
+      , txOutCandidateDatum   = Nothing
+      , txOutCandidateMps     = []
       }
 
     rewardOut =
       TxOutCandidate
-        { txOutCandidateAddress         = pubKeyHashAddress redeemRewardPkh
-        , txOutCandidateValue           = rewardValue
-        , txOutCandidateDatum           = Nothing
-        , txOutCandidateMintingPolicies = []
+        { txOutCandidateAddress = pubKeyHashAddress redeemRewardPkh
+        , txOutCandidateValue   = rewardValue
+        , txOutCandidateDatum   = Nothing
+        , txOutCandidateMps     = []
         }
       where
         (outX, outY)    = sharesAmount pool redeemLqIn
