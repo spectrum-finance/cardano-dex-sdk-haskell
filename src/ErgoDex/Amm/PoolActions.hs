@@ -6,6 +6,7 @@ module ErgoDex.Amm.PoolActions
 
 import Control.Monad  (when)
 import Data.Bifunctor
+import Data.Tuple
 
 import           Ledger         (PubKeyHash(..), Redeemer(..), pubKeyHashAddress)
 import qualified Ledger.Ada     as Ada
@@ -84,7 +85,7 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut po
         bimap entryAmount entryAmount $
           if (assetEntryClass $ fst depositPair) == (unCoin poolCoinX)
           then depositPair
-          else (snd depositPair, fst depositPair)
+          else swap depositPair
       where
         entryAmount (AssetEntry (_, v)) = Amount v
 
