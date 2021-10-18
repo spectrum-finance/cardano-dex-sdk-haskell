@@ -1,6 +1,6 @@
 module ErgoDex.Types where
 
-import Prelude (Show, Eq, Integer, ($), (==), (<>), negate)
+import Prelude (Show, Eq, Ord(..), Integer, Bool, ($), (==), (<>), negate)
 
 import           Ledger
 import           Ledger.Value      (AssetClass(..), assetClassValueOf, assetClassValue, Value(..))
@@ -32,8 +32,14 @@ instance AdditiveSemigroup (AssetAmount a) where
 instance MultiplicativeSemigroup (AssetAmount a) where
   a0 * a1 = a0 { getAmount = (getAmount a0) * (getAmount a1) }
 
+instance Ord (AssetAmount a) where
+  compare (AssetAmount _ (Amount x)) (AssetAmount _ (Amount y)) = compare x y
+
 retagCoin :: forall a b . Coin a -> Coin b
 retagCoin (Coin ac) = Coin ac
+
+amountEq :: AssetAmount a -> Integer -> Bool
+amountEq (AssetAmount _ (Amount a)) b = a == b
 
 assetAmountSubtract :: Value -> AssetAmount a -> Value
 assetAmountSubtract vl AssetAmount{getAsset=Coin ac, getAmount=Amount v} =
@@ -61,8 +67,8 @@ assetAmountPairOf (AssetEntry (ac, av), AssetEntry (bc, bv)) c =
     else if bc == (unCoin c) then bv
     else 0)
 
-assetAmountValueOf :: Value -> Coin a -> AssetAmount a
-assetAmountValueOf v c =
+assetAmountOfCoin :: Value -> Coin a -> AssetAmount a
+assetAmountOfCoin v c =
   AssetAmount c (Amount $ assetClassValueOf v (unCoin c))
 
 data ExFeePerToken = ExFeePerToken

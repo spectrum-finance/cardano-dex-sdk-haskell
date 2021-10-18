@@ -6,6 +6,7 @@ import Ledger
 import Ledger.Value                    (assetClassValue, assetClassValueOf)
 import Ledger.Typed.Scripts.Validators
 import PlutusTx.IsData.Class
+import PlutusTx.Sqrt
 import Playground.Contract             (FromJSON, ToJSON, Generic)
 
 import Cardano.Models
@@ -79,6 +80,20 @@ instance ToLedger Pool where
 
       nextPoolDatum = PoolDatum poolParams poolLiquidity
 
+data PoolInitError = InvalidLiquidity Integer
+
+applyInit :: Pool -> (Amount X, Amount Y) -> Either PoolInitError (Predicted Pool)
+applyInit p@Pool{..} (inX, inY) = do
+  unlockedLq <- fmap getAmount (initialLiquidityAmount p (inX, inY))
+  let
+    nextPool = p
+      { poolReservesX = poolReservesX + inX
+      , poolReservesY = poolReservesY + inY
+      , poolLiquidity = poolLiquidity + unlockedLq
+      }
+    nextPoolOut = toLedger nextPool
+  Right $ Predicted nextPoolOut nextPool
+
 applyDeposit :: Pool -> (Amount X, Amount Y) -> Predicted Pool
 applyDeposit p@Pool{..} (inX, inY) =
     Predicted nextPoolOut nextPool
@@ -129,13 +144,18 @@ applySwap p@Pool{..} base =
 
     nextPoolOut = toLedger nextPool
 
+initialLiquidityAmount :: Pool -> (Amount X, Amount Y) -> Either PoolInitError (AssetAmount Liquidity)
+initialLiquidityAmount Pool{..} (Amount inX, Amount inY) =
+  fmap (assetAmountCoinOf poolCoinLq) $ case isqrt (inX * inY) of
+    Exactly l | l > 0       -> Right l
+    Approximately l | l > 0 -> Right $ l + 1
+    _                       -> Left $ InvalidLiquidity (inX * inY)
+
 liquidityAmount :: Pool -> (Amount X, Amount Y) -> AssetAmount Liquidity
-liquidityAmount Pool{..} (inX, inY) =
+liquidityAmount Pool{..} (Amount inX, Amount inY) =
     assetAmountCoinOf poolCoinLq $
-      (min (inX' * poolLiquidity' `div` poolReservesX') (inY' * poolLiquidity' `div` poolReservesY'))
+      (min (inX * poolLiquidity' `div` poolReservesX') (inY * poolLiquidity' `div` poolReservesY'))
   where
-    inX'           = unAmount inX
-    inY'           = unAmount inY
     poolReservesX' = unAmount poolReservesX
     poolReservesY' = unAmount poolReservesY
     poolLiquidity' = unAmount poolLiquidity
@@ -152,7 +172,7 @@ sharesAmount Pool{..} burnedLq =
     poolLiquidity' = unAmount poolLiquidity
 
 outputAmount :: Pool -> AssetAmount Base -> AssetAmount Quote
-outputAmount Pool{poolFee=PoolFee{..}, ..} base =
+outputAmount Pool{poolFee=PoolFee{..}, ..} (AssetAmount baseAsset (Amount baseAmount)) =
     if xy then
       assetAmountCoinOf (retagCoin poolCoinY) $
         ((poolReservesY' * baseAmount * poolFeeNum) `div` (poolReservesX' * poolFeeDen + baseAmount * poolFeeNum))
@@ -160,7 +180,6 @@ outputAmount Pool{poolFee=PoolFee{..}, ..} base =
       assetAmountCoinOf (retagCoin poolCoinX) $
         ((poolReservesX' * baseAmount * poolFeeNum) `div` (poolReservesY' * poolFeeDen + baseAmount * poolFeeNum))
   where
-    xy             = (unCoin $ getAsset base) == (unCoin poolCoinX)
-    baseAmount     = assetAmountRawValue base
+    xy             = (unCoin $ baseAsset) == (unCoin poolCoinX)
     poolReservesX' = unAmount poolReservesX
     poolReservesY' = unAmount poolReservesY

@@ -18,6 +18,7 @@ import           ErgoDex.Amm.Orders
 import           ErgoDex.Amm.Pool
 import qualified ErgoDex.Contracts.Pool as P
 import           ErgoDex.Contracts.Types
+import           ErgoDex.Amm.Scripts
 import           Cardano.Models
 import           Cardano.Utils
 
@@ -39,8 +40,8 @@ mkPoolActions executorPkh = PoolActions
 runSwap' :: PubKeyHash -> Confirmed Swap -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
 runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (Confirmed poolOut pool) = do
   let
-    poolIn  = FullTxIn poolOut Pay2Script (Just $ Redeemer $ toBuiltinData P.Swap)
-    orderIn = FullTxIn swapOut Pay2Script (Just unitRedeemer)
+    poolIn  = FullTxIn poolOut (Just poolScript) (Just $ Redeemer $ toBuiltinData P.Swap)
+    orderIn = FullTxIn swapOut (Just swapScript) (Just unitRedeemer)
     inputs  = [poolIn, orderIn]
 
     pp@(Predicted nextPoolOut _) = applySwap pool (AssetAmount swapBase swapBaseIn)
@@ -49,16 +50,18 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
 
     executorFee = (assetAmountRawValue quoteOutput) * exFeePerTokenNum `div` exFeePerTokenDen
     executorOut = TxOutCandidate
-      { txOutCandidateAddress = pubKeyHashAddress executorPkh
-      , txOutCandidateValue   = Ada.lovelaceValueOf executorFee
-      , txOutCandidateDatum   = Nothing
+      { txOutCandidateAddress         = pubKeyHashAddress executorPkh
+      , txOutCandidateValue           = Ada.lovelaceValueOf executorFee
+      , txOutCandidateDatum           = Nothing
+      , txOutCandidateMintingPolicies = []
       }
 
     rewardOut =
       TxOutCandidate
-        { txOutCandidateAddress = pubKeyHashAddress swapRewardPkh
-        , txOutCandidateValue   = rewardValue
-        , txOutCandidateDatum   = Nothing
+        { txOutCandidateAddress         = pubKeyHashAddress swapRewardPkh
+        , txOutCandidateValue           = rewardValue
+        , txOutCandidateDatum           = Nothing
+        , txOutCandidateMintingPolicies = []
         }
       where
         initValue   = fullTxOutValue swapOut
@@ -73,8 +76,8 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
 runDeposit' :: PubKeyHash -> Confirmed Deposit -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
 runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut pool@Pool{..}) = do
   let
-    poolIn  = FullTxIn poolOut Pay2Script (Just $ Redeemer $ toBuiltinData P.Deposit)
-    orderIn = FullTxIn depositOut Pay2Script (Just unitRedeemer)
+    poolIn  = FullTxIn poolOut (Just poolScript) (Just $ Redeemer $ toBuiltinData P.Deposit)
+    orderIn = FullTxIn depositOut (Just depositScript) (Just unitRedeemer)
     inputs  = [poolIn, orderIn]
 
     (inX, inY) =
@@ -89,16 +92,18 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut po
 
     executorFee = unExFee depositExFee
     executorOut = TxOutCandidate
-      { txOutCandidateAddress = pubKeyHashAddress executorPkh
-      , txOutCandidateValue   = Ada.lovelaceValueOf $ unAmount executorFee
-      , txOutCandidateDatum   = Nothing
+      { txOutCandidateAddress         = pubKeyHashAddress executorPkh
+      , txOutCandidateValue           = Ada.lovelaceValueOf $ unAmount executorFee
+      , txOutCandidateDatum           = Nothing
+      , txOutCandidateMintingPolicies = []
       }
 
     rewardOut =
       TxOutCandidate
-        { txOutCandidateAddress = pubKeyHashAddress depositRewardPkh
-        , txOutCandidateValue   = rewardValue
-        , txOutCandidateDatum   = Nothing
+        { txOutCandidateAddress         = pubKeyHashAddress depositRewardPkh
+        , txOutCandidateValue           = rewardValue
+        , txOutCandidateDatum           = Nothing
+        , txOutCandidateMintingPolicies = []
         }
       where
         lqOutput        = liquidityAmount pool (inX, inY)
@@ -113,24 +118,26 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut po
 runRedeem' :: PubKeyHash -> Confirmed Redeem -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
 runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool) = do
   let
-    poolIn  = FullTxIn poolOut Pay2Script (Just $ Redeemer $ toBuiltinData P.Redeem)
-    orderIn = FullTxIn redeemOut Pay2Script (Just unitRedeemer)
+    poolIn  = FullTxIn poolOut (Just poolScript) (Just $ Redeemer $ toBuiltinData P.Redeem)
+    orderIn = FullTxIn redeemOut (Just redeemScript) (Just unitRedeemer)
     inputs  = [poolIn, orderIn]
 
     pp@(Predicted nextPoolOut _) = applyRedeem pool redeemLqIn
 
     executorFee = unExFee redeemExFee
     executorOut = TxOutCandidate
-      { txOutCandidateAddress = pubKeyHashAddress executorPkh
-      , txOutCandidateValue   = Ada.lovelaceValueOf $ unAmount executorFee
-      , txOutCandidateDatum   = Nothing
+      { txOutCandidateAddress         = pubKeyHashAddress executorPkh
+      , txOutCandidateValue           = Ada.lovelaceValueOf $ unAmount executorFee
+      , txOutCandidateDatum           = Nothing
+      , txOutCandidateMintingPolicies = []
       }
 
     rewardOut =
       TxOutCandidate
-        { txOutCandidateAddress = pubKeyHashAddress redeemRewardPkh
-        , txOutCandidateValue   = rewardValue
-        , txOutCandidateDatum   = Nothing
+        { txOutCandidateAddress         = pubKeyHashAddress redeemRewardPkh
+        , txOutCandidateValue           = rewardValue
+        , txOutCandidateDatum           = Nothing
+        , txOutCandidateMintingPolicies = []
         }
       where
         (outX, outY)    = sharesAmount pool redeemLqIn

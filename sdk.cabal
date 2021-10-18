@@ -79,6 +79,8 @@ library
                      ErgoDex.Amm.Orders
                      ErgoDex.Amm.Pool
                      ErgoDex.Amm.PoolActions
+                     ErgoDex.Amm.PoolSetup
+                     ErgoDex.Amm.Scripts
                      ErgoDex.Types
 
     build-depends: 
