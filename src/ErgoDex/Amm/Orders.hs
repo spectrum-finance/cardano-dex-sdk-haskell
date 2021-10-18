@@ -62,7 +62,7 @@ instance FromLedger Deposit where
               Just $ Confirmed fout Deposit
                 { depositPoolId    = PoolId poolNft
                 , depositPair      = pair
-                , depositExFee     = ExFee $ Amount exFee
+                , depositExFee     = ExFee exFee
                 , depositRewardPkh = rewardPkh
                 }
             where
@@ -90,7 +90,7 @@ instance FromLedger Redeem where
                 { redeemPoolId    = PoolId poolNft
                 , redeemLqIn      = Amount v
                 , redeemLq        = Coin $ AssetClass (ac, tn)
-                , redeemExFee     = ExFee $ Amount exFee
+                , redeemExFee     = ExFee exFee
                 , redeemRewardPkh = rewardPkh
                 }
           _ -> Nothing
