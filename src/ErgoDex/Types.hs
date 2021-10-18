@@ -7,7 +7,7 @@ import           Ledger.Value      (AssetClass(..), assetClassValueOf, assetClas
 import           PlutusTx.Numeric  (AdditiveSemigroup(..), MultiplicativeSemigroup(..))
 import qualified PlutusTx.AssocMap as Map
 
-import ErgoDex.Contracts.Types
+import ErgoDex.Contracts.Types as Currencies
 
 data Lovelace = Lovelace
   deriving (Show, Eq)
@@ -76,5 +76,5 @@ data ExFeePerToken = ExFeePerToken
   , exFeePerTokenDen :: Integer
   } deriving (Show, Eq)
 
-newtype ExFee = ExFee { unExFee :: Amount Lovelace }
+newtype ExFee = ExFee { unExFee :: Amount Currencies.Lovelace }
   deriving (Show, Eq)

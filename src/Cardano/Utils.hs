@@ -1,13 +1,13 @@
 module Cardano.Utils where
 
 import           Ledger.Value
-import           Ledger.Ada
+import           Ledger.Ada        as Ada
 import qualified PlutusTx.AssocMap as Map
 
-import ErgoDex.Contracts.Types
+import ErgoDex.Contracts.Types     
 
 lovelaceSubtract :: Value -> Ada -> Value
-lovelaceSubtract vl (Lovelace ada) =
+lovelaceSubtract vl (Ada.Lovelace ada) =
     vl <> negValue
   where
     negValue = toValue $ lovelaceOf (negate ada)
