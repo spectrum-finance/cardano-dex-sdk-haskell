@@ -57,7 +57,7 @@ instance FromLedger Deposit where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
       (Just DepositDatum{..}) ->
-        case excludeAdaFlattened fullTxOutValue of
+        case extractPairValue fullTxOutValue of
           [assetX, assetY] ->
               Just $ Confirmed fout Deposit
                 { depositPoolId    = PoolId poolNft
@@ -84,7 +84,7 @@ instance FromLedger Redeem where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
       (Just RedeemDatum{..}) ->
-        case excludeAdaFlattened fullTxOutValue of
+        case extractPairValue fullTxOutValue of
           [(ac, tn, v)] ->
               Just $ Confirmed fout Redeem
                 { redeemPoolId    = PoolId poolNft
@@ -97,9 +97,14 @@ instance FromLedger Redeem where
       _ -> Nothing
   parseFromLedger _ = Nothing
 
--- Flatten value filtering out ADA along the way.
-excludeAdaFlattened :: Value -> [(CurrencySymbol, TokenName, Integer)]
-excludeAdaFlattened v = filter (\(s, _, _) -> s /= Ada.adaSymbol) (flattenValue v)
+-- Extract pair of assets for order (Deposit|Redeem) from a given value.
+extractPairValue :: Value -> [(CurrencySymbol, TokenName, Integer)]
+extractPairValue inputValue =
+    if (length flattenedInput == 2)
+    then flattenedInput
+    else filter (\(s, _, _) -> s /= Ada.adaSymbol) flattenedInput
+  where
+    flattenedInput = flattenValue inputValue
 
 data OrderAction a where
   SwapAction    :: Swap    -> OrderAction Swap
