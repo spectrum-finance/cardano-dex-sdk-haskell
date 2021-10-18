@@ -41,13 +41,12 @@ poolDeploy' pp@P.PoolParams{..} inputs = do
   inNft <- tryGetInputAmountOf inputs poolNft
   when (not (amountEq inNft 1)) (Left InvalidNft) -- make sure valid NFT is provided
   let
-    poolOutput =
-      TxOutCandidate
-        { txOutCandidateAddress  = Validators.validatorAddress poolInstance
-        , txOutCandidateValue    = assetAmountValue inNft
-        , txOutCandidateDatum    = Just $ Datum $ PlutusTx.toBuiltinData pp
-        , txOutCandidatePolicies = []
-        }
+    poolOutput = TxOutCandidate
+      { txOutCandidateAddress  = Validators.validatorAddress poolInstance
+      , txOutCandidateValue    = assetAmountValue inNft
+      , txOutCandidateDatum    = Just $ Datum $ PlutusTx.toBuiltinData pp
+      , txOutCandidatePolicies = []
+      }
 
     outputs = [poolOutput]
 
@@ -73,13 +72,12 @@ poolInit' inputs rewardPkh = do
         [poolOutput, rewardOutput]
       where
         rewardValue  = coinAmountValue (poolCoinLq nextPool) (poolLiquidity nextPool)
-        rewardOutput =
-          TxOutCandidate
-            { txOutCandidateAddress  = pubKeyHashAddress rewardPkh
-            , txOutCandidateValue    = rewardValue
-            , txOutCandidateDatum    = Nothing
-            , txOutCandidatePolicies = [liquidityMintingPolicyInstance (unPoolId $ poolId nextPool)]
-            }
+        rewardOutput = TxOutCandidate
+          { txOutCandidateAddress  = pubKeyHashAddress rewardPkh
+          , txOutCandidateValue    = rewardValue
+          , txOutCandidateDatum    = Nothing
+          , txOutCandidatePolicies = [liquidityMintingPolicyInstance (unPoolId $ poolId nextPool)]
+          }
 
   Right $ TxCandidate inputsReordered outputs
 

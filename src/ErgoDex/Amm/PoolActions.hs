@@ -61,12 +61,12 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
       }
 
     rewardOut =
-      TxOutCandidate
-        { txOutCandidateAddress  = pubKeyHashAddress swapRewardPkh
-        , txOutCandidateValue    = rewardValue
-        , txOutCandidateDatum    = Nothing
-        , txOutCandidatePolicies = []
-        }
+        TxOutCandidate
+          { txOutCandidateAddress  = pubKeyHashAddress swapRewardPkh
+          , txOutCandidateValue    = rewardValue
+          , txOutCandidateDatum    = Nothing
+          , txOutCandidatePolicies = []
+          }
       where
         initValue   = fullTxOutValue swapOut
         rewardValue = (assetAmountValue quoteOutput) <> (lovelaceSubtract initValue (Ada.Lovelace executorFee))
@@ -104,12 +104,12 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut po
       }
 
     rewardOut =
-      TxOutCandidate
-        { txOutCandidateAddress  = pubKeyHashAddress depositRewardPkh
-        , txOutCandidateValue    = rewardValue
-        , txOutCandidateDatum    = Nothing
-        , txOutCandidatePolicies = []
-        }
+        TxOutCandidate
+          { txOutCandidateAddress  = pubKeyHashAddress depositRewardPkh
+          , txOutCandidateValue    = rewardValue
+          , txOutCandidateDatum    = Nothing
+          , txOutCandidatePolicies = []
+          }
       where
         lqOutput        = liquidityAmount pool (inX, inY)
         initValue       = fullTxOutValue depositOut
@@ -140,12 +140,12 @@ runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool@
       }
 
     rewardOut =
-      TxOutCandidate
-        { txOutCandidateAddress  = pubKeyHashAddress redeemRewardPkh
-        , txOutCandidateValue    = rewardValue
-        , txOutCandidateDatum    = Nothing
-        , txOutCandidatePolicies = []
-        }
+        TxOutCandidate
+          { txOutCandidateAddress  = pubKeyHashAddress redeemRewardPkh
+          , txOutCandidateValue    = rewardValue
+          , txOutCandidateDatum    = Nothing
+          , txOutCandidatePolicies = []
+          }
       where
         (outX, outY)    = sharesAmount pool redeemLqIn
         initValue       = fullTxOutValue redeemOut
