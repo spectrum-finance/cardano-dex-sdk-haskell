@@ -7,10 +7,10 @@ import qualified PlutusTx.AssocMap as Map
 import ErgoDex.Contracts.Types
 
 lovelaceSubtract :: Value -> Ada -> Value
-lovelaceSubtract vl ada =
+lovelaceSubtract vl (Lovelace ada) =
     vl <> negValue
   where
-    negValue = toValue ada
+    negValue = toValue $ lovelaceOf (negate ada)
 
 filterValue :: Value -> AssetClass -> Value
 filterValue (Value tokens) (AssetClass (cs, _)) = Value $ Map.delete cs tokens
