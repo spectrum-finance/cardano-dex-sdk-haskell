@@ -46,7 +46,7 @@ poolDeploy' pp@P.PoolParams{..} inputs = do
         { txOutCandidateAddress = Validators.validatorAddress poolInstance
         , txOutCandidateValue   = assetAmountValue inNft
         , txOutCandidateDatum   = Just $ Datum $ PlutusTx.toBuiltinData pp
-        , txOutCandidateMps     = []
+        , txOutCandidatePolicies     = []
         }
 
     outputs = [poolOutput]
@@ -78,7 +78,7 @@ poolInit' inputs rewardPkh = do
             { txOutCandidateAddress = pubKeyHashAddress rewardPkh
             , txOutCandidateValue   = rewardValue
             , txOutCandidateDatum   = Nothing
-            , txOutCandidateMps     = [liquidityMintingPolicyInstance (unPoolId $ poolId nextPool)]
+            , txOutCandidatePolicies     = [liquidityMintingPolicyInstance (unPoolId $ poolId nextPool)]
             }
 
   Right $ TxCandidate inputsReordered outputs

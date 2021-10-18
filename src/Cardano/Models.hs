@@ -9,10 +9,10 @@ import Cardano.Types
 
 -- TX template without collaterals, fees, change etc.
 data TxOutCandidate = TxOutCandidate
-  { txOutCandidateAddress :: Address
-  , txOutCandidateValue   :: Value
-  , txOutCandidateDatum   :: Maybe Datum
-  , txOutCandidateMps     :: [MintingPolicy]
+  { txOutCandidateAddress  :: Address
+  , txOutCandidateValue    :: Value
+  , txOutCandidateDatum    :: Maybe Datum
+  , txOutCandidatePolicies :: [MintingPolicy]
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 data FullTxOut = FullTxOut

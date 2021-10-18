@@ -23,7 +23,10 @@ import           ErgoDex.Amm.Scripts
 import           Cardano.Models
 import           Cardano.Utils
 
-data OrderExecErr = PriceTooHigh deriving (Show)
+data OrderExecErr =
+    PriceTooHigh
+  | PoolMismatch PoolId PoolId
+  deriving (Show)
 
 data PoolActions = PoolActions
   { runSwap    :: Confirmed Swap    -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
@@ -51,18 +54,18 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
 
     executorFee = (assetAmountRawValue quoteOutput) * exFeePerTokenNum `div` exFeePerTokenDen
     executorOut = TxOutCandidate
-      { txOutCandidateAddress = pubKeyHashAddress executorPkh
-      , txOutCandidateValue   = Ada.lovelaceValueOf executorFee
-      , txOutCandidateDatum   = Nothing
-      , txOutCandidateMps     = []
+      { txOutCandidateAddress  = pubKeyHashAddress executorPkh
+      , txOutCandidateValue    = Ada.lovelaceValueOf executorFee
+      , txOutCandidateDatum    = Nothing
+      , txOutCandidatePolicies = []
       }
 
     rewardOut =
       TxOutCandidate
-        { txOutCandidateAddress = pubKeyHashAddress swapRewardPkh
-        , txOutCandidateValue   = rewardValue
-        , txOutCandidateDatum   = Nothing
-        , txOutCandidateMps     = []
+        { txOutCandidateAddress  = pubKeyHashAddress swapRewardPkh
+        , txOutCandidateValue    = rewardValue
+        , txOutCandidateDatum    = Nothing
+        , txOutCandidatePolicies = []
         }
       where
         initValue   = fullTxOutValue swapOut
@@ -70,6 +73,7 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
 
     outputs = [nextPoolOut, rewardOut, executorOut]
 
+  when (swapPoolId /= poolId pool)               (Left $ PoolMismatch swapPoolId (poolId pool))
   when (getAmount quoteOutput < swapMinQuoteOut) (Left PriceTooHigh)
 
   Right (TxCandidate inputs outputs, pp)
@@ -93,18 +97,18 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut po
 
     executorFee = unExFee depositExFee
     executorOut = TxOutCandidate
-      { txOutCandidateAddress = pubKeyHashAddress executorPkh
-      , txOutCandidateValue   = Ada.lovelaceValueOf $ unAmount executorFee
-      , txOutCandidateDatum   = Nothing
-      , txOutCandidateMps     = []
+      { txOutCandidateAddress  = pubKeyHashAddress executorPkh
+      , txOutCandidateValue    = Ada.lovelaceValueOf $ unAmount executorFee
+      , txOutCandidateDatum    = Nothing
+      , txOutCandidatePolicies = []
       }
 
     rewardOut =
       TxOutCandidate
-        { txOutCandidateAddress = pubKeyHashAddress depositRewardPkh
-        , txOutCandidateValue   = rewardValue
-        , txOutCandidateDatum   = Nothing
-        , txOutCandidateMps     = []
+        { txOutCandidateAddress  = pubKeyHashAddress depositRewardPkh
+        , txOutCandidateValue    = rewardValue
+        , txOutCandidateDatum    = Nothing
+        , txOutCandidatePolicies = []
         }
       where
         lqOutput        = liquidityAmount pool (inX, inY)
@@ -114,10 +118,12 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut po
 
     outputs = [nextPoolOut, rewardOut, executorOut]
 
+  when (depositPoolId /= poolId) (Left $ PoolMismatch depositPoolId poolId)
+
   Right (TxCandidate inputs outputs, pp)
 
 runRedeem' :: PubKeyHash -> Confirmed Redeem -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool) = do
+runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool@Pool{..}) = do
   let
     poolIn  = FullTxIn poolOut (Just poolScript) (Just $ Redeemer $ toBuiltinData P.Redeem)
     orderIn = FullTxIn redeemOut (Just redeemScript) (Just unitRedeemer)
@@ -127,18 +133,18 @@ runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool)
 
     executorFee = unExFee redeemExFee
     executorOut = TxOutCandidate
-      { txOutCandidateAddress = pubKeyHashAddress executorPkh
-      , txOutCandidateValue   = Ada.lovelaceValueOf $ unAmount executorFee
-      , txOutCandidateDatum   = Nothing
-      , txOutCandidateMps     = []
+      { txOutCandidateAddress  = pubKeyHashAddress executorPkh
+      , txOutCandidateValue    = Ada.lovelaceValueOf $ unAmount executorFee
+      , txOutCandidateDatum    = Nothing
+      , txOutCandidatePolicies = []
       }
 
     rewardOut =
       TxOutCandidate
-        { txOutCandidateAddress = pubKeyHashAddress redeemRewardPkh
-        , txOutCandidateValue   = rewardValue
-        , txOutCandidateDatum   = Nothing
-        , txOutCandidateMps     = []
+        { txOutCandidateAddress  = pubKeyHashAddress redeemRewardPkh
+        , txOutCandidateValue    = rewardValue
+        , txOutCandidateDatum    = Nothing
+        , txOutCandidatePolicies = []
         }
       where
         (outX, outY)    = sharesAmount pool redeemLqIn
@@ -147,5 +153,7 @@ runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool)
         rewardValue     = (assetAmountValue outX) <> (assetAmountValue outY) <> valueWithoutFee
 
     outputs = [nextPoolOut, rewardOut, executorOut]
+
+  when (redeemPoolId /= poolId) (Left $ PoolMismatch redeemPoolId poolId)
 
   Right (TxCandidate inputs outputs, pp)
