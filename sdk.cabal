@@ -19,7 +19,6 @@ common project-config
 
   default-extensions:   OverloadedStrings
                         DeriveAnyClass
-                        AutoDeriveTypeable
                         BangPatterns
                         BinaryLiterals
                         ConstraintKinds
@@ -41,7 +40,6 @@ common project-config
                         InstanceSigs
                         KindSignatures
                         LambdaCase
-                        MonadFailDesugaring
                         MultiParamTypeClasses
                         MultiWayIf
                         NamedFieldPuns
@@ -72,11 +70,18 @@ library
 
     hs-source-dirs: src
     
-    exposed-modules: Dex.Interpreter
-                     Dex.Models
-                     Dex.Processor
-                     Dex.Utils
-                     Dex.Instances
+    exposed-modules: Cardano.Types
+                     Cardano.Models
+                     Cardano.Utils
+                     Cardano.Address
+                     ErgoDex.Class
+                     ErgoDex.State
+                     ErgoDex.Amm.Orders
+                     ErgoDex.Amm.Pool
+                     ErgoDex.Amm.PoolActions
+                     ErgoDex.Amm.PoolSetup
+                     ErgoDex.Amm.Scripts
+                     ErgoDex.Types
 
     build-depends: 
         plutus-ledger,
@@ -95,4 +100,7 @@ library
         dependent-sum-template,
         containers,
         freer-simple,
-        plutus-core
+        plutus-core,
+        extra,
+        cardano-api,
+        text
