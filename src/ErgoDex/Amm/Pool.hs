@@ -60,9 +60,10 @@ instance FromLedger Pool where
 instance ToLedger Pool where
   toLedger Pool{..} =
       TxOutCandidate
-        { txOutCandidateAddress = validatorAddress poolInstance
-        , txOutCandidateValue   = poolValue
-        , txOutCandidateDatum   = Just $ Datum $ toBuiltinData nextPoolDatum
+        { txOutCandidateAddress  = validatorAddress poolInstance
+        , txOutCandidateValue    = poolValue
+        , txOutCandidateDatum    = Just $ Datum $ toBuiltinData nextPoolDatum
+        , txOutCandidatePolicies = []
         }
     where
       nft       = unPoolId poolId
