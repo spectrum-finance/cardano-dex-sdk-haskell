@@ -11,6 +11,7 @@ import Data.Tuple
 import           Ledger         (PubKeyHash(..), Redeemer(..), pubKeyHashAddress)
 import qualified Ledger.Ada     as Ada
 import           Ledger.Scripts (unitRedeemer)
+import           Ledger.Value   (assetClassValue)
 import           PlutusTx       (toBuiltinData)
 
 import           ErgoDex.Types
@@ -21,6 +22,7 @@ import qualified ErgoDex.Contracts.Pool as P
 import           ErgoDex.Contracts.Types
 import           ErgoDex.Amm.Scripts
 import           Cardano.Models
+import           Cardano.Utils
 
 data OrderExecErr =
     PriceTooHigh
@@ -67,7 +69,11 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
           , txOutCandidatePolicies = []
           }
       where
-        rewardValue = assetAmountValue quoteOutput
+        initValue     = fullTxOutValue swapOut
+        residualValue = excludeAda coinsResidue
+          where coinsResidue = initValue <> (assetClassValue (unCoin swapBase) (negate $ unAmount swapBaseIn)) -- Remove Base input
+
+        rewardValue = (assetAmountValue quoteOutput) <> residualValue
 
     outputs = [nextPoolOut, rewardOut, executorOut]
 
@@ -109,8 +115,17 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut po
           , txOutCandidatePolicies = []
           }
       where
-        lqOutput    = liquidityAmount pool (inX, inY)
-        rewardValue = assetAmountValue lqOutput
+        lqOutput      = liquidityAmount pool (inX, inY)
+        initValue     = fullTxOutValue depositOut
+        residualValue =
+            excludeAda coinsResidue
+          where
+            coinsResidue =
+                 initValue
+              <> (assetClassValue (unCoin poolCoinX) (negate $ unAmount inX)) -- Remove X input
+              <> (assetClassValue (unCoin poolCoinY) (negate $ unAmount inY)) -- Remove Y input
+
+        rewardValue = (assetAmountValue lqOutput) <> residualValue
 
     outputs = [nextPoolOut, rewardOut, executorOut]
 
@@ -143,8 +158,12 @@ runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool@
           , txOutCandidatePolicies = []
           }
       where
-        (outX, outY) = sharesAmount pool redeemLqIn
-        rewardValue  = (assetAmountValue outX) <> (assetAmountValue outY)
+        (outX, outY)  = sharesAmount pool redeemLqIn
+        initValue     = fullTxOutValue redeemOut
+        residualValue = excludeAda coinsResidue
+          where coinsResidue = initValue <> (assetClassValue (unCoin redeemLq) (negate $ unAmount redeemLqIn)) -- Remove LQ input
+
+        rewardValue = (assetAmountValue outX) <> (assetAmountValue outY) <> residualValue
 
     outputs = [nextPoolOut, rewardOut, executorOut]
 
