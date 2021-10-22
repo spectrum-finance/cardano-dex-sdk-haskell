@@ -1,14 +1,12 @@
 module Cardano.Models where
 
 import Ledger
-import Ledger.Scripts      (Validator, MintingPolicy)
-import Ledger.Tx
 import Playground.Contract (FromJSON, ToJSON, Generic)
 
 -- Defines how a residual value (if any) should be handled
 data ChangePolicy =
     ReturnTo Address
-  | ReturnAtLeast [(Address, Value)] -- Specifies a list of (change receiver addr, max value to return)
+  | ReturnAtLeastTo [(Address, Value)] -- Specifies a list of (change receiver addr, max value to return)
   deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 -- TX output template

@@ -61,9 +61,10 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
       , txOutCandidatePolicies = []
       }
 
-    rewardOut =
+    rewardAddr = pubKeyHashAddress swapRewardPkh
+    rewardOut  =
         TxOutCandidate
-          { txOutCandidateAddress  = pubKeyHashAddress swapRewardPkh
+          { txOutCandidateAddress  = rewardAddr
           , txOutCandidateValue    = rewardValue
           , txOutCandidateDatum    = Nothing
           , txOutCandidatePolicies = []
@@ -80,7 +81,7 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
   when (swapPoolId /= poolId pool)               (Left $ PoolMismatch swapPoolId (poolId pool))
   when (getAmount quoteOutput < swapMinQuoteOut) (Left PriceTooHigh)
 
-  Right (TxCandidate inputs outputs Nothing, pp)
+  Right (TxCandidate inputs outputs (Just $ ReturnTo rewardAddr), pp)
 
 runDeposit' :: PubKeyHash -> Confirmed Deposit -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
 runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut pool@Pool{..}) = do
@@ -107,9 +108,10 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut po
       , txOutCandidatePolicies = []
       }
 
-    rewardOut =
+    rewardAddr = pubKeyHashAddress depositRewardPkh
+    rewardOut  =
         TxOutCandidate
-          { txOutCandidateAddress  = pubKeyHashAddress depositRewardPkh
+          { txOutCandidateAddress  = rewardAddr
           , txOutCandidateValue    = rewardValue
           , txOutCandidateDatum    = Nothing
           , txOutCandidatePolicies = []
@@ -131,7 +133,7 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut po
 
   when (depositPoolId /= poolId) (Left $ PoolMismatch depositPoolId poolId)
 
-  Right (TxCandidate inputs outputs Nothing, pp)
+  Right (TxCandidate inputs outputs (Just $ ReturnTo rewardAddr), pp)
 
 runRedeem' :: PubKeyHash -> Confirmed Redeem -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
 runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool@Pool{..}) = do
@@ -150,9 +152,10 @@ runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool@
       , txOutCandidatePolicies = []
       }
 
-    rewardOut =
+    rewardAddr = pubKeyHashAddress redeemRewardPkh
+    rewardOut  =
         TxOutCandidate
-          { txOutCandidateAddress  = pubKeyHashAddress redeemRewardPkh
+          { txOutCandidateAddress  = rewardAddr
           , txOutCandidateValue    = rewardValue
           , txOutCandidateDatum    = Nothing
           , txOutCandidatePolicies = []
@@ -169,4 +172,4 @@ runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool@
 
   when (redeemPoolId /= poolId) (Left $ PoolMismatch redeemPoolId poolId)
 
-  Right (TxCandidate inputs outputs Nothing, pp)
+  Right (TxCandidate inputs outputs (Just $ ReturnTo rewardAddr), pp)
