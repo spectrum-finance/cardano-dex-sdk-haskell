@@ -1,6 +1,7 @@
 module ErgoDex.Types where
 
-import Prelude (Show, Eq, Ord(..), Integer, Bool, ($), (==), (<>), negate)
+import Prelude                     (Show, Eq, Ord(..), Integer, Bool, ($), (==), (<>), negate)
+import Playground.Contract         (FromJSON, ToJSON, Generic)
 
 import           Ledger
 import           Ledger.Value      (AssetClass(..), assetClassValueOf, assetClassValue, Value(..))
@@ -13,7 +14,7 @@ data Lovelace = Lovelace
   deriving (Show, Eq)
 
 newtype AssetEntry = AssetEntry { unAssetEntry :: (AssetClass, Integer) }
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic, ToJSON, FromJSON)
 
 assetEntryClass :: AssetEntry -> AssetClass
 assetEntryClass (AssetEntry (cls, _)) = cls
@@ -74,7 +75,7 @@ assetAmountOfCoin v c =
 data ExFeePerToken = ExFeePerToken
   { exFeePerTokenNum :: Integer
   , exFeePerTokenDen :: Integer
-  } deriving (Show, Eq)
+  } deriving (Show, Eq, Generic, ToJSON, FromJSON)
 
 newtype ExFee = ExFee { unExFee :: Amount Currencies.Lovelace }
-  deriving (Show, Eq)
+  deriving (Show, Eq, Generic, ToJSON, FromJSON)

@@ -17,6 +17,7 @@ import ErgoDex.Contracts.Types
 import ErgoDex.Contracts.Proxy.Swap
 import ErgoDex.Contracts.Proxy.Deposit
 import ErgoDex.Contracts.Proxy.Redeem
+import Playground.Contract             (FromJSON, ToJSON, Generic)
 
 data Swap = Swap
   { swapPoolId      :: PoolId
@@ -26,7 +27,7 @@ data Swap = Swap
   , swapQuote       :: Coin Quote
   , swapExFee       :: ExFeePerToken
   , swapRewardPkh   :: PubKeyHash
-  } deriving (Show, Eq)
+  } deriving (Show, Eq, Generic, ToJSON, FromJSON)
 
 instance FromLedger Swap where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
@@ -51,7 +52,7 @@ data Deposit = Deposit
   , depositPair      :: (AssetEntry, AssetEntry)
   , depositExFee     :: ExFee
   , depositRewardPkh :: PubKeyHash
-  } deriving (Show, Eq)
+  } deriving (Show, Eq, Generic, ToJSON, FromJSON)
 
 instance FromLedger Deposit where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
@@ -78,7 +79,7 @@ data Redeem = Redeem
   , redeemLq        :: Coin Liquidity
   , redeemExFee     :: ExFee
   , redeemRewardPkh :: PubKeyHash
-  } deriving (Show, Eq)
+  } deriving (Show, Eq, Generic, ToJSON, FromJSON)
 
 instance FromLedger Redeem where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
