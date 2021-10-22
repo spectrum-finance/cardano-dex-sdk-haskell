@@ -5,7 +5,7 @@ import Ledger.Scripts      (Validator, MintingPolicy)
 import Ledger.Tx
 import Playground.Contract (FromJSON, ToJSON, Generic)
 
--- TX template without collaterals, fees, change etc.
+-- TX output template
 data TxOutCandidate = TxOutCandidate
   { txOutCandidateAddress  :: Address
   , txOutCandidateValue    :: Value
@@ -27,6 +27,7 @@ data FullTxIn = FullTxIn
   , fullTxInRedeemer :: Maybe Redeemer
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
+-- TX template without collaterals, fees, change etc.
 data TxCandidate = TxCandidate
   { txCandidateInputs  :: [FullTxIn]
   , txCandidateOutputs :: [TxOutCandidate]

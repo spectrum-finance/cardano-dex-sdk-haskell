@@ -21,7 +21,6 @@ import qualified ErgoDex.Contracts.Pool as P
 import           ErgoDex.Contracts.Types
 import           ErgoDex.Amm.Scripts
 import           Cardano.Models
-import           Cardano.Utils
 
 data OrderExecErr =
     PriceTooHigh
@@ -68,8 +67,7 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
           , txOutCandidatePolicies = []
           }
       where
-        initValue   = fullTxOutValue swapOut
-        rewardValue = (assetAmountValue quoteOutput) <> (lovelaceSubtract initValue (Ada.Lovelace executorFee))
+        rewardValue = assetAmountValue quoteOutput
 
     outputs = [nextPoolOut, rewardOut, executorOut]
 
@@ -111,10 +109,8 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut po
           , txOutCandidatePolicies = []
           }
       where
-        lqOutput        = liquidityAmount pool (inX, inY)
-        initValue       = fullTxOutValue depositOut
-        valueWithoutFee = lovelaceSubtract initValue (Ada.Lovelace $ unAmount executorFee)
-        rewardValue     = (assetAmountValue lqOutput) <> valueWithoutFee
+        lqOutput    = liquidityAmount pool (inX, inY)
+        rewardValue = assetAmountValue lqOutput
 
     outputs = [nextPoolOut, rewardOut, executorOut]
 
@@ -147,10 +143,8 @@ runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool@
           , txOutCandidatePolicies = []
           }
       where
-        (outX, outY)    = sharesAmount pool redeemLqIn
-        initValue       = fullTxOutValue redeemOut
-        valueWithoutFee = lovelaceSubtract initValue (Ada.Lovelace $ unAmount executorFee)
-        rewardValue     = (assetAmountValue outX) <> (assetAmountValue outY) <> valueWithoutFee
+        (outX, outY) = sharesAmount pool redeemLqIn
+        rewardValue  = (assetAmountValue outX) <> (assetAmountValue outY)
 
     outputs = [nextPoolOut, rewardOut, executorOut]
 

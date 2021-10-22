@@ -4,13 +4,7 @@ import           Ledger.Value
 import           Ledger.Ada        as Ada
 import qualified PlutusTx.AssocMap as Map
 
-import ErgoDex.Contracts.Types     
-
-lovelaceSubtract :: Value -> Ada -> Value
-lovelaceSubtract vl (Ada.Lovelace ada) =
-    vl <> negValue
-  where
-    negValue = toValue $ lovelaceOf (negate ada)
+import ErgoDex.Contracts.Types
 
 filterValue :: Value -> AssetClass -> Value
 filterValue (Value tokens) (AssetClass (cs, _)) = Value $ Map.delete cs tokens
