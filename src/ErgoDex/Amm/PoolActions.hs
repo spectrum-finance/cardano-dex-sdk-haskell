@@ -80,7 +80,7 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
   when (swapPoolId /= poolId pool)               (Left $ PoolMismatch swapPoolId (poolId pool))
   when (getAmount quoteOutput < swapMinQuoteOut) (Left PriceTooHigh)
 
-  Right (TxCandidate inputs outputs, pp)
+  Right (TxCandidate inputs outputs Nothing, pp)
 
 runDeposit' :: PubKeyHash -> Confirmed Deposit -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
 runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut pool@Pool{..}) = do
@@ -131,7 +131,7 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut po
 
   when (depositPoolId /= poolId) (Left $ PoolMismatch depositPoolId poolId)
 
-  Right (TxCandidate inputs outputs, pp)
+  Right (TxCandidate inputs outputs Nothing, pp)
 
 runRedeem' :: PubKeyHash -> Confirmed Redeem -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
 runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool@Pool{..}) = do
@@ -169,4 +169,4 @@ runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool@
 
   when (redeemPoolId /= poolId) (Left $ PoolMismatch redeemPoolId poolId)
 
-  Right (TxCandidate inputs outputs, pp)
+  Right (TxCandidate inputs outputs Nothing, pp)

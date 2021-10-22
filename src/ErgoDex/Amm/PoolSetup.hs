@@ -50,7 +50,7 @@ poolDeploy' pp@P.PoolParams{..} inputs = do
 
     outputs = [poolOutput]
 
-  Right $ TxCandidate inputs outputs
+  Right $ TxCandidate inputs outputs Nothing
 
 poolInit' :: [FullTxIn] -> PubKeyHash -> Either SetupExecError TxCandidate
 poolInit' inputs rewardPkh = do
@@ -79,7 +79,7 @@ poolInit' inputs rewardPkh = do
           , txOutCandidatePolicies = [liquidityMintingPolicyInstance (unPoolId $ poolId nextPool)]
           }
 
-  Right $ TxCandidate inputsReordered outputs
+  Right $ TxCandidate inputsReordered outputs Nothing
 
 tryGetInputAmountOf :: [FullTxIn] -> Coin a -> Either SetupExecError (AssetAmount a)
 tryGetInputAmountOf inputs c =
