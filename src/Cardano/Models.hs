@@ -1,11 +1,13 @@
 module Cardano.Models where
 
 import Ledger
-import Ledger.Scripts      (Validator, MintingPolicy)
-import Ledger.Tx
 import Playground.Contract (FromJSON, ToJSON, Generic)
 
--- TX template without collaterals, fees, change etc.
+-- Defines how a residual value (if any) should be handled
+data ChangePolicy = ReturnTo Address
+  deriving (Show, Eq, Generic, FromJSON, ToJSON)
+
+-- TX output template
 data TxOutCandidate = TxOutCandidate
   { txOutCandidateAddress  :: Address
   , txOutCandidateValue    :: Value
@@ -27,7 +29,9 @@ data FullTxIn = FullTxIn
   , fullTxInRedeemer :: Maybe Redeemer
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
+-- TX template without collaterals, fees, change etc.
 data TxCandidate = TxCandidate
-  { txCandidateInputs  :: [FullTxIn]
-  , txCandidateOutputs :: [TxOutCandidate]
+  { txCandidateInputs       :: [FullTxIn]
+  , txCandidateOutputs      :: [TxOutCandidate]
+  , txCandidateChangePolicy :: Maybe ChangePolicy
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
