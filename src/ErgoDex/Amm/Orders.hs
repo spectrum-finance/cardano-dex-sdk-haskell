@@ -1,11 +1,15 @@
 module ErgoDex.Amm.Orders where
 
-import Data.Tuple.Extra
-import Data.Bifunctor
+import           Data.Tuple.Extra
+import           Data.Bifunctor
+import Data.Aeson
+import Data.Maybe
+
+import GHC.Generics
 
 import           Ledger
 import           PlutusTx.IsData.Class
-import           Ledger.Value           (AssetClass(..), assetClassValueOf, flattenValue)
+import qualified Ledger.Value           as LedgerV
 import qualified Ledger.Ada             as Ada
 
 import Cardano.Models
@@ -17,7 +21,6 @@ import ErgoDex.Contracts.Types
 import ErgoDex.Contracts.Proxy.Swap
 import ErgoDex.Contracts.Proxy.Deposit
 import ErgoDex.Contracts.Proxy.Redeem
-import Playground.Contract             (FromJSON, ToJSON, Generic)
 
 data Swap = Swap
   { swapPoolId      :: PoolId
@@ -43,7 +46,7 @@ instance FromLedger Swap where
             , swapRewardPkh   = rewardPkh
             }
         where
-          baseIn = Amount $ assetClassValueOf fullTxOutValue (unCoin base)
+          baseIn = Amount $ LedgerV.assetClassValueOf fullTxOutValue (unCoin base)
       _ -> Nothing
   parseFromLedger _ = Nothing
 
@@ -90,7 +93,7 @@ instance FromLedger Redeem where
               Just $ Confirmed fout Redeem
                 { redeemPoolId    = PoolId poolNft
                 , redeemLqIn      = Amount v
-                , redeemLq        = Coin $ AssetClass (ac, tn)
+                , redeemLq        = Coin $ LedgerV.AssetClass (ac, tn)
                 , redeemExFee     = ExFee exFee
                 , redeemRewardPkh = rewardPkh
                 }
@@ -99,13 +102,13 @@ instance FromLedger Redeem where
   parseFromLedger _ = Nothing
 
 -- Extract pair of assets for order (Deposit|Redeem) from a given value.
-extractPairValue :: Value -> [(CurrencySymbol, TokenName, Integer)]
+extractPairValue :: LedgerV.Value -> [(CurrencySymbol, TokenName, Integer)]
 extractPairValue inputValue =
     if (length flattenedInput == 2)
     then flattenedInput
     else filter (\(s, _, _) -> s /= Ada.adaSymbol) flattenedInput
   where
-    flattenedInput = flattenValue inputValue
+    flattenedInput = LedgerV.flattenValue inputValue
 
 data OrderAction a where
   SwapAction    :: Swap    -> OrderAction Swap
@@ -122,6 +125,36 @@ instance Eq (OrderAction a) where
   (DepositAction x) == (DepositAction y) = x == y
   (RedeemAction x) == (RedeemAction y)   = x == y
 
+instance ToJSON (OrderAction a) where
+  toJSON (SwapAction swap)       = toJSON swap
+  toJSON (DepositAction deposit) = toJSON deposit
+  toJSON (RedeemAction redeem)   = toJSON redeem
+
+  toEncoding (SwapAction swap)       = toEncoding swap
+  toEncoding (DepositAction deposit) = toEncoding deposit
+  toEncoding (RedeemAction redeem)   = toEncoding redeem
+
+instance FromJSON (OrderAction a) where
+  parseJSON v =
+      if (isJust maybeSwap)         then return $ unsafeFromMaybe $ fmap SwapAction maybeSwap
+      else if (isJust maybeDeposit) then return $ unsafeFromMaybe $ fmap DepositAction maybeDeposit
+      else  return $ unsafeFromMaybe $ fmap RedeemAction maybeRedeem
+      -- else                               return $ Nothing
+    where
+      maybeSwap    = unwrapResult ((fromJSON v) :: Result (Maybe Swap))
+      maybeDeposit = unwrapResult ((fromJSON v) :: Result (Maybe Deposit))
+      maybeRedeem  = unwrapResult ((fromJSON v) :: Result (Maybe Redeem))
+    
+unwrapResult :: Result (Maybe a) -> Maybe a
+unwrapResult (Success a) = a
+unwrapResult _           = Nothing
+
+unsafeFromMaybe :: Maybe a -> a
+unsafeFromMaybe v =
+    case v of
+        Just v1 -> v1
+        _ -> undefined
+
 data Order a = Order
   { orderPoolId :: PoolId
   , orderAction :: OrderAction a
@@ -131,3 +164,6 @@ data AnyOrder = forall a . AnyOrder
   { anyOrderPoolId :: PoolId
   , anyOrderAction :: OrderAction a
   }
+
+-- instance ToJSON AnyOrder where
+--   ToJSON (AnyOrder unAnyOrderPoolId unAnyOrderAction) =
