@@ -1,7 +1,9 @@
 module ErgoDex.Amm.Orders where
 
-import Data.Tuple.Extra
-import Data.Bifunctor
+import           Data.Tuple.Extra
+import           Data.Bifunctor
+import           Data.Aeson (ToJSON(..), object, (.=))
+import qualified Data.Aeson as JSON
 
 import           Ledger
 import           PlutusTx.IsData.Class
@@ -131,3 +133,23 @@ data AnyOrder = forall a . AnyOrder
   { anyOrderPoolId :: PoolId
   , anyOrderAction :: OrderAction a
   }
+
+instance ToJSON AnyOrder where
+  toJSON (AnyOrder poolId (SwapAction swap)) =
+    object [ "type"   .= JSON.String "swap"
+           , "poolId" .= poolId
+           , "action" .= toJSON swap
+           ]
+  toJSON (AnyOrder poolId (DepositAction deposit)) =
+    object [ "type"   .= JSON.String "deposit"
+           , "poolId" .= poolId
+           , "action" .= toJSON deposit
+           ]
+  toJSON (AnyOrder poolId (RedeemAction redeem)) =
+    object [ "type"   .= JSON.String "redeem"
+           , "poolId" .= poolId
+           , "action" .= toJSON redeem
+           ]
+
+instance FromJSON AnyOrder where
+  parseJSON (Object v) =
