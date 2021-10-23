@@ -4,9 +4,7 @@ import Ledger
 import Playground.Contract (FromJSON, ToJSON, Generic)
 
 -- Defines how a residual value (if any) should be handled
-data ChangePolicy =
-    ReturnTo Address
-  | ReturnAtLeastTo [(Address, Value)] -- Specifies a list of (change receiver addr, max value to return)
+data ChangePolicy = ReturnTo Address
   deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 -- TX output template
