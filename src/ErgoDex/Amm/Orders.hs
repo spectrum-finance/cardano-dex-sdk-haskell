@@ -166,3 +166,5 @@ instance FromJSON AnyOrder where
       SwapK    -> actionP >>= JSON.parseJSON & fmap (\x -> AnyOrder poolId (SwapAction x))
       DepositK -> actionP >>= JSON.parseJSON & fmap (\x -> AnyOrder poolId (DepositAction x))
       RedeemK  -> actionP >>= JSON.parseJSON & fmap (\x -> AnyOrder poolId (RedeemAction x))
+
+  parseJSON _ = fail "expected an object"
