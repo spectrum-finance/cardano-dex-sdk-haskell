@@ -2,13 +2,14 @@ module ErgoDex.Amm.Orders where
 
 import           Data.Tuple.Extra
 import           Data.Bifunctor
-import           Data.Aeson (ToJSON(..), object, (.=))
-import qualified Data.Aeson as JSON
+import           Data.Function
+import           Data.Aeson       (ToJSON(..), object, (.=), (.:))
+import qualified Data.Aeson       as JSON
 
 import           Ledger
 import           PlutusTx.IsData.Class
-import           Ledger.Value           (AssetClass(..), assetClassValueOf, flattenValue)
-import qualified Ledger.Ada             as Ada
+import           Ledger.Value          (AssetClass(..), assetClassValueOf, flattenValue)
+import qualified Ledger.Ada            as Ada
 
 import Cardano.Models
 import ErgoDex.Types
@@ -134,22 +135,34 @@ data AnyOrder = forall a . AnyOrder
   , anyOrderAction :: OrderAction a
   }
 
+data ActionKind = SwapK | DepositK | RedeemK
+  deriving (Show, Eq, Generic, ToJSON, FromJSON)
+
 instance ToJSON AnyOrder where
   toJSON (AnyOrder poolId (SwapAction swap)) =
-    object [ "type"   .= JSON.String "swap"
+    object [ "kind"   .= SwapK
            , "poolId" .= poolId
            , "action" .= toJSON swap
            ]
   toJSON (AnyOrder poolId (DepositAction deposit)) =
-    object [ "type"   .= JSON.String "deposit"
+    object [ "kind"   .= DepositK
            , "poolId" .= poolId
            , "action" .= toJSON deposit
            ]
   toJSON (AnyOrder poolId (RedeemAction redeem)) =
-    object [ "type"   .= JSON.String "redeem"
+    object [ "kind"   .= RedeemK
            , "poolId" .= poolId
            , "action" .= toJSON redeem
            ]
 
 instance FromJSON AnyOrder where
-  parseJSON (Object v) =
+  parseJSON (JSON.Object v) = do
+    kind   <- v .: "kind"
+    poolId <- v .: "poolId"
+
+    let actionP = (v .: "action")
+
+    case kind of
+      SwapK    -> actionP >>= JSON.parseJSON & fmap (\x -> AnyOrder poolId (SwapAction x))
+      DepositK -> actionP >>= JSON.parseJSON & fmap (\x -> AnyOrder poolId (DepositAction x))
+      RedeemK  -> actionP >>= JSON.parseJSON & fmap (\x -> AnyOrder poolId (RedeemAction x))
