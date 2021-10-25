@@ -14,7 +14,7 @@ data FullTxOut = FullTxOut
   { ref         :: OutRef
   , txHash      :: TxHash
   , index       :: Int
-  , globalIndex :: Integer
+  , globalIndex :: Gix
   , addr        :: Addr
   , value       :: [OutAsset]
   , dataHash    :: Maybe Hash32

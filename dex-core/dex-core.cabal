@@ -1,5 +1,5 @@
 cabal-version:      2.4
-name:               sdk
+name:               dex-core
 version:            0.1.0.0
 
 author:             ErgoLabs
@@ -70,12 +70,7 @@ library
 
     hs-source-dirs: src
     
-    exposed-modules: Cardano.Models
-                     Cardano.Utils
-                     Cardano.Address
-                     Explorer.Types
-                     Explorer.Models
-                     ErgoDex.Class
+    exposed-modules: ErgoDex.Class
                      ErgoDex.State
                      ErgoDex.Amm.Orders
                      ErgoDex.Amm.Pool
@@ -84,7 +79,8 @@ library
                      ErgoDex.Amm.Scripts
                      ErgoDex.Types
 
-    build-depends: 
+    build-depends:
+        cardano-tx,
         plutus-ledger,
         plutus-tx,
         plutus-ledger-api,

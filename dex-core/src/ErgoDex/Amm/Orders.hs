@@ -3,8 +3,9 @@ module ErgoDex.Amm.Orders where
 import           Data.Tuple.Extra
 import           Data.Bifunctor
 import           Data.Function
-import           Data.Aeson       (ToJSON(..), object, (.=), (.:))
+import           Data.Aeson       (FromJSON(..), ToJSON(..), object, (.=), (.:))
 import qualified Data.Aeson       as JSON
+import           GHC.Generics     (Generic)
 
 import           Ledger
 import           PlutusTx.IsData.Class
@@ -15,12 +16,11 @@ import Cardano.Models
 import ErgoDex.Types
 import ErgoDex.Class
 import ErgoDex.State
-import ErgoDex.Amm.Pool                 (PoolId(..))
+import ErgoDex.Amm.Pool                (PoolId(..))
 import ErgoDex.Contracts.Types
 import ErgoDex.Contracts.Proxy.Swap
 import ErgoDex.Contracts.Proxy.Deposit
 import ErgoDex.Contracts.Proxy.Redeem
-import Playground.Contract             (FromJSON, ToJSON, Generic)
 
 data Swap = Swap
   { swapPoolId      :: PoolId
