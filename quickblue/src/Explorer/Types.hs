@@ -26,3 +26,10 @@ newtype Hash32 = Hash32 { unHash32 :: String }
 -- TX hash32 represented as a hex string
 newtype TxHash = TxHash { unTxHash :: String }
   deriving (Show, Generic, FromJSON)
+
+-- A global index
+newtype Gix = Gix { unGix :: Integer }
+  deriving (Show, Generic, FromJSON)
+
+newtype Limit = Limit { unLimit :: Integer }
+  deriving (Show, Generic, FromJSON)
