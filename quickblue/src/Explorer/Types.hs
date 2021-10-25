@@ -1,6 +1,6 @@
 module Explorer.Types where
 
-import Data.Aeson   (FromJSON)
+import Data.Aeson   (FromJSON, ToJSON)
 import GHC.Generics
 
 -- Bech32 encoded and rendered address
@@ -29,7 +29,7 @@ newtype TxHash = TxHash { unTxHash :: String }
 
 -- A global index
 newtype Gix = Gix { unGix :: Integer }
-  deriving (Show, Generic, FromJSON)
+  deriving (Show, Generic, ToJSON, FromJSON)
 
 newtype Limit = Limit { unLimit :: Integer }
   deriving (Show, Generic, FromJSON)
