@@ -8,6 +8,6 @@ data Constr
   | ValueAtMost Value
 
 data WalletApi f = WalletApi
-  { selectUtxos  :: Maybe Constr -> f [P.TxOut]
-  , addSignature :: P.Tx -> f P.Tx
+  { selectUtxos :: Maybe Constr -> f [P.TxOut]
+  , submitTx    :: P.Tx -> f P.TxId
   }

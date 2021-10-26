@@ -73,7 +73,8 @@ library
     exposed-modules: CardanoTx.Models
                      CardanoTx.Utils
                      CardanoTx.Address
-                     CardanoTx.TxAsm
+                     CardanoTx.TxAsm.Config
+                     CardanoTx.TxAsm.Service
                      CardanoTx.WalletApi
 
     build-depends: 

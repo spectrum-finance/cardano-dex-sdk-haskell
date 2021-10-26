@@ -1,20 +1,24 @@
-module CardanoTx.TxAsm where
+module CardanoTx.TxAsm.Service where
 
 import Ledger                      (Address(..))
 import Ledger.Scripts              (datumHash)
 import Plutus.Contract.Wallet
 import Plutus.V1.Ledger.Credential (Credential(..))
 import Plutus.V1.Ledger.Tx         as P
+import CardanoTx.TxAsm.Config
 import CardanoTx.Models
+
+-- signTx :: TxId -> Crypto.XPrv -> Signature (import Ledger.Crypto)
+-- Use Plutus.Contract.Wallet ?
 
 data TxAsm f = TxAsm
   { assembleTx :: TxCandidate -> f P.Tx
   }
 
-assembleTx' :: TxCandidate -> f P.Tx
-assembleTx' TxCandidate{..} = undefined
+assembleTx' :: AssemblyConfig -> TxCandidate -> f P.Tx
+assembleTx' AssemblyConfig{..} TxCandidate{..} = undefined
 
-mkPlutusInput :: FullTxIn -> P.TxIn
+mkPlutusInput ::  FullTxIn -> P.TxIn
 mkPlutusInput FullTxIn{fullTxInTxOut=FullTxOut{..}, ..} =
     P.TxIn fullTxOutRef tpe
   where
