@@ -1,4 +1,4 @@
-module Cardano.Address
+module CardanoTx.Address
   ( renderToShellyAddress
   ) where
 

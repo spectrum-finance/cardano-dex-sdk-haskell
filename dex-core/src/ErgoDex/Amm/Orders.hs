@@ -12,7 +12,7 @@ import           PlutusTx.IsData.Class
 import           Ledger.Value          (AssetClass(..), assetClassValueOf, flattenValue)
 import qualified Ledger.Ada            as Ada
 
-import Cardano.Models
+import CardanoTx.Models
 import ErgoDex.Types
 import ErgoDex.Class
 import ErgoDex.State

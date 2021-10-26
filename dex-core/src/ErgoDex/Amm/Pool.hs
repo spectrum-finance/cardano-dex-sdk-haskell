@@ -9,7 +9,7 @@ import PlutusTx.IsData.Class
 import PlutusTx.Sqrt
 import Playground.Contract             (FromJSON, ToJSON, Generic)
 
-import Cardano.Models
+import CardanoTx.Models
 import ErgoDex.Class
 import ErgoDex.Types
 import ErgoDex.State

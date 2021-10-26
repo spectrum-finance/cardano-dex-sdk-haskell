@@ -16,8 +16,8 @@ import           ErgoDex.Amm.Pool       (Pool(..), PoolId(..), applyInit)
 import qualified ErgoDex.Contracts.Pool as P
 import           ErgoDex.Contracts.Types
 import           ErgoDex.OffChain
-import           Cardano.Models
-import           Cardano.Utils
+import           CardanoTx.Models
+import           CardanoTx.Utils
 
 data SetupExecError =
     MissingAsset AssetClass

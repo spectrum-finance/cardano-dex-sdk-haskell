@@ -1,7 +1,7 @@
 module ErgoDex.Types where
 
-import Prelude                     (Show, Eq, Ord(..), Integer, Bool, ($), (==), (<>), negate)
-import Playground.Contract         (FromJSON, ToJSON, Generic)
+import Prelude             (Show, Eq, Ord(..), Integer, Bool, ($), (==), (<>), negate)
+import Playground.Contract (FromJSON, ToJSON, Generic)
 
 import           Ledger
 import           Ledger.Value      (AssetClass(..), assetClassValueOf, assetClassValue, Value(..))

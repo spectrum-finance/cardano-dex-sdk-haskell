@@ -1,6 +1,6 @@
 module ErgoDex.State where
 
-import Cardano.Models
+import CardanoTx.Models
 import Playground.Contract (FromJSON, ToJSON, Generic)
 
 -- Predicted state of an on-chain entity `a`

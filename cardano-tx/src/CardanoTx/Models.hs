@@ -1,7 +1,8 @@
-module Cardano.Models where
+module CardanoTx.Models where
 
 import Ledger
-import Playground.Contract (FromJSON, ToJSON, Generic)
+import Data.Aeson   (FromJSON, ToJSON)
+import GHC.Generics (Generic)
 
 -- Defines how a residual value (if any) should be handled
 data ChangePolicy = ReturnTo Address

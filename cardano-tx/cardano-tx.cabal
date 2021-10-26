@@ -70,15 +70,16 @@ library
 
     hs-source-dirs: src
     
-    exposed-modules: Cardano.Models
-                     Cardano.Utils
-                     Cardano.Address
+    exposed-modules: CardanoTx.Models
+                     CardanoTx.Utils
+                     CardanoTx.Address
+                     CardanoTx.TxAsm
+                     CardanoTx.WalletApi
 
     build-depends: 
         plutus-ledger,
         plutus-tx,
         plutus-ledger-api,
-        playground-common,
         bytestring,
         aeson,
         servant,

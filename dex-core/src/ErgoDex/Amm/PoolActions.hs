@@ -21,8 +21,8 @@ import           ErgoDex.Amm.Pool
 import qualified ErgoDex.Contracts.Pool as P
 import           ErgoDex.Contracts.Types
 import           ErgoDex.Amm.Scripts
-import           Cardano.Models
-import           Cardano.Utils
+import           CardanoTx.Models
+import           CardanoTx.Utils
 
 data OrderExecErr =
     PriceTooHigh
