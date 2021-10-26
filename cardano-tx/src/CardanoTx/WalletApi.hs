@@ -6,9 +6,6 @@ import Ledger
 data Constr
   = ValueAtLeast Value
   | ValueAtMost Value
-  | PayToScriptHash ScriptHash
-  | PayToPubKeyHash PubKeyHash
-  | AllOf Constr
 
 data WalletApi f = WalletApi
   { selectUtxos  :: Maybe Constr -> f [P.TxOut]

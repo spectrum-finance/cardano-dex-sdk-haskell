@@ -63,7 +63,6 @@ instance ToLedger Pool where
         { txOutCandidateAddress  = validatorAddress poolInstance
         , txOutCandidateValue    = poolValue
         , txOutCandidateDatum    = Just $ Datum $ toBuiltinData nextPoolDatum
-        , txOutCandidatePolicies = []
         }
     where
       nft       = unPoolId poolId

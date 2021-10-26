@@ -41,16 +41,21 @@ poolDeploy' changeAddr pp@P.PoolParams{..} inputs = do
   inNft <- tryGetInputAmountOf inputs poolNft
   when (not (amountEq inNft 1)) (Left InvalidNft) -- make sure valid NFT is provided
   let
-    poolOutput = TxOutCandidate
-      { txOutCandidateAddress  = Validators.validatorAddress poolInstance
-      , txOutCandidateValue    = assetAmountValue inNft
-      , txOutCandidateDatum    = Just $ Datum $ PlutusTx.toBuiltinData pp
-      , txOutCandidatePolicies = []
-      }
-
     outputs = [poolOutput]
+      where
+        poolOutput =TxOutCandidate
+          { txOutCandidateAddress = Validators.validatorAddress poolInstance
+          , txOutCandidateValue   = assetAmountValue inNft
+          , txOutCandidateDatum   = Just $ Datum $ PlutusTx.toBuiltinData pp
+          }
 
-  Right $ TxCandidate inputs outputs (Just $ ReturnTo changeAddr)
+  Right $ TxCandidate
+    { txCandidateInputs       = inputs
+    , txCandidateOutputs      = outputs
+    , txCandidateValueMint    = MintValue mempty -- todo: mint NFT right there?
+    , txCandidatePolicies     = []
+    , txCandidateChangePolicy = Just $ ReturnTo changeAddr
+    }
 
 poolInit' :: Address -> [FullTxIn] -> PubKeyHash -> Either SetupExecError TxCandidate
 poolInit' changeAddr inputs rewardPkh = do
@@ -68,18 +73,26 @@ poolInit' changeAddr inputs rewardPkh = do
 
   let
     inputsReordered = [poolInput] ++ (filter (\i -> i /= poolInput) inputs)
-    outputs =
-        [poolOutput, rewardOutput]
+
+    mintLqValue = coinAmountValue (poolCoinLq nextPool) (poolLiquidity nextPool)
+
+    outputs = [poolOutput, rewardOutput]
       where
-        rewardValue  = coinAmountValue (poolCoinLq nextPool) (poolLiquidity nextPool)
         rewardOutput = TxOutCandidate
-          { txOutCandidateAddress  = pubKeyHashAddress rewardPkh
-          , txOutCandidateValue    = rewardValue
-          , txOutCandidateDatum    = Nothing
-          , txOutCandidatePolicies = [liquidityMintingPolicyInstance (unPoolId $ poolId nextPool)]
+          { txOutCandidateAddress = pubKeyHashAddress rewardPkh
+          , txOutCandidateValue   = mintLqValue
+          , txOutCandidateDatum   = Nothing
           }
 
-  Right $ TxCandidate inputsReordered outputs (Just $ ReturnTo changeAddr)
+    mps = [liquidityMintingPolicyInstance (unPoolId $ poolId nextPool)]
+
+  Right $ TxCandidate
+    { txCandidateInputs       = inputsReordered
+    , txCandidateOutputs      = outputs
+    , txCandidateValueMint    = MintValue mintLqValue
+    , txCandidatePolicies     = mps
+    , txCandidateChangePolicy = Just $ ReturnTo changeAddr
+    }
 
 tryGetInputAmountOf :: [FullTxIn] -> Coin a -> Either SetupExecError (AssetAmount a)
 tryGetInputAmountOf inputs c =

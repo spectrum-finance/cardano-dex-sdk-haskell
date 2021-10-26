@@ -8,12 +8,14 @@ import GHC.Generics (Generic)
 data ChangePolicy = ReturnTo Address
   deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
+newtype MintValue = MintValue { unMintValue :: Value }
+  deriving (Show, Eq, Generic, FromJSON, ToJSON)
+
 -- TX output template
 data TxOutCandidate = TxOutCandidate
   { txOutCandidateAddress  :: Address
   , txOutCandidateValue    :: Value
   , txOutCandidateDatum    :: Maybe Datum
-  , txOutCandidatePolicies :: [MintingPolicy]
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 data FullTxOut = FullTxOut
@@ -34,5 +36,7 @@ data FullTxIn = FullTxIn
 data TxCandidate = TxCandidate
   { txCandidateInputs       :: [FullTxIn]
   , txCandidateOutputs      :: [TxOutCandidate]
+  , txCandidateValueMint    :: MintValue
+  , txCandidatePolicies     :: [MintingPolicy]
   , txCandidateChangePolicy :: Maybe ChangePolicy
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
