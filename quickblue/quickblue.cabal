@@ -96,4 +96,5 @@ library
         plutus-core,
         extra,
         cardano-api,
-        text
+        text,
+        dhall == 1.38.1
