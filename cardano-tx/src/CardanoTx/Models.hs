@@ -1,8 +1,9 @@
 module CardanoTx.Models where
 
-import Ledger
-import Data.Aeson   (FromJSON, ToJSON)
-import GHC.Generics (Generic)
+import           Ledger
+import           Data.Aeson   (FromJSON, ToJSON)
+import qualified Data.Set as Set
+import           GHC.Generics (Generic)
 
 -- Defines how a residual value (if any) should be handled
 data ChangePolicy = ReturnTo Address
@@ -26,17 +27,21 @@ data FullTxOut = FullTxOut
   , fullTxOutDatum     :: Maybe Datum
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
+instance Ord FullTxOut where
+  compare FullTxOut{fullTxOutRef=rx} FullTxOut{fullTxOutRef=ry} = compare rx ry
+
 data FullTxIn = FullTxIn
   { fullTxInTxOut    :: FullTxOut
   , fullTxInScript   :: Maybe Validator
   , fullTxInRedeemer :: Maybe Redeemer
-  } deriving (Show, Eq, Generic, FromJSON, ToJSON)
+  } deriving (Show, Eq, Ord, Generic, FromJSON, ToJSON)
 
 -- TX template without collaterals, fees, change etc.
 data TxCandidate = TxCandidate
-  { txCandidateInputs       :: [FullTxIn]
+  { txCandidateInputs       :: Set.Set FullTxIn
   , txCandidateOutputs      :: [TxOutCandidate]
   , txCandidateValueMint    :: MintValue
-  , txCandidatePolicies     :: [MintingPolicy]
+  , txCandidateMintPolicies :: Set.Set MintingPolicy
   , txCandidateChangePolicy :: Maybe ChangePolicy
+  , txCandidateValidRange   :: SlotRange
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)

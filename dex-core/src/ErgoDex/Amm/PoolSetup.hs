@@ -1,10 +1,12 @@
 module ErgoDex.Amm.PoolSetup where
 
-import Control.Monad           (when)
-import Data.Foldable
-import Data.Either.Combinators (maybeToRight, mapLeft)
+import           Control.Monad           (when)
+import           Data.Foldable
+import           Data.Either.Combinators (maybeToRight, mapLeft)
+import qualified Data.Set                as Set
 
 import           Ledger                          (PubKeyHash(..), Datum(..), Address, pubKeyHashAddress)
+import qualified Ledger.Interval as Interval
 import           Ledger.Value                    (AssetClass)
 import qualified Ledger.Typed.Scripts.Validators as Validators
 import           PlutusTx                        (toBuiltinData)
@@ -50,11 +52,12 @@ poolDeploy' changeAddr pp@P.PoolParams{..} inputs = do
           }
 
   Right $ TxCandidate
-    { txCandidateInputs       = inputs
+    { txCandidateInputs       = Set.fromList inputs
     , txCandidateOutputs      = outputs
     , txCandidateValueMint    = MintValue mempty -- todo: mint NFT right there?
-    , txCandidatePolicies     = []
+    , txCandidateMintPolicies = mempty
     , txCandidateChangePolicy = Just $ ReturnTo changeAddr
+    , txCandidateValidRange   = Interval.always
     }
 
 poolInit' :: Address -> [FullTxIn] -> PubKeyHash -> Either SetupExecError TxCandidate
@@ -87,11 +90,12 @@ poolInit' changeAddr inputs rewardPkh = do
     mps = [liquidityMintingPolicyInstance (unPoolId $ poolId nextPool)]
 
   Right $ TxCandidate
-    { txCandidateInputs       = inputsReordered
+    { txCandidateInputs       = Set.fromList inputsReordered
     , txCandidateOutputs      = outputs
     , txCandidateValueMint    = MintValue mintLqValue
-    , txCandidatePolicies     = mps
+    , txCandidateMintPolicies = Set.fromList mps
     , txCandidateChangePolicy = Just $ ReturnTo changeAddr
+    , txCandidateValidRange   = Interval.always
     }
 
 tryGetInputAmountOf :: [FullTxIn] -> Coin a -> Either SetupExecError (AssetAmount a)

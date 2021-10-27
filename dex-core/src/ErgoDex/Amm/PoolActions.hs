@@ -4,15 +4,17 @@ module ErgoDex.Amm.PoolActions
   , mkPoolActions
   ) where
 
-import Control.Monad  (when)
-import Data.Bifunctor
-import Data.Tuple
+import           Control.Monad  (when)
+import           Data.Bifunctor
+import           Data.Tuple
+import qualified Data.Set       as Set
 
-import           Ledger         (PubKeyHash(..), Redeemer(..), pubKeyHashAddress)
-import qualified Ledger.Ada     as Ada
-import           Ledger.Scripts (unitRedeemer)
-import           Ledger.Value   (assetClassValue)
-import           PlutusTx       (toBuiltinData)
+import           Ledger          (PubKeyHash(..), Redeemer(..), pubKeyHashAddress)
+import qualified Ledger.Interval as Interval
+import qualified Ledger.Ada      as Ada
+import           Ledger.Scripts  (unitRedeemer)
+import           Ledger.Value    (assetClassValue)
+import           PlutusTx        (toBuiltinData)
 
 import           ErgoDex.Types
 import           ErgoDex.State
@@ -82,11 +84,12 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
     outputs = [nextPoolOut, rewardOut, executorOut]
 
     txCandidate = TxCandidate
-      { txCandidateInputs       = inputs
+      { txCandidateInputs       = Set.fromList inputs
       , txCandidateOutputs      = outputs
       , txCandidateValueMint    = MintValue mempty
-      , txCandidatePolicies     = []
+      , txCandidateMintPolicies = mempty
       , txCandidateChangePolicy = Just $ ReturnTo rewardAddr
+      , txCandidateValidRange   = Interval.always
       }
 
   Right $ (txCandidate, pp)
@@ -141,11 +144,12 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut po
     mps     = [liquidityMintingPolicyInstance $ unPoolId poolId]
 
     txCandidate = TxCandidate
-      { txCandidateInputs       = inputs
+      { txCandidateInputs       = Set.fromList inputs
       , txCandidateOutputs      = outputs
       , txCandidateValueMint    = MintValue mintLqValue
-      , txCandidatePolicies     = mps
+      , txCandidateMintPolicies = Set.fromList mps
       , txCandidateChangePolicy = Just $ ReturnTo rewardAddr
+      , txCandidateValidRange   = Interval.always
       }
 
   Right $ (txCandidate, pp)
@@ -188,11 +192,12 @@ runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool@
     mps     = [liquidityMintingPolicyInstance $ unPoolId poolId]
 
     txCandidate = TxCandidate
-      { txCandidateInputs       = inputs
+      { txCandidateInputs       = Set.fromList inputs
       , txCandidateOutputs      = outputs
       , txCandidateValueMint    = MintValue burnLqValue
-      , txCandidatePolicies     = mps
+      , txCandidateMintPolicies = Set.fromList mps
       , txCandidateChangePolicy = Just $ ReturnTo rewardAddr
+      , txCandidateValidRange   = Interval.always
       }
 
   Right $ (txCandidate, pp)
