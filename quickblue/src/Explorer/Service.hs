@@ -21,7 +21,7 @@ getUnspentOutputs' :: MonadIO f => ExplorerConfig -> Gix -> Limit -> f (Items Fu
 getUnspentOutputs' ExplorerConfig{..} minIndex limit = do
   let
     request = defaultRequest
-      & setRequestPath (Data.pack $ "/outputs/unspent/indexed?minIndex=" ++ show minIndex ++ "&limit=" ++ show limit)
+      & setRequestPath (Data.pack $ "/outputs/unspent/indexed?minIndex=" ++ (show $ unGix minIndex) ++ "&limit=" ++ (show $ unLimit limit))
       & setRequestHost (Data.pack explorerHost)
       & setRequestPort (naturalToInt explorerPort)
 
