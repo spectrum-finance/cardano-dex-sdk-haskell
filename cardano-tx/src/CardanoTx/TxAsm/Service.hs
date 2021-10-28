@@ -27,8 +27,7 @@ assembleTx' AssemblyConfig{..} TxCandidate{..} = do
       pInputs  = fmap mkPlutusInput inputs'
       pOutputs = fmap mkPlutusOutput txCandidateOutputs
 
-  extractedData <- mapM extractDatum inputs'
-  let flattenedData = extractedData >>= (maybe mempty pure)
+  let outData = collectOutputsData txCandidateOutputs
 
   pure $ P.Tx
     { txInputs      = Set.fromList pInputs
@@ -40,15 +39,27 @@ assembleTx' AssemblyConfig{..} TxCandidate{..} = do
     , txMintScripts = txCandidateMintPolicies
     , txSignatures  = mempty
     , txRedeemers   = undefined
-    , txData        = Map.fromList flattenedData
+    , txData        = outData
     }
 
-extractDatum :: (MonadError TxAsmError f) => FullTxIn -> f (Maybe (DatumHash, Datum))
-extractDatum FullTxIn{fullTxInTxOut=FullTxOut{fullTxOutDatumHash=Just dh, fullTxOutDatum=Just d}} =
+collectOutputsData :: [TxOutCandidate] -> Map.Map DatumHash Datum
+collectOutputsData outputs =
+    Map.fromList $ outputs >>= tryGetDatum
+  where
+    tryGetDatum TxOutCandidate{txOutCandidateDatum=Just d} = pure (datumHash d, d)
+    tryGetDatum _                                          = mempty
+
+collectInputsData :: MonadError TxAsmError f => [FullTxIn] -> f (Map.Map DatumHash Datum)
+collectInputsData inputs = do
+  rawData <- mapM extractInputDatum inputs
+  pure $ Map.fromList $ rawData >>= (maybe mempty pure)
+
+extractInputDatum :: MonadError TxAsmError f => FullTxIn -> f (Maybe (DatumHash, Datum))
+extractInputDatum FullTxIn{fullTxInTxOut=FullTxOut{fullTxOutDatumHash=Just dh, fullTxOutDatum=Just d}} =
   pure $ Just (dh, d)
-extractDatum FullTxIn{fullTxInTxOut=FullTxOut{fullTxOutDatumHash=Just dh, ..}} =
+extractInputDatum FullTxIn{fullTxInTxOut=FullTxOut{fullTxOutDatumHash=Just _, ..}} =
   throwError $ UnresolvedData fullTxOutRef
-extractDatum _ = pure Nothing
+extractInputDatum _ = pure Nothing
 
 mkPlutusInput ::  FullTxIn -> P.TxIn
 mkPlutusInput FullTxIn{fullTxInTxOut=FullTxOut{..}, ..} =
