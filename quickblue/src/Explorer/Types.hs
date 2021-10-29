@@ -29,7 +29,9 @@ newtype TxHash = TxHash { unTxHash :: String }
 
 -- A global index
 newtype Gix = Gix { unGix :: Integer }
-  deriving (Show, Generic, ToJSON, FromJSON)
+  deriving (Generic, ToJSON, FromJSON)
+  deriving newtype Show
 
 newtype Limit = Limit { unLimit :: Integer }
-  deriving (Show, Generic, FromJSON)
+  deriving (Generic, FromJSON)
+  deriving newtype Show
