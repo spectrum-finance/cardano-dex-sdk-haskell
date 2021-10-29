@@ -54,6 +54,7 @@ common project-config
                         TypeFamilies
                         TypeSynonymInstances
                         ViewPatterns
+                        DerivingStrategies
 
   ghc-options:          -Wall
                         -Wcompat
