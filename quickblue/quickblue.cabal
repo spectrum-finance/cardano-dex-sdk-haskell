@@ -54,6 +54,7 @@ common project-config
                         TypeFamilies
                         TypeSynonymInstances
                         ViewPatterns
+                        DerivingStrategies
 
   ghc-options:          -Wall
                         -Wcompat
@@ -96,4 +97,5 @@ library
         plutus-core,
         extra,
         cardano-api,
-        text
+        text,
+        dhall == 1.38.1
