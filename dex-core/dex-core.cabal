@@ -78,13 +78,13 @@ library
                      ErgoDex.Amm.PoolSetup
                      ErgoDex.Amm.Scripts
                      ErgoDex.Types
+                     ErgoDex.Utils
 
     build-depends:
         cardano-tx,
         plutus-ledger,
         plutus-tx,
         plutus-ledger-api,
-        playground-common,
         bytestring,
         aeson,
         servant,

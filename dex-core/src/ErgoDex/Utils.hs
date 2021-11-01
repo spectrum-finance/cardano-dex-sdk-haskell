@@ -1,4 +1,4 @@
-module CardanoTx.Utils where
+module ErgoDex.Utils where
 
 import           Ledger.Value
 import           Ledger.Ada        as Ada
