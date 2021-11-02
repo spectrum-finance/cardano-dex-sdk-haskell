@@ -28,6 +28,14 @@ data SystemEnv = SystemEnv
   , eraHistory :: EraHistory CardanoMode
   }
 
+signTx
+  :: TxBody AlonzoEra
+  -> [ShelleyWitnessSigningKey]
+  -> Tx AlonzoEra
+signTx body keys =
+  makeSignedTransaction wits body
+    where wits = keys <&> makeShelleyKeyWitness body
+
 buildBalancedTx
   :: MonadThrow f
   => SystemEnv
@@ -42,28 +50,14 @@ buildBalancedTx SystemEnv{..} defaultChangeAddr collateral txc@(Sdk.TxCandidate{
 
   txBody     <- buildTxBodyContent pparams network collateral txc
   inputsMap  <- mkInputsUTxO network (Set.elems txCandidateInputs)
-  changeAddr <- case txCandidateChangePolicy of
-    Just (Sdk.ReturnTo addr) -> absorbError $ Interop.toCardanoAddress network addr
-    _                        -> absorbError $ Interop.toCardanoAddress network $ Sdk.getAddress defaultChangeAddr
+  changeAddr <- absorbError $ case txCandidateChangePolicy of
+    Just (Sdk.ReturnTo addr) -> Interop.toCardanoAddress network addr
+    _                        -> Interop.toCardanoAddress network $ Sdk.getAddress defaultChangeAddr
 
   absorbBalancingError $ makeTransactionBodyAutoBalance eraInMode sysstart eraHistory pparams pools inputsMap txBody changeAddr witOverrides
     where
       absorbBalancingError (Left e)  = throwM $ BalancingError $ T.pack $ show e
       absorbBalancingError (Right a) = pure a
-
-mkInputsUTxO
-  :: MonadThrow f
-  => NetworkId
-  -> [Sdk.FullTxIn]
-  -> f (UTxO AlonzoEra)
-mkInputsUTxO network inputs =
-    mapM (absorbError . translate) inputs <&> UTxO . Map.fromList
-  where
-    translate Sdk.FullTxIn{fullTxInTxOut=out@Sdk.FullTxOut{..}, ..} = do
-      txIn  <- Interop.toCardanoTxIn fullTxOutRef
-      txOut <- Interop.toCardanoTxOut network $ toPlutus out
-
-      pure (txIn, txOut)
 
 buildTxBodyContent
   :: MonadThrow f
@@ -132,6 +126,20 @@ buildTxOuts network =
     mapM translate
   where
     translate sdkOut = absorbError $ Interop.toCardanoTxOut network $ toPlutus sdkOut
+
+mkInputsUTxO
+  :: MonadThrow f
+  => NetworkId
+  -> [Sdk.FullTxIn]
+  -> f (UTxO AlonzoEra)
+mkInputsUTxO network inputs =
+    mapM (absorbError . translate) inputs <&> UTxO . Map.fromList
+  where
+    translate Sdk.FullTxIn{fullTxInTxOut=out@Sdk.FullTxOut{..}, ..} = do
+      txIn  <- Interop.toCardanoTxIn fullTxOutRef
+      txOut <- Interop.toCardanoTxOut network $ toPlutus out
+
+      pure (txIn, txOut)
 
 collectInputsData :: MonadThrow f => [Sdk.FullTxIn] -> f (Map.Map P.DatumHash P.Datum)
 collectInputsData inputs = do
