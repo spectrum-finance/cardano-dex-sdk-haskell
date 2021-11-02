@@ -7,6 +7,7 @@ module ErgoDex.Amm.PoolActions
 import Control.Monad  (when)
 import Data.Bifunctor
 import Data.Tuple
+import Control.Exception.Base
 
 import           Ledger         (PubKeyHash(..), Redeemer(..), pubKeyHashAddress)
 import qualified Ledger.Ada     as Ada
@@ -28,6 +29,8 @@ data OrderExecErr =
     PriceTooHigh
   | PoolMismatch PoolId PoolId
   deriving (Show)
+
+instance Exception OrderExecErr
 
 data PoolActions = PoolActions
   { runSwap    :: Confirmed Swap    -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
