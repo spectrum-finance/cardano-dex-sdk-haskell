@@ -1,9 +1,13 @@
 module SubmitAPI.Service where
 
-import qualified CardanoTx.Models as Sdk
-import           Cardano.Api      as C
+import RIO
+
+import qualified CardanoTx.Models           as Sdk
+import           Cardano.Api                as C
+import qualified Plutus.Contract.CardanoAPI as Interop
 
 import SubmitAPI.Config
+import SubmitAPI.Internal.Transaction
 
 data SubmitService f = SubmitService
   { finalizeTx :: Sdk.TxCandidate -> f (C.Tx C.AlonzoEra)
@@ -13,6 +17,8 @@ data SubmitService f = SubmitService
 mkSubmitService :: TxAssemblyConfig -> SubmitService f
 mkSubmitService TxAssemblyConfig{..} = undefined
 
-finalizeTx' :: Sdk.TxCandidate -> f (C.Tx C.AlonzoEra)
-finalizeTx' Sdk.TxCandidate{..} = undefined
-
+finalizeTx'
+  :: MonadThrow f
+  => Sdk.TxCandidate
+  -> f (C.Tx C.AlonzoEra)
+finalizeTx' txc@(Sdk.TxCandidate{..}) = undefined

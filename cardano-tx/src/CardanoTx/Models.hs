@@ -11,6 +11,9 @@ import           GHC.Generics   (Generic)
 
 import CardanoTx.ToPlutus
 
+newtype ChangeAddress = ChangeAddress { getAddress :: Address }
+  deriving (Show, Eq, Generic, FromJSON, ToJSON)
+
 -- Defines how a residual value (if any) should be handled
 data ChangePolicy = ReturnTo Address
   deriving (Show, Eq, Generic, FromJSON, ToJSON)
@@ -37,6 +40,9 @@ data FullTxOut = FullTxOut
   , fullTxOutDatumHash :: Maybe DatumHash
   , fullTxOutDatum     :: Maybe Datum
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
+
+instance ToPlutus FullTxOut P.TxOut where
+  toPlutus FullTxOut{..} = P.TxOut fullTxOutAddress fullTxOutValue fullTxOutDatumHash
 
 instance Ord FullTxOut where
   compare FullTxOut{fullTxOutRef=rx} FullTxOut{fullTxOutRef=ry} = compare rx ry

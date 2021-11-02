@@ -10,7 +10,8 @@ import           Data.Text.Prettyprint.Doc (Pretty(..))
 import qualified Data.Set                  as Set
 
 import           Cardano.Api                    hiding (TxBodyError)
-import           Cardano.Api.Shelley            (ProtocolParameters)
+import           Cardano.Api.Shelley            (ProtocolParameters, PoolId)
+import           Cardano.Slotting.Time          (SystemStart)
 import qualified Ledger                         as P
 import qualified Plutus.Contract.CardanoAPI     as Interop
 import           Plutus.Contract.CardanoAPITemp as Interop
@@ -19,14 +20,59 @@ import qualified Ledger.Ada           as Ada
 import qualified CardanoTx.Models   as Sdk
 import           CardanoTx.ToPlutus
 
-buildTxBody
+data SystemEnv = SystemEnv
+  { pparams    :: ProtocolParameters
+  , network    :: NetworkId
+  , sysstart   :: SystemStart
+  , pools      :: Set.Set PoolId
+  , eraHistory :: EraHistory CardanoMode
+  }
+
+buildBalancedTx
+  :: MonadThrow f
+  => SystemEnv
+  -> Sdk.ChangeAddress
+  -> Set.Set Sdk.FullCollateralTxIn
+  -> Sdk.TxCandidate
+  -> f (BalancedTxBody AlonzoEra)
+buildBalancedTx SystemEnv{..} defaultChangeAddr collateral txc@(Sdk.TxCandidate{..}) = do
+  let era          = AlonzoEra
+      eraInMode    = AlonzoEraInCardanoMode
+      witOverrides = Nothing
+
+  txBody     <- buildTxBodyContent pparams network collateral txc
+  inputsMap  <- mkInputsUTxO network (Set.elems txCandidateInputs)
+  changeAddr <- case txCandidateChangePolicy of
+    Just (Sdk.ReturnTo addr) -> absorbError $ Interop.toCardanoAddress network addr
+    _                        -> absorbError $ Interop.toCardanoAddress network $ Sdk.getAddress defaultChangeAddr
+
+  absorbBalancingError $ makeTransactionBodyAutoBalance eraInMode sysstart eraHistory pparams pools inputsMap txBody changeAddr witOverrides
+    where
+      absorbBalancingError (Left e)  = throwM $ BalancingError $ T.pack $ show e
+      absorbBalancingError (Right a) = pure a
+
+mkInputsUTxO
+  :: MonadThrow f
+  => NetworkId
+  -> [Sdk.FullTxIn]
+  -> f (UTxO AlonzoEra)
+mkInputsUTxO network inputs =
+    mapM (absorbError . translate) inputs <&> UTxO . Map.fromList
+  where
+    translate Sdk.FullTxIn{fullTxInTxOut=out@Sdk.FullTxOut{..}, ..} = do
+      txIn  <- Interop.toCardanoTxIn fullTxOutRef
+      txOut <- Interop.toCardanoTxOut network $ toPlutus out
+
+      pure (txIn, txOut)
+
+buildTxBodyContent
   :: MonadThrow f
   => ProtocolParameters
   -> NetworkId
   -> Set.Set Sdk.FullCollateralTxIn
   -> Sdk.TxCandidate
-  -> f (TxBody AlonzoEra)
-buildTxBody protocolParams network collateral Sdk.TxCandidate{..} = do
+  -> f (TxBodyContent BuildTx AlonzoEra)
+buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
   txIns           <- buildTxIns $ Set.elems txCandidateInputs
   txInsCollateral <- buildTxCollateral $ Set.elems collateral
   txOuts          <- buildTxOuts network txCandidateOutputs
@@ -35,7 +81,7 @@ buildTxBody protocolParams network collateral Sdk.TxCandidate{..} = do
   txMintValue     <- absorbError $ Interop.toCardanoMintValue (Sdk.unMintValue txCandidateValueMint) txCandidateMintPolicies
   txData          <- collectInputsData $ Set.elems txCandidateInputs
 
-  absorbError $ first Interop.TxBodyError $ Interop.makeTransactionBody' TxBodyContent
+  pure $ TxBodyContent
     { txIns = txIns
     , txInsCollateral = txInsCollateral
     , txOuts = txOuts
@@ -102,7 +148,7 @@ extractInputDatum _ = pure Nothing
 dummyFee :: P.Value
 dummyFee = Ada.lovelaceValueOf 0
 
-data TxAssemblyViaCardanoError
+data TxAssemblyError
   = EvaluationError Text
   | TxBodyError Text
   | DeserializationError
@@ -113,14 +159,15 @@ data TxAssemblyViaCardanoError
   | SimpleScriptsNotSupportedToCardano
   | MissingTxInType
   | UnresolvedData P.DatumHash
+  | BalancingError Text
   deriving (Show, Exception)
 
 absorbError :: MonadThrow f => Either Interop.ToCardanoError a -> f a
-absorbError (Left err) = throwM $ adaptError err
+absorbError (Left err) = throwM $ adaptInteropError err
 absorbError (Right vl) = pure vl
 
-adaptError :: Interop.ToCardanoError -> TxAssemblyViaCardanoError
-adaptError err =
+adaptInteropError :: Interop.ToCardanoError -> TxAssemblyError
+adaptInteropError err =
     case err of
       Interop.EvaluationError _                  -> EvaluationError renderedErr
       Interop.TxBodyError _                      -> TxBodyError renderedErr
@@ -131,7 +178,7 @@ adaptError err =
       Interop.StakingPointersNotSupported        -> StakingPointersNotSupported
       Interop.SimpleScriptsNotSupportedToCardano -> SimpleScriptsNotSupportedToCardano
       Interop.MissingTxInType                    -> MissingTxInType
-      Interop.Tag _ e                            -> adaptError e
+      Interop.Tag _ e                            -> adaptInteropError e
   where renderedErr = T.pack $ show $ pretty err
 
 serializePlutusScript :: P.Script -> SerializedScript
