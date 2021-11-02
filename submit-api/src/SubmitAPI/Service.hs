@@ -8,6 +8,9 @@ import qualified Plutus.Contract.CardanoAPI as Interop
 
 import SubmitAPI.Config
 import SubmitAPI.Internal.Transaction
+import NetworkAPI.Service
+import NetworkAPI.Env
+import WalletAPI.Vault
 
 data SubmitService f = SubmitService
   { finalizeTx :: Sdk.TxCandidate -> f (C.Tx C.AlonzoEra)
@@ -19,6 +22,8 @@ mkSubmitService TxAssemblyConfig{..} = undefined
 
 finalizeTx'
   :: MonadThrow f
-  => Sdk.TxCandidate
+  => NetworkParams f
+  -> Vault f
+  -> Sdk.TxCandidate
   -> f (C.Tx C.AlonzoEra)
-finalizeTx' txc@(Sdk.TxCandidate{..}) = undefined
+finalizeTx' network wallet txc@(Sdk.TxCandidate{..}) = undefined

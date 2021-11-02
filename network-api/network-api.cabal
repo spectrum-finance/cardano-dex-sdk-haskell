@@ -1,5 +1,5 @@
 cabal-version:      2.4
-name:               submit-api
+name:               network-api
 version:            0.1.0.0
 
 author:             ErgoLabs
@@ -69,17 +69,14 @@ library
     import: base, project-config
 
     hs-source-dirs: src
-    
-    exposed-modules: SubmitAPI.Service
-                     SubmitAPI.Config
-                     SubmitAPI.Internal.Transaction
+
+    exposed-modules: NetworkAPI.Env
+                     NetworkAPI.Service
 
     build-depends:
         rio==0.1.21.0,
         serialise==0.2.3.0,
         cardano-tx==0.1.0.0,
-        network-api==0.1.0.0,
-        wallet-api==0.1.0.0,
         plutus-chain-index==0.1.0.0,
         prettyprinter==1.7.0,
         cardano-slotting==0.1.0.0,

@@ -1,32 +1,24 @@
 module SubmitAPI.Internal.Transaction where
 
 import           RIO
-import qualified Data.Text as T
-import qualified Data.Map.Strict         as Map
-
+import qualified Data.Text                 as T
+import qualified Data.Map.Strict           as Map
 import           Codec.Serialise
 import           Data.ByteString.Lazy      (toStrict)
 import           Data.Text.Prettyprint.Doc (Pretty(..))
 import qualified Data.Set                  as Set
 
 import           Cardano.Api                    hiding (TxBodyError)
-import           Cardano.Api.Shelley            (ProtocolParameters, PoolId)
+import           Cardano.Api.Shelley            (ProtocolParameters)
 import           Cardano.Slotting.Time          (SystemStart)
 import qualified Ledger                         as P
 import qualified Plutus.Contract.CardanoAPI     as Interop
 import           Plutus.Contract.CardanoAPITemp as Interop
-import qualified Ledger.Ada           as Ada
+import qualified Ledger.Ada                     as Ada
 
 import qualified CardanoTx.Models   as Sdk
 import           CardanoTx.ToPlutus
-
-data SystemEnv = SystemEnv
-  { pparams    :: ProtocolParameters
-  , network    :: NetworkId
-  , sysstart   :: SystemStart
-  , pools      :: Set.Set PoolId
-  , eraHistory :: EraHistory CardanoMode
-  }
+import           NetworkAPI.Env
 
 signTx
   :: TxBody AlonzoEra

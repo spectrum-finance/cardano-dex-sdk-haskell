@@ -5,6 +5,8 @@ packages:
   dex-core
   quickblue
   submit-api
+  network-api
+  wallet-api
 
 -- You never, ever, want this.
 write-ghc-environment-files: never
