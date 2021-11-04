@@ -68,21 +68,21 @@ buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
   txData          <- collectInputsData $ Set.elems txCandidateInputs
 
   pure $ TxBodyContent
-    { txIns = txIns
-    , txInsCollateral = txInsCollateral
-    , txOuts = txOuts
-    , txFee = txFee
-    , txValidityRange = txValidityRange
+    { txIns             = txIns
+    , txInsCollateral   = txInsCollateral
+    , txOuts            = txOuts
+    , txFee             = txFee
+    , txValidityRange   = txValidityRange
     , txExtraScriptData = BuildTxWith $ Interop.toCardanoExtraScriptData (Map.elems txData)
-    , txMintValue = txMintValue
-    , txProtocolParams = BuildTxWith $ Just protocolParams
-    , txScriptValidity = TxScriptValidityNone
+    , txMintValue       = txMintValue
+    , txProtocolParams  = BuildTxWith $ Just protocolParams
+    , txScriptValidity  = TxScriptValidityNone
     -- unused:
-    , txMetadata = TxMetadataNone
-    , txAuxScripts = TxAuxScriptsNone
-    , txExtraKeyWits = TxExtraKeyWitnessesNone
-    , txWithdrawals = TxWithdrawalsNone
-    , txCertificates = TxCertificatesNone
+    , txMetadata       = TxMetadataNone
+    , txAuxScripts     = TxAuxScriptsNone
+    , txExtraKeyWits   = TxExtraKeyWitnessesNone
+    , txWithdrawals    = TxWithdrawalsNone
+    , txCertificates   = TxCertificatesNone
     , txUpdateProposal = TxUpdateProposalNone
     }
 
@@ -160,6 +160,9 @@ data TxAssemblyError
   | MissingTxInType
   | UnresolvedData P.DatumHash
   | BalancingError Text
+  | BalancingError Text
+  | CollateralNotAllowed
+  | FailedToSatisfyCollateral
   deriving (Show, Exception)
 
 absorbError :: MonadThrow f => Either Interop.ToCardanoError a -> f a
