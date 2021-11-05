@@ -162,6 +162,7 @@ data TxAssemblyError
   | BalancingError Text
   | CollateralNotAllowed
   | FailedToSatisfyCollateral
+  | SignerNotFound P.PubKeyHash
   deriving (Show, Exception)
 
 absorbError :: MonadThrow f => Either Interop.ToCardanoError a -> f a
