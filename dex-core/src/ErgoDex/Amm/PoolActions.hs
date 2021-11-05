@@ -4,10 +4,11 @@ module ErgoDex.Amm.PoolActions
   , mkPoolActions
   ) where
 
-import           Control.Monad  (when)
+import           Control.Monad          (when)
 import           Data.Bifunctor
 import           Data.Tuple
-import qualified Data.Set       as Set
+import qualified Data.Set               as Set
+import           Control.Exception.Base
 
 import           Ledger          (PubKeyHash(..), Redeemer(..), pubKeyHashAddress)
 import qualified Ledger.Interval as Interval
@@ -31,6 +32,8 @@ data OrderExecErr =
     PriceTooHigh
   | PoolMismatch PoolId PoolId
   deriving (Show)
+
+instance Exception OrderExecErr
 
 data PoolActions = PoolActions
   { runSwap    :: Confirmed Swap    -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
