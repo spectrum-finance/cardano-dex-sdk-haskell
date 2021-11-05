@@ -6,6 +6,7 @@ import qualified Data.Set       as Set
 
 import           Ledger
 import           Ledger.Scripts (datumHash)
+import           Plutus.V1.Ledger.Credential (Credential (..))
 import qualified Ledger         as P
 import           GHC.Generics   (Generic)
 
@@ -51,6 +52,12 @@ data FullTxIn = FullTxIn
   { fullTxInTxOut :: FullTxOut
   , fullTxInType  :: TxInType
   } deriving (Show, Eq, Ord, Generic, FromJSON, ToJSON)
+
+mkScriptTxIn :: FullTxOut -> Validator -> Redeemer -> FullTxIn
+mkScriptTxIn fout@FullTxOut{..} v r =
+  FullTxIn fout $ case (fullTxOutAddress, fullTxOutDatum) of
+    (Address (ScriptCredential _) _, Just d) -> ConsumeScriptAddress v r d
+    _                                        -> ConsumeScriptAddress v r unitDatum
 
 instance ToPlutus FullTxIn P.TxIn where
   toPlutus FullTxIn{..} =

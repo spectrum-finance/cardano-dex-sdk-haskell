@@ -1,7 +1,8 @@
 module ErgoDex.State where
 
+import Data.Aeson       (FromJSON, ToJSON)
+import GHC.Generics     (Generic)
 import CardanoTx.Models
-import Playground.Contract (FromJSON, ToJSON, Generic)
 
 -- Predicted state of an on-chain entity `a`
 data Predicted a = Predicted TxOutCandidate a

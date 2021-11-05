@@ -7,7 +7,8 @@ import Ledger.Value                    (assetClassValue, assetClassValueOf)
 import Ledger.Typed.Scripts.Validators
 import PlutusTx.IsData.Class
 import PlutusTx.Sqrt
-import Playground.Contract             (FromJSON, ToJSON, Generic)
+import Data.Aeson                      (FromJSON, ToJSON)
+import GHC.Generics                    (Generic)
 
 import CardanoTx.Models
 import ErgoDex.Class

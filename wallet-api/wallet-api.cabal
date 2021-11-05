@@ -1,5 +1,5 @@
 cabal-version:      2.4
-name:               submit-api
+name:               wallet-api
 version:            0.1.0.0
 
 author:             ErgoLabs

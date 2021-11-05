@@ -19,7 +19,6 @@ import qualified ErgoDex.Contracts.Pool as P
 import           ErgoDex.Contracts.Types
 import           ErgoDex.OffChain
 import           CardanoTx.Models
-import           CardanoTx.Utils
 
 data SetupExecError =
     MissingAsset AssetClass
@@ -45,7 +44,7 @@ poolDeploy' changeAddr pp@P.PoolParams{..} inputs = do
   let
     outputs = [poolOutput]
       where
-        poolOutput =TxOutCandidate
+        poolOutput = TxOutCandidate
           { txOutCandidateAddress = Validators.validatorAddress poolInstance
           , txOutCandidateValue   = assetAmountValue inNft
           , txOutCandidateDatum   = Just $ Datum $ PlutusTx.toBuiltinData pp

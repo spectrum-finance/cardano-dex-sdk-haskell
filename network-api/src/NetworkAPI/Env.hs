@@ -1,6 +1,7 @@
-module NodeAPI.Env where
+module NetworkAPI.Env where
 
-import qualified Data.Set as Set
+import qualified Data.Set        as Set
+import           Numeric.Natural
 
 import Cardano.Api
 import Cardano.Api.Shelley   (ProtocolParameters, PoolId)

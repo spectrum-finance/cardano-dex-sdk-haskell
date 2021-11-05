@@ -160,7 +160,6 @@ data TxAssemblyError
   | MissingTxInType
   | UnresolvedData P.DatumHash
   | BalancingError Text
-  | BalancingError Text
   | CollateralNotAllowed
   | FailedToSatisfyCollateral
   deriving (Show, Exception)

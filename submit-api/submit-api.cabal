@@ -72,6 +72,7 @@ library
     
     exposed-modules: SubmitAPI.Service
                      SubmitAPI.Config
+                     SubmitAPI.Internal.Transaction
 
     build-depends:
         rio==0.1.21.0,
@@ -80,6 +81,7 @@ library
         network-api==0.1.0.0,
         wallet-api==0.1.0.0,
         plutus-chain-index==0.1.0.0,
+        plutus-tx==0.1.0.0,
         prettyprinter==1.7.0,
         cardano-slotting==0.1.0.0,
         mtl==2.2.2,

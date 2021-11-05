@@ -24,8 +24,8 @@ import qualified ErgoDex.Contracts.Pool as P
 import           ErgoDex.Contracts.Types
 import           ErgoDex.OffChain
 import           ErgoDex.Amm.Scripts
+import           ErgoDex.Utils
 import           CardanoTx.Models
-import           CardanoTx.Utils
 
 data OrderExecErr =
     PriceTooHigh
@@ -48,8 +48,8 @@ mkPoolActions executorPkh = PoolActions
 runSwap' :: PubKeyHash -> Confirmed Swap -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
 runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (Confirmed poolOut pool) = do
   let
-    poolIn  = FullTxIn poolOut (Just poolScript) (Just $ Redeemer $ toBuiltinData P.Swap)
-    orderIn = FullTxIn swapOut (Just swapScript) (Just unitRedeemer)
+    poolIn  = mkScriptTxIn poolOut poolScript (Redeemer $ toBuiltinData P.Swap)
+    orderIn = mkScriptTxIn swapOut swapScript unitRedeemer
     inputs  = [poolIn, orderIn]
 
     pp@(Predicted nextPoolOut _) = applySwap pool (AssetAmount swapBase swapBaseIn)
@@ -98,8 +98,8 @@ runDeposit' :: PubKeyHash -> Confirmed Deposit -> Confirmed Pool -> Either Order
 runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut pool@Pool{..}) = do
   when (depositPoolId /= poolId) (Left $ PoolMismatch depositPoolId poolId)
   let
-    poolIn  = FullTxIn poolOut (Just poolScript) (Just $ Redeemer $ toBuiltinData P.Deposit)
-    orderIn = FullTxIn depositOut (Just depositScript) (Just unitRedeemer)
+    poolIn  = mkScriptTxIn poolOut poolScript (Redeemer $ toBuiltinData P.Deposit)
+    orderIn = mkScriptTxIn depositOut depositScript unitRedeemer
     inputs  = [poolIn, orderIn]
 
     (inX, inY) =
@@ -158,8 +158,8 @@ runRedeem' :: PubKeyHash -> Confirmed Redeem -> Confirmed Pool -> Either OrderEx
 runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool@Pool{..}) = do
   when (redeemPoolId /= poolId) (Left $ PoolMismatch redeemPoolId poolId)
   let
-    poolIn  = FullTxIn poolOut (Just poolScript) (Just $ Redeemer $ toBuiltinData P.Redeem)
-    orderIn = FullTxIn redeemOut (Just redeemScript) (Just unitRedeemer)
+    poolIn  = mkScriptTxIn poolOut poolScript (Redeemer $ toBuiltinData P.Redeem)
+    orderIn = mkScriptTxIn redeemOut redeemScript unitRedeemer
     inputs  = [poolIn, orderIn]
 
     pp@(Predicted nextPoolOut _) = applyRedeem pool redeemLqIn
