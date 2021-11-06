@@ -14,37 +14,38 @@ import qualified Ledger.Ada                  as P
 import qualified Plutus.V1.Ledger.Credential as P
 import qualified Plutus.Contract.CardanoAPI  as Interop
 
-import SubmitAPI.Config
-import SubmitAPI.Internal.Transaction
-import NetworkAPI.Service
-import NetworkAPI.Env
-import WalletAPI.Vault
-import SubmitAPI.Config
+import           SubmitAPI.Config
+import           SubmitAPI.Internal.Transaction
+import           NetworkAPI.Service             hiding (submitTx)
+import qualified NetworkAPI.Service             as Network
+import           NetworkAPI.Env
+import           WalletAPI.Vault
+import           SubmitAPI.Config
 
-data SubmitService f = SubmitService
-  { finalizeTx :: Sdk.TxCandidate -> f (C.Tx C.AlonzoEra)
+data Transactions f = Transactions
+  { finalizeTx :: Sdk.TxCandidate  -> f (C.Tx C.AlonzoEra)
   , submitTx   :: C.Tx C.AlonzoEra -> f ()
   }
 
 mkSubmitService
   :: MonadThrow f
-  => NetworkParams f
+  => Network f
   -> Vault f
   -> TxAssemblyConfig
-  -> SubmitService f
-mkSubmitService network wallet conf = SubmitService
+  -> Transactions f
+mkSubmitService network wallet conf = Transactions
   { finalizeTx = finalizeTx' network wallet conf
-  , submitTx   = undefined
+  , submitTx   = Network.submitTx network
   }
 
 finalizeTx'
   :: MonadThrow f
-  => NetworkParams f
+  => Network f
   -> Vault f
   -> TxAssemblyConfig
   -> Sdk.TxCandidate
   -> f (C.Tx C.AlonzoEra)
-finalizeTx' NetworkParams{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@(Sdk.TxCandidate{..}) = do
+finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@(Sdk.TxCandidate{..}) = do
   sysenv      <- getSystemEnv
   collaterals <- mkCollaterals wallet sysenv conf txc
 

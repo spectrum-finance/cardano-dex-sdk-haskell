@@ -1,7 +1,9 @@
 module NetworkAPI.Service where
 
-import NetworkAPI.Env
+import qualified Cardano.Api    as C
+import           NetworkAPI.Env
 
-data NetworkParams f = NetworkParams
+data Network f = Network
   { getSystemEnv :: f SystemEnv
+  , submitTx     :: C.Tx C.AlonzoEra -> f ()
   }
