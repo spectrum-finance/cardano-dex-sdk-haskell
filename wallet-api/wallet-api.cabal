@@ -72,6 +72,8 @@ library
     
     exposed-modules: WalletAPI.Vault
                      WalletAPI.Internal.TrustStore
+                     WalletAPI.Internal.Crypto
+                     WalletAPI.Internal.Models
 
     build-depends:
         rio==0.1.21.0,
@@ -82,8 +84,11 @@ library
         plutus-chain-index==0.1.0.0,
         prettyprinter==1.7.0,
         cardano-slotting==0.1.0.0,
+        cryptonite==0.27,
+        base16-bytestring==1.0.1.0,
         mtl==2.2.2,
         plutus-ledger,
+        memory==0.15.0,
         bytestring,
         aeson,
         servant,

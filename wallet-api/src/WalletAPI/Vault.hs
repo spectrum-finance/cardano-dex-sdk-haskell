@@ -9,5 +9,5 @@ import CardanoTx.Models
 
 data Vault f = Vault
   { getSigningKey :: PubKeyHash -> f (Maybe ShelleyWitnessSigningKey)
-  , selectUtxos   :: Value -> f (Maybe (Set.Set FullTxOut))
+  , selectUtxos   :: Value      -> f (Maybe (Set.Set FullTxOut))
   }

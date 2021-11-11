@@ -5,23 +5,41 @@ import           Control.Monad.IO.Class
 import           Data.Text
 import           Data.Functor
 
+import           Crypto.Cipher.AES   (AES256)
 import qualified Cardano.Crypto.Seed as Crypto
 import qualified Cardano.Api         as Crypto
 
-data SigningKeyFile = SigningKeyFile { unSigningKeyFile :: FilePath }
+import WalletAPI.Internal.Crypto
+import WalletAPI.Internal.Models
 
-newtype SeedPass = SeedPass { unSeedPass :: Text }
+data SecretFile = SecretFile { unSigningKeyFile :: FilePath }
+
+newtype KeyPass = KeyPass { unKeyPass :: Text }
 
 data TrustStore f = TrustStore
-  { readKey :: SeedPass -> f Crypto.SigningKey Crypto.PaymentKey
+  { readKey :: KeyPass -> f (Crypto.SigningKey Crypto.PaymentKey)
   }
 
-initTrustStore :: MonadIO f => FilePath -> f ()
-initTrustStore path = liftIO $ Crypto.generateSigningKey Crypto.AsPaymentKey >>= writeSigningKey path
+mkTrustStore :: MonadIO f => SecretFile -> f (TrustStore f)
+mkTrustStore secretPath = do
+  maybeTrustStore <- readTrustStore secretPath
+  case maybeTrustStore of
+    Just ts -> TrustStore (\pass -> )
 
-writeSigningKey :: MonadIO f => FilePath -> Crypto.SigningKey Crypto.PaymentKey -> f ()
-writeSigningKey dest key = liftIO $ BS.writeFile dest (Crypto.serialiseToRawBytes key)
+initTrustStore :: MonadIO f => SecretFile -> f SecretEnvelope
 
-readSigningKey :: MonadIO f => FilePath -> f (Maybe (Crypto.SigningKey Crypto.PaymentKey))
-readSigningKey path = liftIO $ BS.readFile path <&> Crypto.deserialiseFromRawBytes asSk
-  where asSk = Crypto.AsSigningKey Crypto.AsPaymentKey
+readTrustStore :: MonadIO f => SecretFile -> f (Maybe SecretEnvelope)
+
+decryptKey :: ByteString -> KeyPass -> Maybe (Crypto.SigningKey Crypto.PaymentKey)
+
+encryptKey :: Crypto.SigningKey Crypto.PaymentKey -> KeyPass -> ByteString
+
+-- initTrustStore' :: MonadIO f => FilePath -> f ()
+-- initTrustStore' path = liftIO $ Crypto.generateSigningKey Crypto.AsPaymentKey >>= writeSigningKey path
+--
+-- writeSigningKey :: MonadIO f => FilePath -> Crypto.SigningKey Crypto.PaymentKey -> f ()
+-- writeSigningKey dest key = liftIO $ BS.writeFile dest (Crypto.serialiseToRawBytes key)
+--
+-- readSigningKey :: MonadIO f => FilePath -> f (Maybe (Crypto.SigningKey Crypto.PaymentKey))
+-- readSigningKey path = liftIO $ BS.readFile path <&> Crypto.deserialiseFromRawBytes asSk
+--   where asSk = Crypto.AsSigningKey Crypto.AsPaymentKey
