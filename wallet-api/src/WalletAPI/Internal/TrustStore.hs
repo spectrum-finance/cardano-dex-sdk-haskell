@@ -9,6 +9,7 @@ import           Data.Aeson
 
 import qualified Crypto.Hash         as H
 import           Crypto.Cipher.AES   (AES256)
+import           Crypto.Cipher.Types (makeIV)
 import           Crypto.Random.Types
 import qualified Cardano.Api         as Crypto
 
@@ -22,6 +23,7 @@ newtype KeyPass = KeyPass { unKeyPass :: Text }
 data KeyLookupError =
     DecryptionFailed
   | NotInitialized
+  | StoreFileCorrupted
   deriving (Show, Exception)
 
 data InitializationError =
@@ -30,8 +32,9 @@ data InitializationError =
   deriving (Show, Exception)
 
 data TrustStore f = TrustStore
-  { init    :: KeyPass -> f ()
-  , readKey :: KeyPass -> f (Crypto.SigningKey Crypto.PaymentKey)
+  { init   :: KeyPass -> f ()
+  , readSK :: KeyPass -> f (Crypto.SigningKey Crypto.PaymentKey)
+  , readVK :: f (Crypto.VerificationKey Crypto.PaymentKey)
   }
 
 mkTrustStore
@@ -39,8 +42,9 @@ mkTrustStore
   => SecretFile
   -> TrustStore f
 mkTrustStore file = TrustStore
-  { init    = init' file
-  , readKey = readKey' file
+  { init   = init' file
+  , readSK = readSK' file
+  , readVK = readVK' file
   }
 
 init'
@@ -50,26 +54,36 @@ init'
   -> f ()
 init' file pass = do
   sk       <- liftIO $ Crypto.generateSigningKey Crypto.AsPaymentKey
+  let vkEncoded = EncodedVK $ Crypto.serialiseToRawBytes $ Crypto.getVerificationKey sk
   envelope <- encryptKey sk pass
-  writeEnvelope file envelope
+  writeTS file $ TrustStoreFile envelope vkEncoded
 
-readKey'
+readSK'
   :: (MonadIO f, MonadThrow f)
   => SecretFile
   -> KeyPass
   -> f (Crypto.SigningKey Crypto.PaymentKey)
-readKey' file pass = do
-  envelope <- readEnvelope file >>= maybe (throwM NotInitialized) pure
-  maybe (throwM DecryptionFailed) pure $ decryptKey envelope pass
+readSK' file pass = do
+  TrustStoreFile{..} <- readTS file >>= maybe (throwM NotInitialized) pure
+  maybe (throwM DecryptionFailed) pure $ decryptKey trustStoreSecret pass
+
+readVK'
+  :: (MonadIO f, MonadThrow f)
+  => SecretFile
+  -> f (Crypto.VerificationKey Crypto.PaymentKey)
+readVK' file = do
+  TrustStoreFile{trustStoreVK=EncodedVK rawVK} <- readTS file >>= maybe (throwM NotInitialized) pure
+  maybe (throwM StoreFileCorrupted) pure $ Crypto.deserialiseFromRawBytes asVK rawVK
+    where asVK = Crypto.AsVerificationKey Crypto.AsPaymentKey
 
 decryptKey :: SecretEnvelope -> KeyPass -> Maybe (Crypto.SigningKey Crypto.PaymentKey)
-decryptKey envelope pass = do
-  (text, salt, iv) <- unpackEnvelope (undefined :: AES256) envelope
+decryptKey SecretEnvelope{secretCiphertext=Ciphertext text, secretSalt=salt, secretIv=EncodedIV rawIV} pass = do
+  iv <- makeIV rawIV
   let encryptionKey = mkEncryptionKey pass salt
-  rawKey <- either (\_ -> Nothing) Just $ decrypt encryptionKey iv text
+  rawSK <- either (\_ -> Nothing) Just $ decrypt encryptionKey iv text
 
-  Crypto.deserialiseFromRawBytes asSk rawKey
-    where asSk = Crypto.AsSigningKey Crypto.AsPaymentKey
+  Crypto.deserialiseFromRawBytes asSK rawSK
+    where asSK = Crypto.AsSigningKey Crypto.AsPaymentKey
 
 encryptKey
   :: (MonadIO f, MonadThrow f, MonadRandom f)
@@ -79,21 +93,23 @@ encryptKey
 encryptKey sk pass = do
   salt <- genRandomSalt 16
   iv   <- genRandomIV (undefined :: AES256) >>= maybe (throwM InitializationError) pure
+
   let
+    iv'           = EncodedIV $ BS.pack $ BA.unpack iv
     encryptionKey = mkEncryptionKey pass salt
     rawSk         = Crypto.serialiseToRawBytes sk
-  ciphertext <- either (\_ -> throwM InitializationError) pure $ encrypt encryptionKey iv rawSk
 
-  pure $ packEnvelope ciphertext salt iv
+  ciphertext <- either (\_ -> throwM InitializationError) pure $ encrypt encryptionKey iv rawSk <&> Ciphertext
+  pure $ SecretEnvelope ciphertext salt iv'
 
 mkEncryptionKey :: KeyPass -> Salt -> Key AES256 ByteString
 mkEncryptionKey (KeyPass pass) (Salt salt) =
   Key $ BS.pack $ BA.unpack $ H.hashWith H.SHA256 $ T.encodeUtf8 pass <> salt
 
-writeEnvelope :: MonadIO f => SecretFile -> SecretEnvelope -> f ()
-writeEnvelope (SecretFile path) envelope =
+writeTS :: MonadIO f => SecretFile -> TrustStoreFile -> f ()
+writeTS (SecretFile path) envelope =
   liftIO $ BL.writeFile path (encode envelope)
 
-readEnvelope :: MonadIO f => SecretFile -> f (Maybe SecretEnvelope)
-readEnvelope (SecretFile path) =
+readTS :: MonadIO f => SecretFile -> f (Maybe TrustStoreFile)
+readTS (SecretFile path) =
   liftIO $ BL.readFile path <&> decode

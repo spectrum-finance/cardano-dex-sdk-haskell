@@ -10,14 +10,52 @@ import           Crypto.Error (CryptoFailable(..), CryptoError(..))
 
 import qualified Crypto.Random.Types as CRT
 
+import           Data.Functor
 import           Data.ByteArray (ByteArray)
 import           Data.ByteString (ByteString)
+import qualified Data.ByteString.Base16  as Hex
+import           Data.Aeson
+import qualified Data.Text.Encoding      as T
 
 -- | Not required, but most general implementation
 data Key c a where
   Key :: (BlockCipher c, ByteArray a) => a -> Key c a
 
-newtype Salt = Salt ByteString
+newtype Salt = Salt { unSalt :: ByteString }
+
+instance ToJSON Salt where
+  toJSON = toJSON . T.decodeUtf8 . Hex.encode . unSalt
+
+instance FromJSON Salt where
+  parseJSON (String s) = either fail pure $ fmap Salt (Hex.decode . T.encodeUtf8 $ s)
+  parseJSON _          = fail "Expected a string"
+
+newtype Ciphertext = Ciphertext { unCyphertext :: ByteString }
+
+instance ToJSON Ciphertext where
+  toJSON = toJSON . T.decodeUtf8 . Hex.encode . unCyphertext
+
+instance FromJSON Ciphertext where
+  parseJSON (String s) = either fail pure $ fmap Ciphertext (Hex.decode . T.encodeUtf8 $ s)
+  parseJSON _          = fail "Expected a string"
+
+newtype EncodedVK = EncodedVK { unEncodedVK :: ByteString }
+
+instance ToJSON EncodedVK where
+  toJSON = toJSON . T.decodeUtf8 . Hex.encode . unEncodedVK
+
+instance FromJSON EncodedVK where
+  parseJSON (String s) = either fail pure $ fmap EncodedVK (Hex.decode . T.encodeUtf8 $ s)
+  parseJSON _          = fail "Expected a string"
+
+newtype EncodedIV = EncodedIV { unEncodedIV :: ByteString }
+
+instance ToJSON EncodedIV where
+  toJSON = toJSON . T.decodeUtf8 . Hex.encode . unEncodedIV
+
+instance FromJSON EncodedIV where
+  parseJSON (String s) = either fail pure $ fmap EncodedIV (Hex.decode . T.encodeUtf8 $ s)
+  parseJSON _          = fail "Expected a string"
 
 -- | Generate a random initialization vector for a given block cipher
 genRandomIV :: forall f c. (CRT.MonadRandom f, BlockCipher c) => c -> f (Maybe (IV c))
