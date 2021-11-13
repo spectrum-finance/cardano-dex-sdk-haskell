@@ -35,6 +35,7 @@ data TrustStore f = TrustStore
   { init   :: KeyPass -> f ()
   , readSK :: KeyPass -> f (Crypto.SigningKey Crypto.PaymentKey)
   , readVK :: f (Crypto.VerificationKey Crypto.PaymentKey)
+  , isInitialized :: f Bool
   }
 
 mkTrustStore
@@ -42,9 +43,10 @@ mkTrustStore
   => SecretFile
   -> TrustStore f
 mkTrustStore file = TrustStore
-  { init   = init' file
-  , readSK = readSK' file
-  , readVK = readVK' file
+  { init          = init' file
+  , readSK        = readSK' file
+  , readVK        = readVK' file
+  , isInitialized = isInitialized' file
   }
 
 init'
@@ -57,6 +59,12 @@ init' file pass = do
   let vkEncoded = EncodedVK $ Crypto.serialiseToRawBytes $ Crypto.getVerificationKey sk
   envelope <- encryptKey sk pass
   writeTS file $ TrustStoreFile envelope vkEncoded
+
+isInitialized'
+  :: (MonadIO f, MonadThrow f)
+  => SecretFile
+  -> f Bool
+isInitialized' file = readTS file <&> isJust
 
 readSK'
   :: (MonadIO f, MonadThrow f)
