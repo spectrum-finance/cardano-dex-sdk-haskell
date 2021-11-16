@@ -5,6 +5,11 @@ import GHC.Generics
 import Ledger
 import Explorer.Types
 
+data Paging = Paging
+  { offset :: Int
+  , limit  :: Int
+  } deriving (Show, Generic, FromJSON)
+
 data Items a = Items
   { items :: [a]
   , total :: Int

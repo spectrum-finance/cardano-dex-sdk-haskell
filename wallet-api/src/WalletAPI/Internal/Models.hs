@@ -23,20 +23,3 @@ data SecretEnvelope = SecretEnvelope
   , secretSalt       :: Salt
   , secretIv         :: EncodedIV
   } deriving (Generic, ToJSON, FromJSON)
-
--- packEnvelope :: forall c. BlockCipher c => Cyphertext -> Salt -> IV c -> SecretEnvelope
--- packEnvelope text (Salt salt) iv = SecretEnvelope (encode' text) (encode' salt) (encode' iv')
---   where
---     encode' = T.decodeUtf8 . Hex.encode
---     iv'     = BS.pack $ BA.unpack iv
---
--- unpackEnvelope :: BlockCipher c => c -> SecretEnvelope -> Maybe (Cyphertext, Salt, IV c)
--- unpackEnvelope _ SecretEnvelope{..} = either (\_ -> Nothing) Just t3
---   where
---     decode' = Hex.decode . T.encodeUtf8
---     t3 = do
---       seHex <- decode' secretCiphertext
---       ssHex <- decode' secretSalt
---       ivHex <- decode' secretIv
---       maybeToRight "" (makeIV ivHex <&> (seHex, Salt ssHex,))
-

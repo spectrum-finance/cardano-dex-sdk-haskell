@@ -1,4 +1,4 @@
-module WalletAPI.Internal.TrustStore where
+module WalletAPI.TrustStore where
 
 import           RIO
 import qualified Data.ByteString        as BS
@@ -32,9 +32,9 @@ data InitializationError =
   deriving (Show, Exception)
 
 data TrustStore f = TrustStore
-  { init   :: KeyPass -> f ()
-  , readSK :: KeyPass -> f (Crypto.SigningKey Crypto.PaymentKey)
-  , readVK :: f (Crypto.VerificationKey Crypto.PaymentKey)
+  { init          :: KeyPass -> f ()
+  , readSK        :: KeyPass -> f (Crypto.SigningKey Crypto.PaymentKey)
+  , readVK        :: f (Crypto.VerificationKey Crypto.PaymentKey)
   , isInitialized :: f Bool
   }
 
