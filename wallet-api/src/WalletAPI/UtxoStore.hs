@@ -10,20 +10,20 @@ import CardanoTx.Models
 type Store = Map.Map TxOutRef FullTxOut
 
 data UtxoStore f = UtxoStore
-  { put      :: Set.Set FullTxOut -> f ()
-  , get      :: f (Set.Set FullTxOut)
-  , drop     :: Set.Set TxOutRef -> f ()
-  , contains :: TxOutRef -> f Bool
+  { putUtxos     :: Set.Set FullTxOut -> f ()
+  , getUtxos     :: f (Set.Set FullTxOut)
+  , dropUtxos    :: Set.Set TxOutRef -> f ()
+  , containsUtxo :: TxOutRef -> f Bool
   }
 
 mkUtxoStore :: MonadIO f => f (UtxoStore f)
 mkUtxoStore = do
   storeT <- liftIO $ newTVarIO mempty
   pure $ UtxoStore
-    { put      = put' storeT
-    , get      = get' storeT
-    , drop     = drop' storeT
-    , contains = contains' storeT
+    { putUtxos     = put' storeT
+    , getUtxos     = get' storeT
+    , dropUtxos    = drop' storeT
+    , containsUtxo = contains' storeT
     }
 
 put' :: MonadIO f => TVar Store -> Set.Set FullTxOut -> f ()

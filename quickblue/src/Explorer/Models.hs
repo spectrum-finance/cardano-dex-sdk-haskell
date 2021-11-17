@@ -1,9 +1,11 @@
 module Explorer.Models where
 
-import Data.Aeson     (FromJSON)
-import GHC.Generics
-import Ledger
-import Explorer.Types
+import           Data.Aeson     (FromJSON)
+import           GHC.Generics
+import           Ledger
+import           Explorer.Types
+import           Explorer.Class
+import qualified CardanoTx.Models as Tx
 
 data Paging = Paging
   { offset :: Int
@@ -25,6 +27,9 @@ data FullTxOut = FullTxOut
   , dataHash    :: Maybe Hash32
   , data'       :: Maybe Datum
   } deriving (Show, Generic, FromJSON)
+
+instance ToCardanoTx Tx.FullTxOut FullTxOut where
+  toCardanoTx FullTxOut{..} = undefined
 
 data OutAsset = OutAsset
   { policy   :: PolicyId

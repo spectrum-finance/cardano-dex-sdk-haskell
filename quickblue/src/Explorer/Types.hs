@@ -7,6 +7,10 @@ import GHC.Generics
 newtype Addr = Addr { unAddr :: String }
   deriving (Show, Generic, FromJSON)
 
+-- Payment credential encoded as a hex string
+newtype PaymentCred = PaymentCred { unPaymentCred :: String }
+  deriving (Show, Generic, FromJSON)
+
 -- Output reference string composed of TxHash and OutIndex : {TxHash}#{OutIndex}
 newtype OutRef = OutRef { unOutRef :: String }
   deriving (Show, Generic, FromJSON)
