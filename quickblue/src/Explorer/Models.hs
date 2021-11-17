@@ -29,7 +29,7 @@ data FullTxOut = FullTxOut
   } deriving (Show, Generic, FromJSON)
 
 instance ToCardanoTx Tx.FullTxOut FullTxOut where
-  toCardanoTx FullTxOut{..} = undefined
+  toCardanoTx FullTxOut{..} = undefined -- todo
 
 data OutAsset = OutAsset
   { policy   :: PolicyId

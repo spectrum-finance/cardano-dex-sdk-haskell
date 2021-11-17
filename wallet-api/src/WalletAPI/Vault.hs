@@ -45,9 +45,11 @@ selectUtxos' explorer@Explorer{..} ustore@UtxoStore{..} tstore@TrustStore{..} re
       utxoBatch <- getUnspentOutputsByPCred (Explorer.PaymentCred $ base16 $ serialiseToRawBytes pkh) paging
       putUtxos (Set.fromList $ Explorer.items utxoBatch <&> Explorer.toCardanoTx)
       let entriesLeft = (Explorer.total utxoBatch) - (offset + limit)
+
       if entriesLeft > 0
       then fetchUtxos (offset + limit) limit
       else pure ()
+
     collect :: [FullTxOut] -> Value -> [FullTxOut] -> Maybe [FullTxOut]
     collect acc valueAcc outs =
       case outs of
@@ -61,6 +63,7 @@ selectUtxos' explorer@Explorer{..} ustore@UtxoStore{..} tstore@TrustStore{..} re
           Nothing
         _ ->
           Just acc
+
   utxos <- getUtxos
   case collect [] mempty (Set.elems utxos) of
     Just outs -> pure $ Just $ Set.fromList outs
