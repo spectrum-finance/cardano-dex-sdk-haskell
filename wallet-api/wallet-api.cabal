@@ -79,6 +79,7 @@ library
     build-depends:
         rio==0.1.21.0,
         serialise==0.2.3.0,
+        binary==0.8.8.0,
         cardano-tx==0.1.0.0,
         quickblue==0.1.0.0,
         plutus-ledger-api==0.1.0.0,
