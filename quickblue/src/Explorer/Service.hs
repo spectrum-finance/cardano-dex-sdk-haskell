@@ -28,7 +28,7 @@ getUnspentOutputs' conf minIndex limit =
 
 getUnspentOutputsByPCred' :: MonadIO f => ExplorerConfig -> PaymentCred -> Paging -> f (Items FullTxOut)
 getUnspentOutputsByPCred' conf pcred Paging{..} =
-  mkGetRequest conf $ "/outputs/unspent/paymentCred/" ++ show pcred ++  "/?offset=" ++ show offset ++ "&limit=" ++ show limit
+  mkGetRequest conf $ "/outputs/unspent/byPaymentCred/" ++ show pcred ++  "/?offset=" ++ show offset ++ "&limit=" ++ show limit
 
 mkGetRequest :: (MonadIO f, FromJSON a) => ExplorerConfig -> String -> f a
 mkGetRequest ExplorerConfig{..} path = do
