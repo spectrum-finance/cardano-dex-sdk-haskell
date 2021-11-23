@@ -7,6 +7,7 @@ packages:
   submit-api
   network-api
   wallet-api
+  datum-keeper-client
 
 -- You never, ever, want this.
 write-ghc-environment-files: never
