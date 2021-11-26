@@ -4,6 +4,7 @@ import Control.Monad.IO.Class
 import Data.ByteString.Char8  as Data
 import Data.Function
 import Data.Aeson
+import qualified  Data.Text as T
 import GHC.Natural
 import Network.HTTP.Simple
 
@@ -28,7 +29,7 @@ getUnspentOutputs' conf minIndex limit =
 
 getUnspentOutputsByPCred' :: MonadIO f => ExplorerConfig -> PaymentCred -> Paging -> f (Items FullTxOut)
 getUnspentOutputsByPCred' conf pcred Paging{..} =
-  mkGetRequest conf $ "/outputs/unspent/byPaymentCred/" ++ unPaymentCred pcred ++  "/?offset=" ++ show offset ++ "&limit=" ++ show limit
+  mkGetRequest conf $ "/outputs/unspent/byPaymentCred/" ++ (T.unpack $ unPaymentCred pcred) ++  "/?offset=" ++ show offset ++ "&limit=" ++ show limit
 
 mkGetRequest :: (MonadIO f, FromJSON a) => ExplorerConfig -> String -> f a
 mkGetRequest ExplorerConfig{..} path = do

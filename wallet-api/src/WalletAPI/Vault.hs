@@ -3,7 +3,6 @@ module WalletAPI.Vault where
 import           RIO
 import qualified Data.Set                   as Set
 import           Data.ByteArray.Encoding    (Base(..), convertToBase)
-import qualified Data.Text                  as T
 import qualified Data.Text.Encoding         as T
 
 
@@ -43,7 +42,7 @@ selectUtxos' explorer@Explorer{..} ustore@UtxoStore{..} tstore@TrustStore{..} re
       pkh <- readVK <&> Crypto.verificationKeyHash
       let
         paging  = Explorer.Paging offset limit
-        mkPCred = Explorer.PaymentCred . T.unpack . T.decodeUtf8 . convertToBase Base16 . serialiseToRawBytes
+        mkPCred = Explorer.PaymentCred . T.decodeUtf8 . convertToBase Base16 . serialiseToRawBytes
       utxoBatch <- getUnspentOutputsByPCred (mkPCred pkh) paging
       putUtxos (Set.fromList $ Explorer.items utxoBatch <&> Explorer.toCardanoTx)
       let entriesLeft = (Explorer.total utxoBatch) - (offset + limit)
@@ -69,4 +68,5 @@ selectUtxos' explorer@Explorer{..} ustore@UtxoStore{..} tstore@TrustStore{..} re
   utxos <- getUtxos
   case collect [] mempty (Set.elems utxos) of
     Just outs -> pure $ Just $ Set.fromList outs
-    Nothing   -> fetchUtxos 0 20 >> selectUtxos' explorer ustore tstore requiredValue
+    Nothing   -> fetchUtxos 0 batchSize >> selectUtxos' explorer ustore tstore requiredValue
+      where batchSize = 20
