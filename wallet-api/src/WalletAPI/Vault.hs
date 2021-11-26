@@ -2,7 +2,6 @@ module WalletAPI.Vault where
 
 import           RIO
 import qualified Data.Set                   as Set
-import qualified Data.ByteString            as BS
 import           Data.ByteArray.Encoding    (Base(..), convertToBase)
 import qualified Data.Text                  as T
 import qualified Data.Text.Encoding         as T
@@ -13,13 +12,13 @@ import           Plutus.V1.Ledger.Value
 import           Cardano.Api            hiding (Value)
 import qualified Cardano.Api            as Crypto
 
-import CardanoTx.Models
-import WalletAPI.TrustStore
-import WalletAPI.UtxoStore
-import Explorer.Service
-import qualified Explorer.Types  as Explorer
-import qualified Explorer.Models as Explorer
-import qualified Explorer.Class  as Explorer
+import           CardanoTx.Models
+import           WalletAPI.TrustStore
+import           WalletAPI.UtxoStore
+import           Explorer.Service
+import qualified Explorer.Types       as Explorer
+import qualified Explorer.Models      as Explorer
+import qualified Explorer.Class       as Explorer
 
 data Vault f = Vault
   { getSigningKey :: PubKeyHash -> f (Maybe ShelleyWitnessSigningKey)
@@ -56,10 +55,10 @@ selectUtxos' explorer@Explorer{..} ustore@UtxoStore{..} tstore@TrustStore{..} re
     collect :: [FullTxOut] -> Value -> [FullTxOut] -> Maybe [FullTxOut]
     collect acc valueAcc outs =
       case outs of
-        out@FullTxOut{..} : tl | valueAcc `lt` requiredValue ->
+        fout@FullTxOut{..} : tl | valueAcc `lt` requiredValue ->
           if Set.null $ Set.intersection (extractAssets fullTxOutValue) (extractAssets requiredValue)
           then collect acc valueAcc tl -- current output doesn't contain the required asset at all, so skipping it
-          else collect (out : acc) (fullTxOutValue <> valueAcc) tl -- need more outputs
+          else collect (fout : acc) (fullTxOutValue <> valueAcc) tl -- need more outputs
           where
             extractAssets v = Set.fromList (flattenValue v <&> (\(cs, tn, _) -> (cs, tn)))
         [] | valueAcc `lt` requiredValue ->

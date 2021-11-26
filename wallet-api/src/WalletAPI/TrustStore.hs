@@ -16,7 +16,7 @@ import qualified Cardano.Api         as Crypto
 import WalletAPI.Internal.Crypto
 import WalletAPI.Internal.Models
 
-data SecretFile = SecretFile { unSigningKeyFile :: FilePath }
+newtype SecretFile = SecretFile { unSigningKeyFile :: FilePath }
 
 newtype KeyPass = KeyPass { unKeyPass :: Text }
 
@@ -99,7 +99,8 @@ encryptKey
   -> KeyPass
   -> f SecretEnvelope
 encryptKey sk pass = do
-  salt <- genRandomSalt 16
+  let saltLen = 16
+  salt <- genRandomSalt saltLen
   iv   <- genRandomIV (undefined :: AES256) >>= maybe (throwM InitializationError) pure
 
   let

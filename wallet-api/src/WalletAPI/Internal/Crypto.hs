@@ -17,7 +17,6 @@ import qualified Data.ByteString.Base16  as Hex
 import           Data.Aeson
 import qualified Data.Text.Encoding      as T
 
--- | Not required, but most general implementation
 data Key c a where
   Key :: (BlockCipher c, ByteArray a) => a -> Key c a
 

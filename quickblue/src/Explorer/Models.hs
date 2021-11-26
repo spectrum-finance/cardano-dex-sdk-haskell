@@ -28,7 +28,7 @@ data FullTxOut = FullTxOut
   , data'       :: Maybe Datum
   } deriving (Show, Generic, FromJSON)
 
-instance ToCardanoTx Tx.FullTxOut FullTxOut where
+instance ToCardanoTx FullTxOut Tx.FullTxOut where
   toCardanoTx FullTxOut{..} = undefined -- todo
 
 data OutAsset = OutAsset
