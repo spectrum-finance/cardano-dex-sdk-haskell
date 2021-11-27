@@ -5,10 +5,10 @@ import           Data.Aeson     (FromJSON, ToJSON)
 import qualified Data.Set       as Set
 
 import           Ledger
-import           Ledger.Scripts (datumHash)
+import           Ledger.Scripts              (datumHash)
 import           Plutus.V1.Ledger.Credential (Credential (..))
-import qualified Ledger         as P
-import           GHC.Generics   (Generic)
+import qualified Ledger                      as P
+import           GHC.Generics                (Generic)
 
 import CardanoTx.ToPlutus
 
