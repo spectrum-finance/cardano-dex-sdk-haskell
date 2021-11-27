@@ -3,6 +3,8 @@ module Explorer.Service where
 import Control.Monad.IO.Class
 import Data.ByteString.Char8  as Data
 import Data.Function
+import Data.Aeson
+import qualified  Data.Text as T
 import GHC.Natural
 import Network.HTTP.Simple
 
@@ -11,17 +13,29 @@ import Explorer.Models
 import Explorer.Config
 
 data Explorer f = Explorer
-  { getUspentOutputs :: Gix -> Limit -> f (Items FullTxOut)
+  { getUnspentOutputs        :: Gix -> Limit -> f (Items FullTxOut)
+  , getUnspentOutputsByPCred :: PaymentCred -> Paging -> f (Items FullTxOut)
   }
 
 mkExplorer :: MonadIO f => ExplorerConfig -> Explorer f
-mkExplorer conf = Explorer $ getUnspentOutputs' conf
+mkExplorer conf = Explorer
+  { getUnspentOutputs        = getUnspentOutputs' conf
+  , getUnspentOutputsByPCred = getUnspentOutputsByPCred' conf
+  }
 
 getUnspentOutputs' :: MonadIO f => ExplorerConfig -> Gix -> Limit -> f (Items FullTxOut)
-getUnspentOutputs' ExplorerConfig{..} minIndex limit = do
+getUnspentOutputs' conf minIndex limit =
+  mkGetRequest conf $ "/outputs/unspent/indexed?minIndex=" ++ show minIndex ++ "&limit=" ++ show limit
+
+getUnspentOutputsByPCred' :: MonadIO f => ExplorerConfig -> PaymentCred -> Paging -> f (Items FullTxOut)
+getUnspentOutputsByPCred' conf pcred Paging{..} =
+  mkGetRequest conf $ "/outputs/unspent/byPaymentCred/" ++ (T.unpack $ unPaymentCred pcred) ++  "/?offset=" ++ show offset ++ "&limit=" ++ show limit
+
+mkGetRequest :: (MonadIO f, FromJSON a) => ExplorerConfig -> String -> f a
+mkGetRequest ExplorerConfig{..} path = do
   let
     request = defaultRequest
-      & setRequestPath (Data.pack $ "/outputs/unspent/indexed?minIndex=" ++ show minIndex ++ "&limit=" ++ show limit)
+      & setRequestPath (Data.pack path)
       & setRequestHost (Data.pack explorerHost)
       & setRequestPort (naturalToInt explorerPort)
 

@@ -1,9 +1,9 @@
 cabal-version:      2.4
-name:               cardano-tx
+name:               submit-api
 version:            0.1.0.0
 
 author:             ErgoLabs
-maintainer:         
+maintainer:         ErgoLabs
 
 extra-source-files: CHANGELOG.md
 
@@ -70,16 +70,23 @@ library
 
     hs-source-dirs: src
     
-    exposed-modules: CardanoTx.Models
-                     CardanoTx.Address
-                     CardanoTx.ToPlutus
+    exposed-modules: SubmitAPI.Service
+                     SubmitAPI.Config
+                     SubmitAPI.Internal.Transaction
 
     build-depends:
-        mtl==2.2.2,
+        rio==0.1.21.0,
+        serialise==0.2.3.0,
+        cardano-tx==0.1.0.0,
+        network-api==0.1.0.0,
+        wallet-api==0.1.0.0,
         plutus-chain-index==0.1.0.0,
+        plutus-tx==0.1.0.0,
+        plutus-ledger-api==0.1.0.0,
+        prettyprinter==1.7.0,
+        cardano-slotting==0.1.0.0,
+        mtl==2.2.2,
         plutus-ledger,
-        plutus-tx,
-        plutus-ledger-api,
         bytestring,
         aeson,
         servant,
@@ -90,7 +97,6 @@ library
         dependent-sum-template,
         containers,
         freer-simple,
-        plutus-core,
         extra,
         cardano-api,
         text

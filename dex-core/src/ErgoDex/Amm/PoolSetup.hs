@@ -1,10 +1,12 @@
 module ErgoDex.Amm.PoolSetup where
 
-import Control.Monad           (when)
-import Data.Foldable
-import Data.Either.Combinators (maybeToRight, mapLeft)
+import           Control.Monad           (when)
+import           Data.Foldable
+import           Data.Either.Combinators (maybeToRight, mapLeft)
+import qualified Data.Set                as Set
 
 import           Ledger                          (PubKeyHash(..), Datum(..), Address, pubKeyHashAddress)
+import qualified Ledger.Interval as Interval
 import           Ledger.Value                    (AssetClass)
 import qualified Ledger.Typed.Scripts.Validators as Validators
 import           PlutusTx                        (toBuiltinData)
@@ -16,8 +18,7 @@ import           ErgoDex.Amm.Pool       (Pool(..), PoolId(..), applyInit)
 import qualified ErgoDex.Contracts.Pool as P
 import           ErgoDex.Contracts.Types
 import           ErgoDex.OffChain
-import           Cardano.Models
-import           Cardano.Utils
+import           CardanoTx.Models
 
 data SetupExecError =
     MissingAsset AssetClass
@@ -41,16 +42,22 @@ poolDeploy' changeAddr pp@P.PoolParams{..} inputs = do
   inNft <- tryGetInputAmountOf inputs poolNft
   when (not (amountEq inNft 1)) (Left InvalidNft) -- make sure valid NFT is provided
   let
-    poolOutput = TxOutCandidate
-      { txOutCandidateAddress  = Validators.validatorAddress poolInstance
-      , txOutCandidateValue    = assetAmountValue inNft
-      , txOutCandidateDatum    = Just $ Datum $ PlutusTx.toBuiltinData pp
-      , txOutCandidatePolicies = []
-      }
-
     outputs = [poolOutput]
+      where
+        poolOutput = TxOutCandidate
+          { txOutCandidateAddress = Validators.validatorAddress poolInstance
+          , txOutCandidateValue   = assetAmountValue inNft
+          , txOutCandidateDatum   = Just $ Datum $ PlutusTx.toBuiltinData pp
+          }
 
-  Right $ TxCandidate inputs outputs (Just $ ReturnTo changeAddr)
+  Right $ TxCandidate
+    { txCandidateInputs       = Set.fromList inputs
+    , txCandidateOutputs      = outputs
+    , txCandidateValueMint    = MintValue mempty -- todo: mint NFT right there?
+    , txCandidateMintPolicies = mempty
+    , txCandidateChangePolicy = Just $ ReturnTo changeAddr
+    , txCandidateValidRange   = Interval.always
+    }
 
 poolInit' :: Address -> [FullTxIn] -> PubKeyHash -> Either SetupExecError TxCandidate
 poolInit' changeAddr inputs rewardPkh = do
@@ -68,18 +75,27 @@ poolInit' changeAddr inputs rewardPkh = do
 
   let
     inputsReordered = [poolInput] ++ (filter (\i -> i /= poolInput) inputs)
-    outputs =
-        [poolOutput, rewardOutput]
+
+    mintLqValue = coinAmountValue (poolCoinLq nextPool) (poolLiquidity nextPool)
+
+    outputs = [poolOutput, rewardOutput]
       where
-        rewardValue  = coinAmountValue (poolCoinLq nextPool) (poolLiquidity nextPool)
         rewardOutput = TxOutCandidate
-          { txOutCandidateAddress  = pubKeyHashAddress rewardPkh
-          , txOutCandidateValue    = rewardValue
-          , txOutCandidateDatum    = Nothing
-          , txOutCandidatePolicies = [liquidityMintingPolicyInstance (unPoolId $ poolId nextPool)]
+          { txOutCandidateAddress = pubKeyHashAddress rewardPkh
+          , txOutCandidateValue   = mintLqValue
+          , txOutCandidateDatum   = Nothing
           }
 
-  Right $ TxCandidate inputsReordered outputs (Just $ ReturnTo changeAddr)
+    mps = [liquidityMintingPolicyInstance (unPoolId $ poolId nextPool)]
+
+  Right $ TxCandidate
+    { txCandidateInputs       = Set.fromList inputsReordered
+    , txCandidateOutputs      = outputs
+    , txCandidateValueMint    = MintValue mintLqValue
+    , txCandidateMintPolicies = Set.fromList mps
+    , txCandidateChangePolicy = Just $ ReturnTo changeAddr
+    , txCandidateValidRange   = Interval.always
+    }
 
 tryGetInputAmountOf :: [FullTxIn] -> Coin a -> Either SetupExecError (AssetAmount a)
 tryGetInputAmountOf inputs c =

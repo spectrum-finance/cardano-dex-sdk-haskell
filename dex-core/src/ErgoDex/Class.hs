@@ -1,6 +1,6 @@
 module ErgoDex.Class where
 
-import Cardano.Models
+import CardanoTx.Models
 import ErgoDex.State
 
 class FromLedger a where

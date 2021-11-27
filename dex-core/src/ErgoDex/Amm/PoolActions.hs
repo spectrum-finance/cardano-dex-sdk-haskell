@@ -4,16 +4,18 @@ module ErgoDex.Amm.PoolActions
   , mkPoolActions
   ) where
 
-import Control.Monad  (when)
-import Data.Bifunctor
-import Data.Tuple
-import Control.Exception.Base
+import           Control.Monad          (when)
+import           Data.Bifunctor
+import           Data.Tuple
+import qualified Data.Set               as Set
+import           Control.Exception.Base
 
-import           Ledger         (PubKeyHash(..), Redeemer(..), pubKeyHashAddress)
-import qualified Ledger.Ada     as Ada
-import           Ledger.Scripts (unitRedeemer)
-import           Ledger.Value   (assetClassValue)
-import           PlutusTx       (toBuiltinData)
+import           Ledger          (PubKeyHash(..), Redeemer(..), pubKeyHashAddress)
+import qualified Ledger.Interval as Interval
+import qualified Ledger.Ada      as Ada
+import           Ledger.Scripts  (unitRedeemer)
+import           Ledger.Value    (assetClassValue)
+import           PlutusTx        (toBuiltinData)
 
 import           ErgoDex.Types
 import           ErgoDex.State
@@ -21,9 +23,10 @@ import           ErgoDex.Amm.Orders
 import           ErgoDex.Amm.Pool
 import qualified ErgoDex.Contracts.Pool as P
 import           ErgoDex.Contracts.Types
+import           ErgoDex.OffChain
 import           ErgoDex.Amm.Scripts
-import           Cardano.Models
-import           Cardano.Utils
+import           ErgoDex.Utils
+import           CardanoTx.Models
 
 data OrderExecErr =
     PriceTooHigh
@@ -33,9 +36,9 @@ data OrderExecErr =
 instance Exception OrderExecErr
 
 data PoolActions = PoolActions
-  { runSwap    :: Confirmed Swap    -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
-  , runDeposit :: Confirmed Deposit -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
-  , runRedeem  :: Confirmed Redeem  -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
+  { runSwap    :: Confirmed Swap    -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+  , runDeposit :: Confirmed Deposit -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+  , runRedeem  :: Confirmed Redeem  -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
   }
 
 mkPoolActions :: PubKeyHash -> PoolActions
@@ -45,23 +48,26 @@ mkPoolActions executorPkh = PoolActions
   , runRedeem  = runRedeem' executorPkh
   }
 
-runSwap' :: PubKeyHash -> Confirmed Swap -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (Confirmed poolOut pool) = do
+runSwap' :: PubKeyHash -> Confirmed Swap -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
   let
-    poolIn  = FullTxIn poolOut (Just poolScript) (Just $ Redeemer $ toBuiltinData P.Swap)
-    orderIn = FullTxIn swapOut (Just swapScript) (Just unitRedeemer)
+    poolIn  = mkScriptTxIn poolOut poolScript (Redeemer $ toBuiltinData P.Swap)
+    orderIn = mkScriptTxIn swapOut swapScript unitRedeemer
     inputs  = [poolIn, orderIn]
 
     pp@(Predicted nextPoolOut _) = applySwap pool (AssetAmount swapBase swapBaseIn)
 
     quoteOutput = outputAmount pool (AssetAmount swapBase swapBaseIn)
 
+  when (swapPoolId /= poolId pool)               (Left $ PoolMismatch swapPoolId (poolId pool))
+  when (getAmount quoteOutput < swapMinQuoteOut) (Left PriceTooHigh)
+
+  let
     executorFee = (assetAmountRawValue quoteOutput) * exFeePerTokenNum `div` exFeePerTokenDen
     executorOut = TxOutCandidate
       { txOutCandidateAddress  = pubKeyHashAddress executorPkh
       , txOutCandidateValue    = Ada.lovelaceValueOf executorFee
       , txOutCandidateDatum    = Nothing
-      , txOutCandidatePolicies = []
       }
 
     rewardAddr = pubKeyHashAddress swapRewardPkh
@@ -70,7 +76,6 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
           { txOutCandidateAddress  = rewardAddr
           , txOutCandidateValue    = rewardValue
           , txOutCandidateDatum    = Nothing
-          , txOutCandidatePolicies = []
           }
       where
         initValue     = fullTxOutValue swapOut
@@ -81,16 +86,23 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
 
     outputs = [nextPoolOut, rewardOut, executorOut]
 
-  when (swapPoolId /= poolId pool)               (Left $ PoolMismatch swapPoolId (poolId pool))
-  when (getAmount quoteOutput < swapMinQuoteOut) (Left PriceTooHigh)
+    txCandidate = TxCandidate
+      { txCandidateInputs       = Set.fromList inputs
+      , txCandidateOutputs      = outputs
+      , txCandidateValueMint    = MintValue mempty
+      , txCandidateMintPolicies = mempty
+      , txCandidateChangePolicy = Just $ ReturnTo rewardAddr
+      , txCandidateValidRange   = Interval.always
+      }
 
-  Right (TxCandidate inputs outputs (Just $ ReturnTo rewardAddr), pp)
+  Right $ (txCandidate, pp)
 
-runDeposit' :: PubKeyHash -> Confirmed Deposit -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut pool@Pool{..}) = do
+runDeposit' :: PubKeyHash -> Confirmed Deposit -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{..}) = do
+  when (depositPoolId /= poolId) (Left $ PoolMismatch depositPoolId poolId)
   let
-    poolIn  = FullTxIn poolOut (Just poolScript) (Just $ Redeemer $ toBuiltinData P.Deposit)
-    orderIn = FullTxIn depositOut (Just depositScript) (Just unitRedeemer)
+    poolIn  = mkScriptTxIn poolOut poolScript (Redeemer $ toBuiltinData P.Deposit)
+    orderIn = mkScriptTxIn depositOut depositScript unitRedeemer
     inputs  = [poolIn, orderIn]
 
     (inX, inY) =
@@ -108,19 +120,19 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut po
       { txOutCandidateAddress  = pubKeyHashAddress executorPkh
       , txOutCandidateValue    = Ada.lovelaceValueOf $ unAmount executorFee
       , txOutCandidateDatum    = Nothing
-      , txOutCandidatePolicies = []
       }
+
+    mintLqValue = assetAmountValue lqOutput
+      where lqOutput = liquidityAmount pool (inX, inY)
 
     rewardAddr = pubKeyHashAddress depositRewardPkh
     rewardOut  =
         TxOutCandidate
-          { txOutCandidateAddress  = rewardAddr
-          , txOutCandidateValue    = rewardValue
-          , txOutCandidateDatum    = Nothing
-          , txOutCandidatePolicies = []
+          { txOutCandidateAddress   = rewardAddr
+          , txOutCandidateValue     = rewardValue
+          , txOutCandidateDatum     = Nothing
           }
       where
-        lqOutput      = liquidityAmount pool (inX, inY)
         initValue     = fullTxOutValue depositOut
         residualValue =
             excludeAda coinsResidue
@@ -129,20 +141,28 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (Confirmed poolOut po
                  initValue
               <> (assetClassValue (unCoin poolCoinX) (negate $ unAmount inX)) -- Remove X input
               <> (assetClassValue (unCoin poolCoinY) (negate $ unAmount inY)) -- Remove Y input
-
-        rewardValue = (assetAmountValue lqOutput) <> residualValue
+        rewardValue = residualValue <> mintLqValue
 
     outputs = [nextPoolOut, rewardOut, executorOut]
+    mps     = [liquidityMintingPolicyInstance $ unPoolId poolId]
 
-  when (depositPoolId /= poolId) (Left $ PoolMismatch depositPoolId poolId)
+    txCandidate = TxCandidate
+      { txCandidateInputs       = Set.fromList inputs
+      , txCandidateOutputs      = outputs
+      , txCandidateValueMint    = MintValue mintLqValue
+      , txCandidateMintPolicies = Set.fromList mps
+      , txCandidateChangePolicy = Just $ ReturnTo rewardAddr
+      , txCandidateValidRange   = Interval.always
+      }
 
-  Right (TxCandidate inputs outputs (Just $ ReturnTo rewardAddr), pp)
+  Right $ (txCandidate, pp)
 
-runRedeem' :: PubKeyHash -> Confirmed Redeem -> Confirmed Pool -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool@Pool{..}) = do
+runRedeem' :: PubKeyHash -> Confirmed Redeem -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (poolOut, pool@Pool{..}) = do
+  when (redeemPoolId /= poolId) (Left $ PoolMismatch redeemPoolId poolId)
   let
-    poolIn  = FullTxIn poolOut (Just poolScript) (Just $ Redeemer $ toBuiltinData P.Redeem)
-    orderIn = FullTxIn redeemOut (Just redeemScript) (Just unitRedeemer)
+    poolIn  = mkScriptTxIn poolOut poolScript (Redeemer $ toBuiltinData P.Redeem)
+    orderIn = mkScriptTxIn redeemOut redeemScript unitRedeemer
     inputs  = [poolIn, orderIn]
 
     pp@(Predicted nextPoolOut _) = applyRedeem pool redeemLqIn
@@ -152,27 +172,35 @@ runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (Confirmed poolOut pool@
       { txOutCandidateAddress  = pubKeyHashAddress executorPkh
       , txOutCandidateValue    = Ada.lovelaceValueOf $ unAmount executorFee
       , txOutCandidateDatum    = Nothing
-      , txOutCandidatePolicies = []
       }
+
+    burnLqValue = assetClassValue (unCoin redeemLq) (negate $ unAmount redeemLqIn)
 
     rewardAddr = pubKeyHashAddress redeemRewardPkh
     rewardOut  =
         TxOutCandidate
-          { txOutCandidateAddress  = rewardAddr
-          , txOutCandidateValue    = rewardValue
-          , txOutCandidateDatum    = Nothing
-          , txOutCandidatePolicies = []
+          { txOutCandidateAddress   = rewardAddr
+          , txOutCandidateValue     = rewardValue
+          , txOutCandidateDatum     = Nothing
           }
       where
         (outX, outY)  = sharesAmount pool redeemLqIn
         initValue     = fullTxOutValue redeemOut
         residualValue = excludeAda coinsResidue
-          where coinsResidue = initValue <> (assetClassValue (unCoin redeemLq) (negate $ unAmount redeemLqIn)) -- Remove LQ input
+          where coinsResidue = initValue <> burnLqValue -- Remove LQ input
 
         rewardValue = (assetAmountValue outX) <> (assetAmountValue outY) <> residualValue
 
     outputs = [nextPoolOut, rewardOut, executorOut]
+    mps     = [liquidityMintingPolicyInstance $ unPoolId poolId]
 
-  when (redeemPoolId /= poolId) (Left $ PoolMismatch redeemPoolId poolId)
+    txCandidate = TxCandidate
+      { txCandidateInputs       = Set.fromList inputs
+      , txCandidateOutputs      = outputs
+      , txCandidateValueMint    = MintValue burnLqValue
+      , txCandidateMintPolicies = Set.fromList mps
+      , txCandidateChangePolicy = Just $ ReturnTo rewardAddr
+      , txCandidateValidRange   = Interval.always
+      }
 
-  Right (TxCandidate inputs outputs (Just $ ReturnTo rewardAddr), pp)
+  Right $ (txCandidate, pp)

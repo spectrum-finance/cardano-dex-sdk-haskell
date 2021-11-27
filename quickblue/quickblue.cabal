@@ -75,8 +75,10 @@ library
                      Explorer.Models
                      Explorer.Service
                      Explorer.Config
+                     Explorer.Class
 
     build-depends:
+        cardano-tx==0.1.0.0,
         http-conduit,
         plutus-ledger,
         plutus-tx,

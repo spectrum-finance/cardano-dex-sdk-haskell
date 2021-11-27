@@ -1,7 +1,8 @@
 module ErgoDex.Types where
 
-import Prelude                     (Show, Eq, Ord(..), Integer, Bool, ($), (==), (<>), negate)
-import Playground.Contract         (FromJSON, ToJSON, Generic)
+import Prelude      (Show, Eq, Ord(..), Integer, Bool, ($), (==), (<>), negate)
+import Data.Aeson   (FromJSON, ToJSON)
+import GHC.Generics (Generic)
 
 import           Ledger
 import           Ledger.Value      (AssetClass(..), assetClassValueOf, assetClassValue, Value(..))
@@ -35,9 +36,6 @@ instance MultiplicativeSemigroup (AssetAmount a) where
 
 instance Ord (AssetAmount a) where
   compare (AssetAmount _ (Amount x)) (AssetAmount _ (Amount y)) = compare x y
-
-retagCoin :: forall a b . Coin a -> Coin b
-retagCoin (Coin ac) = Coin ac
 
 amountEq :: AssetAmount a -> Integer -> Bool
 amountEq (AssetAmount _ (Amount a)) b = a == b

@@ -7,9 +7,10 @@ import Ledger.Value                    (assetClassValue, assetClassValueOf)
 import Ledger.Typed.Scripts.Validators
 import PlutusTx.IsData.Class
 import PlutusTx.Sqrt
-import Playground.Contract             (FromJSON, ToJSON, Generic)
+import Data.Aeson                      (FromJSON, ToJSON)
+import GHC.Generics                    (Generic)
 
-import Cardano.Models
+import CardanoTx.Models
 import ErgoDex.Class
 import ErgoDex.Types
 import ErgoDex.State
@@ -63,7 +64,6 @@ instance ToLedger Pool where
         { txOutCandidateAddress  = validatorAddress poolInstance
         , txOutCandidateValue    = poolValue
         , txOutCandidateDatum    = Just $ Datum $ toBuiltinData nextPoolDatum
-        , txOutCandidatePolicies = []
         }
     where
       nft       = unPoolId poolId
