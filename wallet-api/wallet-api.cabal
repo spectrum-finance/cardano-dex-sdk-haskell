@@ -76,34 +76,34 @@ library
                      WalletAPI.Internal.Crypto
                      WalletAPI.Internal.Models
 
-    build-depends:
-        rio==0.1.21.0,
-        serialise==0.2.3.0,
-        binary==0.8.8.0,
-        cardano-tx==0.1.0.0,
-        quickblue==0.1.0.0,
-        plutus-ledger-api==0.1.0.0,
-        cardano-crypto-wrapper==1.3.0,
-        cardano-crypto-class==2.0.0,
-        plutus-chain-index==0.1.0.0,
-        prettyprinter==1.7.0,
-        cardano-slotting==0.1.0.0,
-        cryptonite==0.27,
-        base16-bytestring==1.0.1.0,
-        mtl==2.2.2,
-        plutus-ledger,
-        memory==0.15.0,
-        stm==2.5.0.1,
-        bytestring,
-        aeson,
-        servant,
-        singletons,
-        either,
-        aeson-gadt-th,
-        some,
-        dependent-sum-template,
-        containers,
-        freer-simple,
-        extra,
-        cardano-api,
-        text
+    build-depends:  rio==0.1.21.0
+                 ,  serialise  == 0.2.3.0
+                 ,  binary     == 0.8.8.0
+                 ,  cardano-tx == 0.1.0.0
+                 ,  quickblue  == 0.1.0.0
+                 ,  plutus-ledger-api       == 0.1.0.0
+                 ,  cardano-crypto-wrapper  == 1.3.0
+                 ,  cardano-crypto-class    == 2.0.0
+                 ,  plutus-chain-index      == 0.1.0.0
+                 ,  prettyprinter           == 1.7.0
+                 ,  cardano-slotting        == 0.1.0.0
+                 ,  cryptonite              == 0.27
+                 ,  base16-bytestring       == 1.0.1.0
+                 ,  mtl                     == 2.2.2
+                 ,  plutus-ledger
+                 ,  memory                  == 0.15.0
+                 ,  stm                     == 2.5.0.1
+                 ,  bytestring
+                 ,  aeson
+                 ,  servant
+                 ,  singletons
+                 ,  either
+                 ,  aeson-gadt-th
+                 ,  some
+                 ,  dependent-sum-template
+                 ,  containers
+                 ,  freer-simple
+                 ,  extra
+                 ,  cardano-api
+                 ,  text
+                 ,  dhall

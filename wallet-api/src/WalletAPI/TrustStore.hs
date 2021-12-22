@@ -1,6 +1,7 @@
 module WalletAPI.TrustStore where
 
 import           RIO
+import qualified Dhall                  as D
 import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Lazy   as BL
 import qualified Data.ByteArray         as BA
@@ -16,9 +17,13 @@ import qualified Cardano.Api         as Crypto
 import WalletAPI.Internal.Crypto
 import WalletAPI.Internal.Models
 
-newtype SecretFile = SecretFile { unSigningKeyFile :: FilePath }
+newtype SecretFile = SecretFile { unSigningKeyFile :: FilePath } deriving Generic
 
-newtype KeyPass = KeyPass { unKeyPass :: Text }
+instance D.FromDhall SecretFile
+
+newtype KeyPass = KeyPass { unKeyPass :: Text } deriving Generic
+
+instance D.FromDhall KeyPass
 
 data KeyLookupError =
     DecryptionFailed

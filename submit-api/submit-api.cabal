@@ -99,4 +99,5 @@ library
         freer-simple,
         extra,
         cardano-api,
-        text
+        text,
+        dhall
