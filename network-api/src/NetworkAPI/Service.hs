@@ -27,6 +27,7 @@ submitTx' NodeConfig{..} tx = do
       & setRequestPath (pack "api/submit/tx")
       & setRequestHost (pack host)
       & setRequestPort (naturalToInt port)
+      & setRequestHeader "Content-Type" ["application/cbor"]
       & setRequestMethod (pack "POST")
       & setRequestBodyLBS serialisedTx
 
