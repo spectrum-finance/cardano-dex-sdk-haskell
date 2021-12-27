@@ -58,10 +58,17 @@ instance ToCardanoTx FullTxOut Tx.FullTxOut where
     }
 
 data OutAsset = OutAsset
-  { policy   :: PolicyId
-  , name     :: AssetName
-  , quantity :: Integer
-  } deriving (Show, Generic, FromJSON)
+  { policy      :: PolicyId
+  , name        :: AssetName
+  , quantity    :: Integer
+  } deriving (Show, Generic)
+
+instance FromJSON OutAsset where
+  parseJSON = withObject "quickblueOutAsset" $ \o -> do
+    policy    <- PolicyId <$> o .: "policyId"
+    name      <- AssetName <$> o .: "name"
+    quantity  <- o .: "quantity"
+    return OutAsset{..}
 
 instance ToCardanoTx OutAsset P.Value where
   toCardanoTx OutAsset{..} = Value.singleton p n quantity
