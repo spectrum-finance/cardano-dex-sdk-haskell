@@ -40,7 +40,7 @@ instance FromJSON FullTxOut where
     ref          <- OutRef <$> o .: "ref"
     txHash       <- TxHash <$> o .: "txHash"
     index        <- o .: "index"
-    globalIndex  <- Gix <$> o .: "gix"
+    globalIndex  <- Gix <$> o .: "globalIndex"
     addr         <- Addr <$> o .: "addr"
     value        <- o .: "value"
     dataHash     <- o .:? "dataHash"
