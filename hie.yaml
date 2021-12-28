@@ -1,0 +1,6 @@
+cradle:
+  cabal:
+    - path: "./cardano-tx/src"
+      component: "cardano-tx:lib:cardano-tx"
+    - path: "./dex-core/src"
+      component: "dex-core:lib:dex-core"

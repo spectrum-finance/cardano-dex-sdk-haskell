@@ -1,14 +1,26 @@
 {
-    "nixpkgs": {
-        "branch": "release-21.05",
-        "description": "Nix Packages collection",
-        "homepage": "",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "5f244caea76105b63d826911b2a1563d33ff1cdc",
-        "sha256": "1xlgynfw9svy7nvh9nkxsxdzncv9hg99gbvbwv3gmrhmzc3sar75",
+    "haskellNix": {
+        "branch": "master",
+        "description": "Alternative Haskell Infrastructure for Nixpkgs",
+        "homepage": "https://input-output-hk.github.io/haskell.nix",
+        "owner": "input-output-hk",
+        "repo": "haskell.nix",
+        "rev": "65c7172b421f863d400a3a004dabefd81ca71d9b",
+        "sha256": "06995zw2i8i6x6qjq1w6jbfl8dzzf4kz9v9rfwn7mla8jq12c42k",
         "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/5f244caea76105b63d826911b2a1563d33ff1cdc.tar.gz",
+        "url": "https://github.com/input-output-hk/haskell.nix/archive/65c7172b421f863d400a3a004dabefd81ca71d9b.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "plutus-apps": {
+        "branch": "master",
+        "description": "The Plutus application platform",
+        "homepage": "",
+        "owner": "input-output-hk",
+        "repo": "plutus-apps",
+        "rev": "plutus-starter-devcontainer/v1.0.14",
+        "sha256": "0j3hphj4b21vwdj900233d67qsaj91mppwsx1vv0ichnmnw2bmir",
+        "type": "tarball",
+        "url": "https://github.com/input-output-hk/plutus-apps/archive/plutus-starter-devcontainer/v1.0.14.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }
