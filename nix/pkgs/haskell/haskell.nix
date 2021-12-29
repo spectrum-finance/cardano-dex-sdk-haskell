@@ -45,6 +45,11 @@ let
         packages = {
           cardano-tx.package.buildable = false;
           dex-core.package.buildable = false;
+          quickblue.package.buildable = false;
+          wallet-api.package.buildable = false;
+          network-api.package.buildable = false;
+          submit-api.package.buildable = false;
+          datum-keeper-client.package.buildable = false;
 
           # Broken due to haddock errors. Refer to https://github.com/input-output-hk/plutus/blob/master/nix/pkgs/haskell/haskell.nix
           plutus-ledger.doHaddock = false;
