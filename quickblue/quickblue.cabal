@@ -78,17 +78,15 @@ library
                      Explorer.Class
 
     build-depends:
-        cardano-tx==0.1.0.0,
-        http-conduit,
+        cardano-tx,
         plutus-ledger,
         plutus-tx,
         plutus-ledger-api,
-        playground-common,
         bytestring,
         aeson,
         servant,
         plutus-contract,
-        cardano-dex,
+        cardano-dex-contracts,
         singletons,
         either,
         aeson-gadt-th,
@@ -99,5 +97,4 @@ library
         plutus-core,
         extra,
         cardano-api,
-        text,
-        dhall == 1.38.1
+        text
