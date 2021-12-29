@@ -5,10 +5,10 @@
         "homepage": "https://input-output-hk.github.io/haskell.nix",
         "owner": "input-output-hk",
         "repo": "haskell.nix",
-        "rev": "65c7172b421f863d400a3a004dabefd81ca71d9b",
-        "sha256": "06995zw2i8i6x6qjq1w6jbfl8dzzf4kz9v9rfwn7mla8jq12c42k",
+        "rev": "a57f4f77d811490ac1faf309295ed98d8e1ee6b9",
+        "sha256": "1p641igwjwbgxi20g2xp3fhmasm21m2vd9fpha64dqsxymi7c1ac",
         "type": "tarball",
-        "url": "https://github.com/input-output-hk/haskell.nix/archive/65c7172b421f863d400a3a004dabefd81ca71d9b.tar.gz",
+        "url": "https://github.com/input-output-hk/haskell.nix/archive/a57f4f77d811490ac1faf309295ed98d8e1ee6b9.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "plutus-apps": {

@@ -42,6 +42,9 @@ let
     modules = [
       {
         packages = {
+          cardano-tx.package.buildable = false;
+          dex-core.package.buildable = false;
+
           # Broken due to haddock errors. Refer to https://github.com/input-output-hk/plutus/blob/master/nix/pkgs/haskell/haskell.nix
           plutus-ledger.doHaddock = false;
           plutus-use-cases.doHaddock = false;

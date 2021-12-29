@@ -89,7 +89,7 @@ library
         aeson,
         servant,
         plutus-contract,
-        cardano-dex,
+        cardano-dex-core,
         singletons,
         either,
         aeson-gadt-th,
