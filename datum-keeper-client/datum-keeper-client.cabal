@@ -74,22 +74,15 @@ library
                      DatumKeeper.Client
 
     build-depends:
-        cardano-tx,
         plutus-ledger,
         plutus-tx,
         plutus-ledger-api,
         bytestring,
         aeson,
         servant,
-        plutus-contract,
-        cardano-dex,
         singletons,
-        either,
-        aeson-gadt-th,
         some,
-        dependent-sum-template,
         containers,
-        freer-simple,
         plutus-core,
         extra,
         cardano-api,
