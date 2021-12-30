@@ -1,19 +1,18 @@
 module SubmitAPI.Internal.Transaction where
 
 import           RIO
-import qualified Data.Text                 as T
-import qualified Data.Map.Strict           as Map
-import           Codec.Serialise
+import qualified Data.Text       as T
+import qualified Data.Map.Strict as Map
+
+import Codec.Serialise ( serialise )
 import           Data.ByteString.Lazy      (toStrict)
 import           Data.Text.Prettyprint.Doc (Pretty(..))
 import qualified Data.Set                  as Set
 
 import           Cardano.Api                    hiding (TxBodyError)
 import           Cardano.Api.Shelley            (ProtocolParameters)
-import           Cardano.Slotting.Time          (SystemStart)
 import qualified Ledger                         as P
-import qualified Plutus.Contract.CardanoAPI     as Interop
-import           Plutus.Contract.CardanoAPITemp as Interop
+import qualified Ledger.Tx.CardanoAPI           as Interop
 import qualified Ledger.Ada                     as Ada
 
 import qualified CardanoTx.Models   as Sdk
@@ -35,13 +34,12 @@ buildBalancedTx
   -> Set.Set Sdk.FullCollateralTxIn
   -> Sdk.TxCandidate
   -> f (BalancedTxBody AlonzoEra)
-buildBalancedTx SystemEnv{..} defaultChangeAddr collateral txc@(Sdk.TxCandidate{..}) = do
-  let era          = AlonzoEra
-      eraInMode    = AlonzoEraInCardanoMode
+buildBalancedTx SystemEnv{..} defaultChangeAddr collateral txc@Sdk.TxCandidate{..} = do
+  let eraInMode    = AlonzoEraInCardanoMode
       witOverrides = Nothing
 
   txBody     <- buildTxBodyContent pparams network collateral txc
-  inputsMap  <- mkInputsUTxO network (Set.elems txCandidateInputs)
+  inputsMap  <- buildInputsUTxO network (Set.elems txCandidateInputs)
   changeAddr <- absorbError $ case txCandidateChangePolicy of
     Just (Sdk.ReturnTo addr) -> Interop.toCardanoAddress network addr
     _                        -> Interop.toCardanoAddress network $ Sdk.getAddress defaultChangeAddr
@@ -64,8 +62,11 @@ buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
   txOuts          <- buildTxOuts network txCandidateOutputs
   txFee           <- absorbError $ Interop.toCardanoFee dummyFee
   txValidityRange <- absorbError $ Interop.toCardanoValidityRange txCandidateValidRange
-  txMintValue     <- absorbError $ Interop.toCardanoMintValue (Sdk.unMintValue txCandidateValueMint) txCandidateMintPolicies
-  txData          <- collectInputsData $ Set.elems txCandidateInputs
+  txMintValue     <-
+    let redeemers = buildMintRedeemers txCandidateMintInputs
+        valueMint = Sdk.unMintValue txCandidateValueMint
+        policies  = Sdk.mintInputsPolicies txCandidateMintInputs
+    in absorbError $ Interop.toCardanoMintValue redeemers valueMint policies
 
   pure $ TxBodyContent
     { txIns             = txIns
@@ -73,7 +74,6 @@ buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
     , txOuts            = txOuts
     , txFee             = txFee
     , txValidityRange   = txValidityRange
-    , txExtraScriptData = BuildTxWith $ Interop.toCardanoExtraScriptData (Map.elems txData)
     , txMintValue       = txMintValue
     , txProtocolParams  = BuildTxWith $ Just protocolParams
     , txScriptValidity  = TxScriptValidityNone
@@ -113,30 +113,33 @@ buildTxOuts
   :: MonadThrow f
   => NetworkId
   -> [Sdk.TxOutCandidate]
-  -> f [TxOut AlonzoEra]
+  -> f [TxOut CtxTx AlonzoEra]
 buildTxOuts network =
     mapM translate
   where
     translate sdkOut = absorbError $ Interop.toCardanoTxOut network $ toPlutus sdkOut
 
-mkInputsUTxO
+buildInputsUTxO
   :: MonadThrow f
   => NetworkId
   -> [Sdk.FullTxIn]
   -> f (UTxO AlonzoEra)
-mkInputsUTxO network inputs =
+buildInputsUTxO network inputs =
     mapM (absorbError . translate) inputs <&> UTxO . Map.fromList
   where
-    translate Sdk.FullTxIn{fullTxInTxOut=out@Sdk.FullTxOut{..}, ..} = do
+    translate Sdk.FullTxIn{fullTxInTxOut=out@Sdk.FullTxOut{..}} = do
       txIn  <- Interop.toCardanoTxIn fullTxOutRef
       txOut <- Interop.toCardanoTxOut network $ toPlutus out
 
-      pure (txIn, txOut)
+      pure (txIn, toCtxUTxOTxOut txOut)
+
+buildMintRedeemers :: Sdk.MintInputs -> P.Redeemers
+buildMintRedeemers Sdk.MintInputs{..} = Map.fromList $ Map.toList mintInputsRedeemers <&> first (P.RedeemerPtr P.Mint)
 
 collectInputsData :: MonadThrow f => [Sdk.FullTxIn] -> f (Map.Map P.DatumHash P.Datum)
 collectInputsData inputs = do
   rawData <- mapM extractInputDatum inputs
-  pure $ Map.fromList $ rawData >>= (maybe mempty pure)
+  pure $ Map.fromList $ rawData >>= maybe mempty pure
 
 extractInputDatum :: MonadThrow f => Sdk.FullTxIn -> f (Maybe (P.DatumHash, P.Datum))
 extractInputDatum Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{fullTxOutDatumHash=Just dh, fullTxOutDatum=Just d}} =
@@ -158,6 +161,10 @@ data TxAssemblyError
   | StakingPointersNotSupported
   | SimpleScriptsNotSupportedToCardano
   | MissingTxInType
+  | MissingMintingPolicy
+  | MissingMintingPolicyRedeemer
+  | ScriptPurposeNotSupported P.ScriptTag
+  | PublicKeyInputsNotSupported
   | UnresolvedData P.DatumHash
   | BalancingError Text
   | CollateralNotAllowed
@@ -172,7 +179,6 @@ absorbError (Right vl) = pure vl
 adaptInteropError :: Interop.ToCardanoError -> TxAssemblyError
 adaptInteropError err =
     case err of
-      Interop.EvaluationError _                  -> EvaluationError renderedErr
       Interop.TxBodyError _                      -> TxBodyError renderedErr
       Interop.DeserialisationError               -> DeserializationError
       Interop.InvalidValidityRange               -> InvalidValidityRange
@@ -181,10 +187,14 @@ adaptInteropError err =
       Interop.StakingPointersNotSupported        -> StakingPointersNotSupported
       Interop.SimpleScriptsNotSupportedToCardano -> SimpleScriptsNotSupportedToCardano
       Interop.MissingTxInType                    -> MissingTxInType
+      Interop.MissingMintingPolicy               -> MissingMintingPolicy
+      Interop.MissingMintingPolicyRedeemer       -> MissingMintingPolicyRedeemer
+      Interop.ScriptPurposeNotSupported t        -> ScriptPurposeNotSupported t
+      Interop.PublicKeyInputsNotSupported        -> PublicKeyInputsNotSupported
       Interop.Tag _ e                            -> adaptInteropError e
   where renderedErr = T.pack $ show $ pretty err
 
 serializePlutusScript :: P.Script -> SerializedScript
-serializePlutusScript s = toShort $ toStrict $ serialise $ s
+serializePlutusScript s = toShort $ toStrict $ serialise s
 
 type SerializedScript = ShortByteString

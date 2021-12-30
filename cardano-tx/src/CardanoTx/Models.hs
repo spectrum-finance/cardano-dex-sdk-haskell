@@ -3,9 +3,9 @@ module CardanoTx.Models where
 import           Data.Functor
 import           Data.Aeson     (FromJSON, ToJSON)
 import qualified Data.Set       as Set
+import qualified Data.Map       as Map
 
 import           Ledger
-import           Ledger.Scripts              (datumHash)
 import           Plutus.V1.Ledger.Credential (Credential (..))
 import qualified Ledger                      as P
 import           GHC.Generics                (Generic)
@@ -71,12 +71,21 @@ instance ToPlutus FullCollateralTxIn P.TxIn where
   toPlutus FullCollateralTxIn{fullCollateralTxInTxOut=FullTxOut{..}} =
     P.TxIn fullTxOutRef $ Just P.ConsumePublicKeyAddress
 
+data MintInputs = MintInputs
+  { mintInputsPolicies  :: Set.Set MintingPolicy
+  , mintInputsRedeemers :: Map.Map Integer Redeemer
+  } deriving (Show, Eq, Generic, FromJSON, ToJSON)
+
+mkMintInputs :: [(MintingPolicy, Redeemer)] -> MintInputs
+mkMintInputs xs = MintInputs mps rs
+  where (mps, rs) = foldr (\ (ix, (mp, r)) (mpsa, rsa) -> (Set.insert mp mpsa, Map.insert ix r rsa)) (mempty, mempty) (zip [0..] xs)
+
 -- TX template without collaterals, fees, change etc.
 data TxCandidate = TxCandidate
   { txCandidateInputs       :: Set.Set FullTxIn
   , txCandidateOutputs      :: [TxOutCandidate]
   , txCandidateValueMint    :: MintValue
-  , txCandidateMintPolicies :: Set.Set MintingPolicy
+  , txCandidateMintInputs   :: MintInputs
   , txCandidateChangePolicy :: Maybe ChangePolicy
   , txCandidateValidRange   :: SlotRange
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
