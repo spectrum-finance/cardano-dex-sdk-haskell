@@ -13,14 +13,16 @@ import           GHC.Generics                (Generic)
 import CardanoTx.ToPlutus
 
 newtype ChangeAddress = ChangeAddress { getAddress :: Address }
-  deriving (Show, Eq, Generic, FromJSON, ToJSON)
+  deriving (Eq, Generic)
+  deriving newtype (Show, FromJSON, ToJSON)
 
 -- Defines how a residual value (if any) should be handled
 data ChangePolicy = ReturnTo Address
   deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 newtype MintValue = MintValue { unMintValue :: Value }
-  deriving (Show, Eq, Generic, FromJSON, ToJSON)
+  deriving (Eq, Generic)
+  deriving newtype (Show, FromJSON, ToJSON)
 
 -- TX output template
 data TxOutCandidate = TxOutCandidate

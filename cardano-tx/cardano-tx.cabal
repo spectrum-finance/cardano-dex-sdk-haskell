@@ -23,6 +23,7 @@ common project-config
                         BinaryLiterals
                         ConstraintKinds
                         DataKinds
+                        DerivingStrategies
                         DefaultSignatures
                         DeriveDataTypeable
                         DeriveFoldable
