@@ -90,7 +90,7 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
       { txCandidateInputs       = Set.fromList inputs
       , txCandidateOutputs      = outputs
       , txCandidateValueMint    = MintValue mempty
-      , txCandidateMintPolicies = mempty
+      , txCandidateMintInputs   = mempty
       , txCandidateChangePolicy = Just $ ReturnTo rewardAddr
       , txCandidateValidRange   = Interval.always
       }
@@ -143,14 +143,17 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{.
               <> (assetClassValue (unCoin poolCoinY) (negate $ unAmount inY)) -- Remove Y input
         rewardValue = residualValue <> mintLqValue
 
-    outputs = [nextPoolOut, rewardOut, executorOut]
-    mps     = [liquidityMintingPolicyInstance $ unPoolId poolId]
+    outputs  = [nextPoolOut, rewardOut, executorOut]
+    coinNft  = unPoolId poolId
+    redeemer = Redeemer $ toBuiltinData coinNft
+    mp       = liquidityMintingPolicyInstance coinNft
+    mps      = mkMintInputs [(mp, redeemer)]
 
     txCandidate = TxCandidate
       { txCandidateInputs       = Set.fromList inputs
       , txCandidateOutputs      = outputs
       , txCandidateValueMint    = MintValue mintLqValue
-      , txCandidateMintPolicies = Set.fromList mps
+      , txCandidateMintInputs   = mps
       , txCandidateChangePolicy = Just $ ReturnTo rewardAddr
       , txCandidateValidRange   = Interval.always
       }
@@ -191,14 +194,17 @@ runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (poolOut, pool@Pool{..})
 
         rewardValue = (assetAmountValue outX) <> (assetAmountValue outY) <> residualValue
 
-    outputs = [nextPoolOut, rewardOut, executorOut]
-    mps     = [liquidityMintingPolicyInstance $ unPoolId poolId]
+    outputs  = [nextPoolOut, rewardOut, executorOut]
+    coinNft  = unPoolId poolId
+    redeemer = Redeemer $ toBuiltinData coinNft
+    mp       = liquidityMintingPolicyInstance coinNft
+    mps      = mkMintInputs [(mp, redeemer)]
 
     txCandidate = TxCandidate
       { txCandidateInputs       = Set.fromList inputs
       , txCandidateOutputs      = outputs
       , txCandidateValueMint    = MintValue burnLqValue
-      , txCandidateMintPolicies = Set.fromList mps
+      , txCandidateMintInputs   = mps
       , txCandidateChangePolicy = Just $ ReturnTo rewardAddr
       , txCandidateValidRange   = Interval.always
       }

@@ -5,7 +5,7 @@ import           Data.Foldable
 import           Data.Either.Combinators (maybeToRight, mapLeft)
 import qualified Data.Set                as Set
 
-import           Ledger                          (PubKeyHash(..), Datum(..), Address, pubKeyHashAddress)
+import           Ledger                          (PubKeyHash(..), Datum(..), Address, pubKeyHashAddress, Redeemer(..))
 import qualified Ledger.Interval as Interval
 import           Ledger.Value                    (AssetClass)
 import qualified Ledger.Typed.Scripts.Validators as Validators
@@ -54,7 +54,7 @@ poolDeploy' changeAddr pp@P.PoolParams{..} inputs = do
     { txCandidateInputs       = Set.fromList inputs
     , txCandidateOutputs      = outputs
     , txCandidateValueMint    = MintValue mempty -- todo: mint NFT right there?
-    , txCandidateMintPolicies = mempty
+    , txCandidateMintInputs   = mempty
     , txCandidateChangePolicy = Just $ ReturnTo changeAddr
     , txCandidateValidRange   = Interval.always
     }
@@ -71,10 +71,10 @@ poolInit' changeAddr inputs rewardPkh = do
   inX <- tryGetInputAmountOf inputs (poolCoinX pool)
   inY <- tryGetInputAmountOf inputs (poolCoinY pool)
 
-  Predicted poolOutput nextPool <- mapLeft (\_ -> InvalidLiquidity) (applyInit pool (getAmount inX, getAmount inY))
+  Predicted poolOutput nextPool <- mapLeft (const InvalidLiquidity) (applyInit pool (getAmount inX, getAmount inY))
 
   let
-    inputsReordered = [poolInput] ++ (filter (\i -> i /= poolInput) inputs)
+    inputsReordered = poolInput : filter (\i -> i /= poolInput) inputs
 
     mintLqValue = coinAmountValue (poolCoinLq nextPool) (poolLiquidity nextPool)
 
@@ -86,13 +86,16 @@ poolInit' changeAddr inputs rewardPkh = do
           , txOutCandidateDatum   = Nothing
           }
 
-    mps = [liquidityMintingPolicyInstance (unPoolId $ poolId nextPool)]
+    coinNft = unPoolId $ poolId nextPool
+    redeemer = Redeemer $ toBuiltinData coinNft
+    mp = liquidityMintingPolicyInstance coinNft
+    mps = mkMintInputs [(mp, redeemer)]
 
   Right $ TxCandidate
     { txCandidateInputs       = Set.fromList inputsReordered
     , txCandidateOutputs      = outputs
     , txCandidateValueMint    = MintValue mintLqValue
-    , txCandidateMintPolicies = Set.fromList mps
+    , txCandidateMintInputs   = mps
     , txCandidateChangePolicy = Just $ ReturnTo changeAddr
     , txCandidateValidRange   = Interval.always
     }

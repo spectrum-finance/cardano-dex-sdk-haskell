@@ -78,6 +78,21 @@ data MintInputs = MintInputs
   , mintInputsRedeemers :: Map.Map Integer Redeemer
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
+instance Semigroup MintInputs where
+  (<>) (MintInputs lInputs lRedeemers) (MintInputs rInputs rRedeemers) =
+    MintInputs
+      { mintInputsPolicies  = lInputs <> rInputs
+      , mintInputsRedeemers = lRedeemers <> rRedeemers
+      }
+
+instance Monoid MintInputs where
+  mempty =
+    MintInputs
+      { mintInputsPolicies  = Set.empty 
+      , mintInputsRedeemers = Map.empty
+      }
+
+
 mkMintInputs :: [(MintingPolicy, Redeemer)] -> MintInputs
 mkMintInputs xs = MintInputs mps rs
   where (mps, rs) = foldr (\ (ix, (mp, r)) (mpsa, rsa) -> (Set.insert mp mpsa, Map.insert ix r rsa)) (mempty, mempty) (zip [0..] xs)
