@@ -19,6 +19,7 @@ common project-config
 
   default-extensions:   OverloadedStrings
                         DeriveAnyClass
+                        DerivingStrategies
                         BangPatterns
                         BinaryLiterals
                         ConstraintKinds

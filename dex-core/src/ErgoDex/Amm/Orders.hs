@@ -55,6 +55,7 @@ data Deposit = Deposit
   , depositPair      :: (AssetEntry, AssetEntry)
   , depositExFee     :: ExFee
   , depositRewardPkh :: PubKeyHash
+  , adaCollateral    :: Amount Lovelace
   } deriving (Show, Eq, Generic, ToJSON, FromJSON)
 
 instance FromLedger Deposit where
@@ -68,6 +69,7 @@ instance FromLedger Deposit where
                 , depositPair      = pair
                 , depositExFee     = ExFee exFee
                 , depositRewardPkh = rewardPkh
+                , adaCollateral    = collateralAda
                 }
             where
               toEntry = uncurry3 assetEntry

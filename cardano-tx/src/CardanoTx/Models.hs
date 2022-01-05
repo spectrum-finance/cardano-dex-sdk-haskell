@@ -23,6 +23,8 @@ data ChangePolicy = ReturnTo Address
 newtype MintValue = MintValue { unMintValue :: Value }
   deriving (Eq, Generic)
   deriving newtype (Show, FromJSON, ToJSON)
+  deriving Semigroup via Value
+  deriving Monoid via Value
 
 -- TX output template
 data TxOutCandidate = TxOutCandidate
@@ -88,10 +90,9 @@ instance Semigroup MintInputs where
 instance Monoid MintInputs where
   mempty =
     MintInputs
-      { mintInputsPolicies  = Set.empty 
+      { mintInputsPolicies  = Set.empty
       , mintInputsRedeemers = Map.empty
       }
-
 
 mkMintInputs :: [(MintingPolicy, Redeemer)] -> MintInputs
 mkMintInputs xs = MintInputs mps rs
