@@ -106,7 +106,7 @@ instance FromLedger Redeem where
 -- Extract pair of assets for order (Deposit|Redeem) from a given value.
 extractPairValue :: Value -> [(CurrencySymbol, TokenName, Integer)]
 extractPairValue inputValue =
-    if (length flattenedInput == 2)
+    if length flattenedInput == 2
     then flattenedInput
     else filter (\(s, _, _) -> s /= Ada.adaSymbol) flattenedInput
   where
@@ -162,11 +162,11 @@ instance FromJSON AnyOrder where
     kind   <- v .: "kind"
     poolId <- v .: "poolId"
 
-    let actionP = (v .: "action")
+    let actionP = v .: "action"
 
     case kind of
-      SwapK    -> actionP >>= JSON.parseJSON & fmap (\x -> AnyOrder poolId (SwapAction x))
-      DepositK -> actionP >>= JSON.parseJSON & fmap (\x -> AnyOrder poolId (DepositAction x))
-      RedeemK  -> actionP >>= JSON.parseJSON & fmap (\x -> AnyOrder poolId (RedeemAction x))
+      SwapK    -> actionP >>= JSON.parseJSON & fmap (AnyOrder poolId . SwapAction)
+      DepositK -> actionP >>= JSON.parseJSON & fmap (AnyOrder poolId . DepositAction)
+      RedeemK  -> actionP >>= JSON.parseJSON & fmap (AnyOrder poolId . RedeemAction)
 
   parseJSON _ = fail "expected an object"

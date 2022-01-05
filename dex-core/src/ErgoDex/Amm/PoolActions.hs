@@ -10,7 +10,7 @@ import           Data.Tuple
 import qualified Data.Set               as Set
 import           Control.Exception.Base
 
-import           Ledger          (PubKeyHash(..), Redeemer(..), pubKeyHashAddress, pubKeyAddress)
+import           Ledger          (PubKeyHash(..), Redeemer(..), pubKeyHashAddress)
 import qualified Ledger.Interval as Interval
 import qualified Ledger.Ada      as Ada
 import           Ledger.Scripts  (unitRedeemer)
@@ -23,9 +23,7 @@ import           ErgoDex.Amm.Orders
 import           ErgoDex.Amm.Pool
 import qualified ErgoDex.Contracts.Pool as P
 import           ErgoDex.Contracts.Types
-import           ErgoDex.OffChain
 import           ErgoDex.Amm.Scripts
-import           ErgoDex.Utils
 import           CardanoTx.Models
 import ErgoDex.Contracts.Proxy.Order (isAda)
 
