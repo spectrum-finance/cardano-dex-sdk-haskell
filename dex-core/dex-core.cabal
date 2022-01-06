@@ -19,6 +19,7 @@ common project-config
 
   default-extensions:   OverloadedStrings
                         DeriveAnyClass
+                        DerivingStrategies
                         BangPatterns
                         BinaryLiterals
                         ConstraintKinds
@@ -81,7 +82,7 @@ library
                      ErgoDex.Utils
 
     build-depends:
-        cardano-tx,
+        cardano-tx==0.1.0.0,
         plutus-ledger,
         plutus-tx,
         plutus-ledger-api,
@@ -89,7 +90,7 @@ library
         aeson,
         servant,
         plutus-contract,
-        cardano-dex,
+        cardano-dex-contracts,
         singletons,
         either,
         aeson-gadt-th,

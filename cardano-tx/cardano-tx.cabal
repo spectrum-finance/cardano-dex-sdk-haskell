@@ -19,10 +19,12 @@ common project-config
 
   default-extensions:   OverloadedStrings
                         DeriveAnyClass
+                        DerivingVia
                         BangPatterns
                         BinaryLiterals
                         ConstraintKinds
                         DataKinds
+                        DerivingStrategies
                         DefaultSignatures
                         DeriveDataTypeable
                         DeriveFoldable

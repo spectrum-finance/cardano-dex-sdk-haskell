@@ -3,7 +3,6 @@ module SubmitAPI.Service where
 import           RIO
 import qualified Data.Set              as Set
 import qualified Data.ByteString.Char8 as B8
-import           Data.Word             (Word64)
 import           GHC.Natural           (naturalToInteger)
 
 import qualified CardanoTx.Models            as Sdk
@@ -12,7 +11,6 @@ import qualified Ledger                      as P
 import qualified PlutusTx.Builtins.Internal  as P
 import qualified Ledger.Ada                  as P
 import qualified Plutus.V1.Ledger.Credential as P
-import qualified Plutus.Contract.CardanoAPI  as Interop
 
 import           SubmitAPI.Config
 import           SubmitAPI.Internal.Transaction
@@ -20,7 +18,6 @@ import           NetworkAPI.Service             hiding (submitTx)
 import qualified NetworkAPI.Service             as Network
 import           NetworkAPI.Env
 import           WalletAPI.Vault
-import           SubmitAPI.Config
 
 data Transactions f = Transactions
   { finalizeTx :: Sdk.TxCandidate  -> f (C.Tx C.AlonzoEra)
@@ -45,7 +42,7 @@ finalizeTx'
   -> TxAssemblyConfig
   -> Sdk.TxCandidate
   -> f (C.Tx C.AlonzoEra)
-finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@(Sdk.TxCandidate{..}) = do
+finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   sysenv      <- getSystemEnv
   collaterals <- mkCollaterals wallet sysenv conf txc
 
@@ -53,15 +50,15 @@ finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@(Sdk.TxCa
     isBalancedTx = amountIn == amountOut
       where
         amountIn =
-          foldr (\txIn -> \acc -> (Sdk.fullTxOutValue $ Sdk.fullTxInTxOut txIn) <> acc) mempty (Set.elems txCandidateInputs)
+          foldr (\ txIn acc -> Sdk.fullTxOutValue (Sdk.fullTxInTxOut txIn) <> acc) mempty (Set.elems txCandidateInputs)
         amountOut =
-          foldr (\txOut -> \acc -> (Sdk.txOutCandidateValue txOut) <> acc) mempty txCandidateOutputs
+          foldr (\ txOut acc -> Sdk.txOutCandidateValue txOut <> acc) mempty txCandidateOutputs
   (C.BalancedTxBody txb _ _) <- case txCandidateChangePolicy of
     Just (Sdk.ReturnTo changeAddr) -> buildBalancedTx sysenv (Sdk.ChangeAddress changeAddr) collaterals txc
     _ | isBalancedTx               -> buildBalancedTx sysenv dummyAddr collaterals txc
 
   let
-    requiredSigners = (Set.elems txCandidateInputs) >>= getPkh
+    requiredSigners = Set.elems txCandidateInputs >>= getPkh
       where
         getPkh Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{fullTxOutAddress=P.Address (P.PubKeyCredential pkh) _}} = [pkh]
         getPkh _                                                                                                = []
@@ -78,7 +75,7 @@ mkCollaterals
   -> Sdk.TxCandidate
   -> f (Set.Set Sdk.FullCollateralTxIn)
 mkCollaterals wallet sysenv@SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
-  let isScriptIn Sdk.FullTxIn{fullTxInType=P.ConsumeScriptAddress _ _ _} = True
+  let isScriptIn Sdk.FullTxIn{fullTxInType=P.ConsumeScriptAddress {}} = True
       isScriptIn _                                                     = False
 
       scriptInputs = filter isScriptIn (Set.elems txCandidateInputs)
@@ -94,7 +91,7 @@ mkCollaterals wallet sysenv@SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandida
         collateral <- estimateCollateral' knownCollaterals
         utxos      <- selectUtxos wallet (P.toValue collateral) >>= maybe (throwM FailedToSatisfyCollateral) pure
 
-        let collaterals = Set.fromList $ fmap Sdk.FullCollateralTxIn $ Set.elems utxos
+        let collaterals = Set.fromList $ Set.elems utxos <&> Sdk.FullCollateralTxIn
 
         collateral' <- estimateCollateral' collaterals
 
