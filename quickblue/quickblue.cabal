@@ -85,4 +85,8 @@ library
         bytestring,
         aeson,
         text,
-        dhall == 1.38.1
+        dhall == 1.38.1,
+        cardano-slotting,
+        cardano-api,
+        containers,
+        ouroboros-consensus

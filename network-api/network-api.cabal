@@ -70,8 +70,7 @@ library
 
     hs-source-dirs: src
 
-    exposed-modules: NetworkAPI.Env
-                     NetworkAPI.Service
+    exposed-modules: NetworkAPI.Service
                      NetworkAPI.Config.NodeConfig
 
     build-depends:
@@ -97,4 +96,5 @@ library
         extra,
         cardano-api,
         text,
-        dhall
+        dhall,
+        quickblue
