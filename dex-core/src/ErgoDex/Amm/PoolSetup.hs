@@ -32,8 +32,8 @@ data PoolSetup = PoolSetup
   , poolInit   :: [FullTxIn]   -> PubKeyHash -> Either SetupExecError TxCandidate
   }
 
-mkPoolSetup :: Address -> PoolSetup
-mkPoolSetup changeAddr = PoolSetup
+mkPoolSetup :: ChangeAddress -> PoolSetup
+mkPoolSetup (ChangeAddress changeAddr) = PoolSetup
   { poolDeploy = poolDeploy' changeAddr
   , poolInit   = poolInit' changeAddr
   }
@@ -97,8 +97,8 @@ poolInit' changeAddr inputs rewardPkh = do
 tryGetInputAmountOf :: [FullTxIn] -> Coin a -> Either SetupExecError (AssetAmount a)
 tryGetInputAmountOf inputs c =
     if amountEq coinAmount 0
-    then Right coinAmount
-    else Left $ MissingAsset $ unCoin c
+    then Left $ MissingAsset $ unCoin c
+    else Right coinAmount
   where
     totalValueIn = foldr ( (<>) . fullTxOutValue . fullTxInTxOut) mempty inputs
     coinAmount   = assetAmountOfCoin totalValueIn c
