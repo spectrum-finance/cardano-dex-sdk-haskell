@@ -27,26 +27,26 @@ import           Ouroboros.Consensus.Block
 import           Ouroboros.Consensus.Util.Counting
 
 data SystemEnv = SystemEnv
-  { pparams           :: ProtocolParameters
-  , network           :: Api.NetworkId
-  , sysstart          :: SystemStart
-  , pools             :: Set.Set PoolId
-  , eraHistory        :: Api.EraHistory Api.CardanoMode
-  , collateralPercent :: Int
+  { pparams'           :: ProtocolParameters
+  , network'           :: Api.NetworkId
+  , sysstart'          :: SystemStart
+  , pools'             :: Set.Set PoolId
+  , eraHistory'        :: Api.EraHistory Api.CardanoMode
+  , collateralPercent' :: Int
   } deriving (Generic)
 
 instance FromJSON SystemEnv where
   parseJSON = withObject "SystemEnv" $ \o -> do
-    pparams           <- o .: "pparams"
-    sysstart          <- o .: "sysstart"
-    collateralPercent <- o .: "collateralPercent"
+    pparams'           <- o .: "pparams"
+    sysstart'          <- o .: "sysstart"
+    collateralPercent' <- o .: "collateralPercent"
     return 
       SystemEnv
-        { pparams = pparams
-        , network           = Api.Testnet $ Api.NetworkMagic 1097911063
-        , sysstart          = sysstart
-        , pools             = Set.empty
-        , eraHistory        = (Api.EraHistory (Api.CardanoMode) (History.mkInterpreter $ Summary $ NonEmptyOne $ 
+        { pparams' = pparams'
+        , network'           = Api.Testnet $ Api.NetworkMagic 1097911063
+        , sysstart'          = sysstart'
+        , pools'             = Set.empty
+        , eraHistory'        = (Api.EraHistory (Api.CardanoMode) (History.mkInterpreter $ Summary $ NonEmptyOne $ 
           EraSummary {
               eraStart  = initBound
             , eraEnd    = EraUnbounded
@@ -58,7 +58,7 @@ instance FromJSON SystemEnv where
             }
           )
         )
-        , collateralPercent = collateralPercent
+        , collateralPercent' = collateralPercent'
         }
 
 data Paging = Paging

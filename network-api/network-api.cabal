@@ -70,7 +70,8 @@ library
 
     hs-source-dirs: src
 
-    exposed-modules: NetworkAPI.Service
+    exposed-modules: NetworkAPI.Env
+                     NetworkAPI.Service
                      NetworkAPI.Config.NodeConfig
 
     build-depends:

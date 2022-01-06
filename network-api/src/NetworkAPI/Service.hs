@@ -10,7 +10,7 @@ import           GHC.Natural
 import qualified Data.ByteString.Lazy as Lazy
 
 import Explorer.Service as Explorer
-import Explorer.Models
+import NetworkAPI.Env
 
 data Network f = Network
   { getSystemEnv :: f SystemEnv
@@ -18,7 +18,7 @@ data Network f = Network
   }
 
 mkNetwork :: (MonadIO f) => NodeConfig -> Explorer f -> Network f
-mkNetwork cfg explorer = Network (Explorer.getSystemEnv explorer) (submitTx' cfg)
+mkNetwork cfg explorer = Network (Explorer.getSystemEnv explorer <&> toNetworkApiSystemEnv) (submitTx' cfg)
 
 submitTx' :: (MonadIO f) => NodeConfig -> C.Tx C.AlonzoEra -> f ()
 submitTx' NodeConfig{..} tx = do
