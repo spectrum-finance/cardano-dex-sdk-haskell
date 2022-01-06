@@ -1,8 +1,11 @@
+{-# LANGUAGE RecordWildCards #-}
+
 module Explorer.Models where
 
-import           Data.Aeson   (FromJSON)
-import           Data.String  (IsString(..))
-import qualified Data.Text    as T
+import           Data.Aeson        (FromJSON)
+import           Data.Aeson.Types
+import           Data.String       (IsString(..))
+import qualified Data.Text         as T
 import           GHC.Generics
 
 import qualified Ledger                 as P
@@ -30,7 +33,20 @@ data FullTxOut = FullTxOut
   , value       :: [OutAsset]
   , dataHash    :: Maybe P.DatumHash
   , data'       :: Maybe P.Datum
-  } deriving (Show, Generic, FromJSON)
+  } deriving (Show, Generic)
+
+instance FromJSON FullTxOut where
+  parseJSON = withObject "quickblueFullTxOut" $ \o -> do
+    ref          <- OutRef <$> o .: "ref"
+    txHash       <- TxHash <$> o .: "txHash"
+    index        <- o .: "index"
+    globalIndex  <- Gix <$> o .: "globalIndex"
+    addr         <- Addr <$> o .: "addr"
+    value        <- o .: "value"
+    dataHash     <- o .:? "dataHash"
+    data'        <- o .:? "data"
+    return FullTxOut{..}
+
 
 instance ToCardanoTx FullTxOut Tx.FullTxOut where
   toCardanoTx FullTxOut{..} = Tx.FullTxOut
@@ -42,10 +58,17 @@ instance ToCardanoTx FullTxOut Tx.FullTxOut where
     }
 
 data OutAsset = OutAsset
-  { policy   :: PolicyId
-  , name     :: AssetName
-  , quantity :: Integer
-  } deriving (Show, Generic, FromJSON)
+  { policy      :: PolicyId
+  , name        :: AssetName
+  , quantity    :: Integer
+  } deriving (Show, Generic)
+
+instance FromJSON OutAsset where
+  parseJSON = withObject "quickblueOutAsset" $ \o -> do
+    policy    <- PolicyId <$> o .: "policyId"
+    name      <- AssetName <$> o .: "name"
+    quantity  <- o .: "quantity"
+    return OutAsset{..}
 
 instance ToCardanoTx OutAsset P.Value where
   toCardanoTx OutAsset{..} = Value.singleton p n quantity
