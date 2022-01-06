@@ -11,9 +11,6 @@ import qualified PlutusTx.AssocMap as Map
 
 import ErgoDex.Contracts.Types as Currencies
 
-data Lovelace = Lovelace
-  deriving (Show, Eq)
-
 newtype AssetEntry = AssetEntry { unAssetEntry :: (AssetClass, Integer) }
   deriving (Show, Eq, Generic, ToJSON, FromJSON)
 
@@ -62,13 +59,16 @@ assetAmountCoinOf c v = AssetAmount c (Amount v)
 assetAmountPairOf :: (AssetEntry, AssetEntry) -> Coin a -> AssetAmount a
 assetAmountPairOf (AssetEntry (ac, av), AssetEntry (bc, bv)) c =
   AssetAmount c (Amount $
-    if ac == (unCoin c) then av
-    else if bc == (unCoin c) then bv
+    if ac == unCoin c then av
+    else if bc == unCoin c then bv
     else 0)
 
 assetAmountOfCoin :: Value -> Coin a -> AssetAmount a
 assetAmountOfCoin v c =
   AssetAmount c (Amount $ assetClassValueOf v (unCoin c))
+
+retagAmount :: forall a b. Amount a -> Amount b
+retagAmount (Amount x) = Amount x
 
 data ExFeePerToken = ExFeePerToken
   { exFeePerTokenNum :: Integer

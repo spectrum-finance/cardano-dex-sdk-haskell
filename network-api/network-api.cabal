@@ -72,6 +72,7 @@ library
 
     exposed-modules: NetworkAPI.Env
                      NetworkAPI.Service
+                     NetworkAPI.Config.NodeConfig
 
     build-depends:
         rio==0.1.21.0,
@@ -81,6 +82,7 @@ library
         prettyprinter==1.7.0,
         cardano-slotting==0.1.0.0,
         mtl==2.2.2,
+        http-conduit==2.3.8,
         plutus-ledger,
         bytestring,
         aeson,
@@ -94,4 +96,5 @@ library
         freer-simple,
         extra,
         cardano-api,
-        text
+        text,
+        dhall
