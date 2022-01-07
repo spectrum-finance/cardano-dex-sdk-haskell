@@ -7,6 +7,7 @@ import Data.Aeson
 import qualified  Data.Text as T
 import GHC.Natural
 import Network.HTTP.Simple
+import RIO
 
 import Explorer.Types
 import Explorer.Models
@@ -34,8 +35,10 @@ getUnspentOutputsByPCred' conf pcred Paging{..} =
   mkGetRequest conf $ "/outputs/unspent/byPaymentCred/" ++ (T.unpack $ unPaymentCred pcred) ++  "/?offset=" ++ show offset ++ "&limit=" ++ show limit
 
 getSystemEnv' :: MonadIO f => ExplorerConfig -> f SystemEnv
-getSystemEnv' conf =
-  mkGetRequest conf $ "/networkParams"
+getSystemEnv' conf = do
+  req <- mkGetRequest conf "/networkParams"
+  liftIO $ print $ show req
+  return req
 
 mkGetRequest :: (MonadIO f, FromJSON a) => ExplorerConfig -> String -> f a
 mkGetRequest ExplorerConfig{..} path = do
@@ -46,5 +49,5 @@ mkGetRequest ExplorerConfig{..} path = do
       & setRequestPort (naturalToInt explorerPort)
 
   response <- httpJSON request
-
+  
   pure $ getResponseBody response

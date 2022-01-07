@@ -89,4 +89,5 @@ library
         cardano-slotting,
         cardano-api,
         containers,
-        ouroboros-consensus
+        ouroboros-consensus,
+        rio

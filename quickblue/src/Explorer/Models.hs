@@ -33,7 +33,10 @@ data SystemEnv = SystemEnv
   , pools'             :: Set.Set PoolId
   , eraHistory'        :: Api.EraHistory Api.CardanoMode
   , collateralPercent' :: Int
-  } deriving (Generic)
+  } deriving (Show, Generic)
+
+instance Show (Api.EraHistory Api.CardanoMode) where
+  show _ = "This is era history"
 
 instance FromJSON SystemEnv where
   parseJSON = withObject "SystemEnv" $ \o -> do
