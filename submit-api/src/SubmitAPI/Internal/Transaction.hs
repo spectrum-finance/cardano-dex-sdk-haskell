@@ -39,6 +39,7 @@ buildBalancedTx SystemEnv{..} defaultChangeAddr collateral txc@Sdk.TxCandidate{.
       witOverrides = Nothing
 
   txBody     <- buildTxBodyContent pparams network collateral txc
+
   inputsMap  <- buildInputsUTxO network (Set.elems txCandidateInputs)
   changeAddr <- absorbError $ case txCandidateChangePolicy of
     Just (Sdk.ReturnTo addr) -> Interop.toCardanoAddress network addr
@@ -60,6 +61,9 @@ buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
   txIns           <- buildTxIns $ Set.elems txCandidateInputs
   txInsCollateral <- buildTxCollateral $ Set.elems collateral
   txOuts          <- buildTxOuts network txCandidateOutputs
+  liftIO $ print "<-->"
+  liftIO $ print $ txOuts
+  liftIO $ print "<-->"
   txFee           <- absorbError $ Interop.toCardanoFee dummyFee
   txValidityRange <- absorbError $ Interop.toCardanoValidityRange txCandidateValidRange
   txMintValue     <-
