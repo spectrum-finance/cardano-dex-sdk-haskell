@@ -41,10 +41,11 @@ buildBalancedTx SystemEnv{..} defaultChangeAddr collateral txc@Sdk.TxCandidate{.
   txBody     <- buildTxBodyContent pparams network collateral txc
 
   inputsMap  <- buildInputsUTxO network (Set.elems txCandidateInputs)
+  liftIO $ print "<1>"
   changeAddr <- absorbError $ case txCandidateChangePolicy of
     Just (Sdk.ReturnTo addr) -> Interop.toCardanoAddress network addr
     _                        -> Interop.toCardanoAddress network $ Sdk.getAddress defaultChangeAddr
-
+  liftIO $ print "<2>"
   absorbBalancingError $ makeTransactionBodyAutoBalance eraInMode sysstart eraHistory pparams pools inputsMap txBody changeAddr witOverrides
     where
       absorbBalancingError (Left e)  = throwM $ BalancingError $ T.pack $ show e

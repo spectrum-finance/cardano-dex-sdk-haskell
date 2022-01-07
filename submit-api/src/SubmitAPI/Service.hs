@@ -48,7 +48,7 @@ finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCan
   liftIO $ print "----"
   liftIO $ print collaterals
   liftIO $ print "----"
-  
+
   let
     isBalancedTx = amountIn == amountOut
       where
@@ -60,14 +60,16 @@ finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCan
     Just (Sdk.ReturnTo changeAddr) -> buildBalancedTx sysenv (Sdk.ChangeAddress changeAddr) collaterals txc
     _ | isBalancedTx               -> buildBalancedTx sysenv dummyAddr collaterals txc
 
+  liftIO $ print "<3>"
+
   let
     requiredSigners = Set.elems txCandidateInputs >>= getPkh
       where
         getPkh Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{fullTxOutAddress=P.Address (P.PubKeyCredential pkh) _}} = [pkh]
         getPkh _                                                                                                = []
-
+  liftIO $ print "<4>"
   signers <- mapM (\pkh -> getSigningKey pkh >>= maybe (throwM $ SignerNotFound pkh) pure) requiredSigners
-
+  liftIO $ print "<5>"
   pure $ signTx txb signers
 
 mkCollaterals
