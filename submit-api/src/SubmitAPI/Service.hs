@@ -45,7 +45,10 @@ finalizeTx'
 finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   sysenv      <- getSystemEnv
   collaterals <- mkCollaterals wallet sysenv conf txc
-
+  liftIO $ print "----"
+  liftIO $ print collaterals
+  liftIO $ print "----"
+  
   let
     isBalancedTx = amountIn == amountOut
       where
@@ -76,7 +79,7 @@ mkCollaterals
   -> f (Set.Set Sdk.FullCollateralTxIn)
 mkCollaterals wallet sysenv@SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   let isScriptIn Sdk.FullTxIn{fullTxInType=P.ConsumeScriptAddress {}} = True
-      isScriptIn _                                                     = False
+      isScriptIn _                                                    = False
 
       scriptInputs = filter isScriptIn (Set.elems txCandidateInputs)
 
