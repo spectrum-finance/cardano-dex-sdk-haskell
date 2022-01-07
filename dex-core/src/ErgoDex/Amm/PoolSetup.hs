@@ -12,6 +12,7 @@ import qualified Ledger.Typed.Scripts.Validators as Validators
 import           PlutusTx                        (toBuiltinData)
 
 import           ErgoDex.Types
+import           ErgoDex.Utils
 import           ErgoDex.State
 import           ErgoDex.Class
 import           ErgoDex.Amm.Pool       (Pool(..), applyInit)
@@ -41,11 +42,12 @@ mkPoolSetup (ChangeAddress changeAddr) = PoolSetup
 poolDeploy' :: Address -> P.PoolParams -> [FullTxIn] -> Either SetupExecError TxCandidate
 poolDeploy' changeAddr pp@P.PoolParams{..} inputs = do
   inNft <- tryGetInputAmountOf inputs poolNft
+  inLq  <- tryGetInputAmountOf inputs poolLq
   unless (amountEq inNft 1) (Left InvalidNft) -- make sure valid NFT is provided
   let
     poolOutput = TxOutCandidate
       { txOutCandidateAddress = Validators.validatorAddress poolInstance
-      , txOutCandidateValue   = assetAmountValue inNft
+      , txOutCandidateValue   = assetAmountValue inNft <> assetAmountValue inLq <> constantOneAdaValue
       , txOutCandidateDatum   = Just $ Datum $ PlutusTx.toBuiltinData pp
       }
 

@@ -9,3 +9,7 @@ import ErgoDex.Contracts.Types
 
 excludeAda :: Value -> Value
 excludeAda (Value vs) = Value $ P.fmap (\ts -> Map.delete Ada.adaToken ts) vs
+
+constantOneAdaValue :: Value
+constantOneAdaValue =
+  Value $ Map.singleton Ada.adaSymbol (Map.singleton Ada.adaToken 1000000)
