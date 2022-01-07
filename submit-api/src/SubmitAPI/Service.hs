@@ -25,7 +25,7 @@ data Transactions f = Transactions
   }
 
 mkSubmitService
-  :: MonadThrow f
+  :: (MonadThrow f, MonadIO f)
   => Network f
   -> Vault f
   -> TxAssemblyConfig
@@ -36,7 +36,7 @@ mkSubmitService network wallet conf = Transactions
   }
 
 finalizeTx'
-  :: MonadThrow f
+  :: (MonadThrow f, MonadIO f)
   => Network f
   -> Vault f
   -> TxAssemblyConfig
@@ -68,7 +68,7 @@ finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCan
   pure $ signTx txb signers
 
 mkCollaterals
-  :: MonadThrow f
+  :: (MonadThrow f, MonadIO f)
   => Vault f
   -> SystemEnv
   -> TxAssemblyConfig
