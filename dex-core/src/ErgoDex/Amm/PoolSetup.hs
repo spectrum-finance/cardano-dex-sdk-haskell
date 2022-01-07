@@ -29,7 +29,7 @@ data SetupExecError =
   deriving (Show)
 
 data PoolSetup = PoolSetup
-  { poolDeploy :: P.PoolParams -> [FullTxIn] -> Either SetupExecError TxCandidate
+  { poolDeploy :: Integer -> P.PoolParams -> [FullTxIn] -> Either SetupExecError TxCandidate
   , poolInit   :: [FullTxIn]   -> PubKeyHash -> Either SetupExecError TxCandidate
   }
 
@@ -39,15 +39,15 @@ mkPoolSetup (ChangeAddress changeAddr) = PoolSetup
   , poolInit   = poolInit' changeAddr
   }
 
-poolDeploy' :: Address -> P.PoolParams -> [FullTxIn] -> Either SetupExecError TxCandidate
-poolDeploy' changeAddr pp@P.PoolParams{..} inputs = do
+poolDeploy' :: Address -> Integer -> P.PoolParams -> [FullTxIn] -> Either SetupExecError TxCandidate
+poolDeploy' changeAddr adaAmount pp@P.PoolParams{..} inputs = do
   inNft <- tryGetInputAmountOf inputs poolNft
   inLq  <- tryGetInputAmountOf inputs poolLq
   unless (amountEq inNft 1) (Left InvalidNft) -- make sure valid NFT is provided
   let
     poolOutput = TxOutCandidate
       { txOutCandidateAddress = Validators.validatorAddress poolInstance
-      , txOutCandidateValue   = assetAmountValue inNft <> assetAmountValue inLq <> constantOneAdaValue
+      , txOutCandidateValue   = assetAmountValue inNft <> assetAmountValue inLq <> constantOneAdaValue adaAmount
       , txOutCandidateDatum   = Just $ Datum $ PlutusTx.toBuiltinData pp
       }
 
