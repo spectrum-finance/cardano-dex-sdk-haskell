@@ -174,6 +174,7 @@ data TxAssemblyError
 
 absorbError :: (MonadThrow f, MonadIO f) => Either Interop.ToCardanoError a -> f a
 absorbError (Left err) = do
+  liftIO . print $ "The err has occurred"
   liftIO . print $ err
   throwM $ adaptInteropError err
 absorbError (Right vl) = pure vl
