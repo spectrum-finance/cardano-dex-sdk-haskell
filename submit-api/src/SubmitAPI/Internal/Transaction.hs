@@ -37,9 +37,9 @@ buildBalancedTx
 buildBalancedTx SystemEnv{..} defaultChangeAddr collateral txc@Sdk.TxCandidate{..} = do
   let eraInMode    = AlonzoEraInCardanoMode
       witOverrides = Nothing
-
+  liftIO $ print "<-1>"
   txBody     <- buildTxBodyContent pparams network collateral txc
-
+  liftIO $ print "<0>"
   inputsMap  <- buildInputsUTxO network (Set.elems txCandidateInputs)
   liftIO $ print "<1>"
   changeAddr <- absorbError $ case txCandidateChangePolicy of
