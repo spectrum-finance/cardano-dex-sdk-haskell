@@ -22,6 +22,7 @@ mkNetwork cfg explorer = Network (Explorer.getSystemEnv explorer <&> toNetworkAp
 
 submitTx' :: (MonadIO f) => NodeConfig -> C.Tx C.AlonzoEra -> f ()
 submitTx' NodeConfig{..} tx = do
+  liftIO . print $ "Going to submit tx to cardano node"
   let
     serialisedTx = Lazy.fromStrict $ serialiseToCBOR tx
 
@@ -34,3 +35,4 @@ submitTx' NodeConfig{..} tx = do
       & setRequestBodyLBS serialisedTx
 
   void $ liftIO $ httpNoBody request
+  liftIO . print $ "Tx submited to cardano node successfully"
