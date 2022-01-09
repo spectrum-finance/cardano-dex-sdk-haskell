@@ -34,5 +34,5 @@ submitTx' NodeConfig{..} tx = do
       & setRequestMethod (pack "POST")
       & setRequestBodyLBS serialisedTx
 
-  void $ liftIO $ httpNoBody request
-  liftIO . print $ "Tx submited to cardano node successfully"
+  response <- liftIO (httpJSON request :: IO (Response String))
+  liftIO $ print $ getResponseBody response
