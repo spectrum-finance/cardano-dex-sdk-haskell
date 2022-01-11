@@ -33,6 +33,6 @@ submitTx' NodeConfig{..} tx = do
       & setRequestHeader "Content-Type" ["application/cbor"]
       & setRequestMethod (pack "POST")
       & setRequestBodyLBS serialisedTx
-
+  liftIO $ print $ show tx
   response <- liftIO (httpJSON request :: IO (Response String))
   liftIO $ print $ getResponseBody response
