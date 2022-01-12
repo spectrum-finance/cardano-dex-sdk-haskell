@@ -91,12 +91,12 @@ readVK' file = do
     where asVK = Crypto.AsVerificationKey Crypto.AsPaymentKey
 
 decryptKey :: SecretEnvelope -> KeyPass -> Maybe (Crypto.SigningKey Crypto.PaymentKey)
-decryptKey SecretEnvelope{secretCiphertext=Ciphertext text, secretSalt=salt, secretIv=EncodedIV rawIV} pass = do
-  iv <- makeIV rawIV
-  let encryptionKey = mkEncryptionKey pass salt
-  rawSK <- either (\_ -> Nothing) Just $ decrypt encryptionKey iv text
+decryptKey SecretEnvelope{secretCiphertext=Ciphertext text, secretSalt=salt, secretIv=EncodedIV rawIV} pass =
+  -- iv <- makeIV rawIV
+  -- let encryptionKey = mkEncryptionKey pass salt
+  -- rawSK <- either (\_ -> Nothing) Just $ decrypt encryptionKey iv text
 
-  Crypto.deserialiseFromRawBytes asSK rawSK
+  Crypto.deserialiseFromRawBytes asSK text
     where asSK = Crypto.AsSigningKey Crypto.AsPaymentKey
 
 encryptKey
