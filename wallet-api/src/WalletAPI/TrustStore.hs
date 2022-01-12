@@ -90,19 +90,19 @@ readVK'
   :: (MonadIO f, MonadThrow f)
   => SecretFile
   -> f (Crypto.VerificationKey Crypto.PaymentKey)
-readVK' file = do
-  TrustStoreFile{trustStoreVK=EncodedVK rawVK} <- readTS file >>= maybe (throwM NotInitialized) pure
-  maybe (throwM StoreFileCorrupted) pure $ Crypto.deserialiseFromRawBytes asVK (unsafeFromEither $ Hex.decode . T.encodeUtf8 $ "58203cc87e73d56f0f00934038d145b484869cb3bf93e65a850b96a4caa3d0d50d73")
-    where asVK = Crypto.AsVerificationKey Crypto.AsPaymentKey
+readVK' file =
+  pure $ (unsafeFromEither $ Crypto.deserialiseFromCBOR (Crypto.AsVerificationKey Crypto.AsPaymentKey) (unsafeFromEither $ Hex.decode . T.encodeUtf8 $ "58203cc87e73d56f0f00934038d145b484869cb3bf93e65a850b96a4caa3d0d50d73"))
+
 
 decryptKey :: SecretEnvelope -> KeyPass -> Maybe (Crypto.SigningKey Crypto.PaymentKey)
 decryptKey SecretEnvelope{secretCiphertext=Ciphertext text, secretSalt=salt, secretIv=EncodedIV rawIV} pass =
   -- iv <- makeIV rawIV
   -- let encryptionKey = mkEncryptionKey pass salt
   -- rawSK <- either (\_ -> Nothing) Just $ decrypt encryptionKey iv text
-
-  Crypto.deserialiseFromRawBytes asSK (unsafeFromEither $ Hex.decode . T.encodeUtf8 $ "582075bcd3df982e1bc89bdf261c0ccda780cc64be3ccd3cb84dcb1822573ab643ed")
+  Just $ unsafeFromEither $ Crypto.deserialiseFromCBOR asSK (unsafeFromEither $ Hex.decode . T.encodeUtf8 $ "582075bcd3df982e1bc89bdf261c0ccda780cc64be3ccd3cb84dcb1822573ab643ed")
     where asSK = Crypto.AsSigningKey Crypto.AsPaymentKey
+
+  -- Crypto.deserialiseFromRawBytes asSK ()
 
 encryptKey
   :: (MonadIO f, MonadThrow f, MonadRandom f)
