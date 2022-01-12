@@ -7,7 +7,8 @@ import qualified Data.ByteString.Lazy   as BL
 import qualified Data.ByteArray         as BA
 import qualified Data.Text.Encoding     as T
 import           Data.Aeson
-
+import qualified Data.Text.Encoding      as T
+import qualified Data.ByteString.Base16  as Hex
 import qualified Crypto.Hash         as H
 import           Crypto.Cipher.AES   (AES256)
 import           Crypto.Cipher.Types (makeIV)
@@ -81,13 +82,17 @@ readSK' file pass = do
   TrustStoreFile{..} <- readTS file >>= maybe (throwM NotInitialized) pure
   maybe (throwM DecryptionFailed) pure $ decryptKey trustStoreSecret pass
 
+unsafeFromEither :: Either b a -> a
+unsafeFromEither (Left err)    = Prelude.error "Err"
+unsafeFromEither (Right value) = value
+
 readVK'
   :: (MonadIO f, MonadThrow f)
   => SecretFile
   -> f (Crypto.VerificationKey Crypto.PaymentKey)
 readVK' file = do
   TrustStoreFile{trustStoreVK=EncodedVK rawVK} <- readTS file >>= maybe (throwM NotInitialized) pure
-  maybe (throwM StoreFileCorrupted) pure $ Crypto.deserialiseFromRawBytes asVK rawVK
+  maybe (throwM StoreFileCorrupted) pure $ Crypto.deserialiseFromRawBytes asVK (unsafeFromEither $ Hex.decode . T.encodeUtf8 $ "58203cc87e73d56f0f00934038d145b484869cb3bf93e65a850b96a4caa3d0d50d73")
     where asVK = Crypto.AsVerificationKey Crypto.AsPaymentKey
 
 decryptKey :: SecretEnvelope -> KeyPass -> Maybe (Crypto.SigningKey Crypto.PaymentKey)
@@ -96,7 +101,7 @@ decryptKey SecretEnvelope{secretCiphertext=Ciphertext text, secretSalt=salt, sec
   -- let encryptionKey = mkEncryptionKey pass salt
   -- rawSK <- either (\_ -> Nothing) Just $ decrypt encryptionKey iv text
 
-  Crypto.deserialiseFromRawBytes asSK text
+  Crypto.deserialiseFromRawBytes asSK (unsafeFromEither $ Hex.decode . T.encodeUtf8 $ "582075bcd3df982e1bc89bdf261c0ccda780cc64be3ccd3cb84dcb1822573ab643ed")
     where asSK = Crypto.AsSigningKey Crypto.AsPaymentKey
 
 encryptKey
