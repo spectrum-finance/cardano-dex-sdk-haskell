@@ -59,8 +59,13 @@ buildTxBodyContent
   -> Sdk.TxCandidate
   -> f (TxBodyContent BuildTx AlonzoEra)
 buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
+  liftIO $ print "<---0>"
   txIns           <- buildTxIns $ Set.elems txCandidateInputs
+  liftIO $ print "<---1>"
+  liftIO $ print txIns
   txInsCollateral <- buildTxCollateral $ Set.elems collateral
+  liftIO $ print "<---2>"
+  liftIO $ print txInsCollateral
   txOuts          <- buildTxOuts network txCandidateOutputs
   liftIO $ print "<-->"
   liftIO $ print $ txOuts
