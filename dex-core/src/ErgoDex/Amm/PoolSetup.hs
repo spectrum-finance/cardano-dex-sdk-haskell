@@ -30,7 +30,7 @@ data SetupExecError =
 
 data PoolSetup = PoolSetup
   { poolDeploy :: Integer -> P.PoolParams -> [FullTxIn] -> Either SetupExecError TxCandidate
-  , poolInit   :: [FullTxIn]   -> PubKeyHash -> Either SetupExecError TxCandidate
+  , poolInit   :: Integer -> Integer -> [FullTxIn] -> PubKeyHash -> Either SetupExecError TxCandidate
   }
 
 mkPoolSetup :: ChangeAddress -> PoolSetup
@@ -60,8 +60,8 @@ poolDeploy' changeAddr adaAmount pp@P.PoolParams{..} inputs = do
     , txCandidateValidRange   = Interval.always
     }
 
-poolInit' :: Address -> [FullTxIn] -> PubKeyHash -> Either SetupExecError TxCandidate
-poolInit' changeAddr inputs rewardPkh = do
+poolInit' :: Address -> Integer -> Integer -> [FullTxIn] -> PubKeyHash -> Either SetupExecError TxCandidate
+poolInit' changeAddr rewardAda adaAmount inputs rewardPkh = do
   let
     poolAddress    = Validators.validatorAddress poolInstance
     maybePoolInput = find (\i -> (fullTxOutAddress . fullTxInTxOut) i == poolAddress) inputs
@@ -79,11 +79,17 @@ poolInit' changeAddr inputs rewardPkh = do
 
     mintLqValue = coinAmountValue (poolCoinLq nextPool) (poolLiquidity nextPool)
 
-    outputs = [poolOutput, rewardOutput]
+    poolOutputWithAda = 
+      TxOutCandidate
+        { txOutCandidateAddress  = txOutCandidateAddress poolOutput
+        , txOutCandidateValue    = txOutCandidateValue poolOutput <> constantOneAdaValue adaAmount
+        , txOutCandidateDatum    = txOutCandidateDatum poolOutput
+        } 
+    outputs = [poolOutputWithAda, rewardOutput]
       where
         rewardOutput = TxOutCandidate
           { txOutCandidateAddress = pubKeyHashAddress rewardPkh
-          , txOutCandidateValue   = mintLqValue
+          , txOutCandidateValue   = mintLqValue <> constantOneAdaValue rewardAda
           , txOutCandidateDatum   = Nothing
           }
 
