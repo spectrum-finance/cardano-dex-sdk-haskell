@@ -27,7 +27,7 @@ data SetupExecError =
   | InvalidLiquidity
 
 data PoolSetup = PoolSetup
-  { poolDeploy :: P.PoolParams -> [FullTxIn] -> Either SetupExecError TxCandidate
+  { poolDeploy :: P.PoolDatum -> [FullTxIn] -> Either SetupExecError TxCandidate
   , poolInit   :: [FullTxIn]   -> PubKeyHash -> Either SetupExecError TxCandidate
   }
 
@@ -37,8 +37,8 @@ mkPoolSetup changeAddr = PoolSetup
   , poolInit   = poolInit' changeAddr
   }
 
-poolDeploy' :: Address -> P.PoolParams -> [FullTxIn] -> Either SetupExecError TxCandidate
-poolDeploy' changeAddr pp@P.PoolParams{..} inputs = do
+poolDeploy' :: Address -> P.PoolDatum -> [FullTxIn] -> Either SetupExecError TxCandidate
+poolDeploy' changeAddr pp@P.PoolDatum{..} inputs = do
   inNft <- tryGetInputAmountOf inputs poolNft
   unless (amountEq inNft 1) (Left InvalidNft) -- make sure valid NFT is provided
   let

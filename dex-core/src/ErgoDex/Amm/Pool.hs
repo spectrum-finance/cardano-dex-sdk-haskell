@@ -41,7 +41,7 @@ data Pool = Pool
 instance FromLedger Pool where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
-      (Just (PoolDatum PoolParams{..})) ->
+      (Just PoolDatum{..}) ->
           Just $ Confirmed fout Pool
             { poolId        = PoolId poolNft
             , poolReservesX = rx
@@ -76,15 +76,13 @@ instance ToLedger Pool where
                        assetAmountValue (AssetAmount poolCoinX poolReservesX) <>
                        assetAmountValue (AssetAmount poolCoinY poolReservesY)
 
-      poolParams = PoolParams
+      nextPoolDatum = PoolDatum
         { poolNft = nft
         , poolX   = poolCoinX
         , poolY   = poolCoinY
         , poolLq  = poolCoinLq
         , feeNum  = poolFeeNum poolFee
         }
-
-      nextPoolDatum = PoolDatum poolParams
 
 data PoolInitError = InvalidLiquidity Integer
 
