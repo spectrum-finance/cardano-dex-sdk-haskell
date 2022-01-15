@@ -73,6 +73,7 @@ library
     exposed-modules: SubmitAPI.Service
                      SubmitAPI.Config
                      SubmitAPI.Internal.Transaction
+                     SubmitAPI.ViaPAB.Transaction
 
     build-depends:
         rio==0.1.21.0,
