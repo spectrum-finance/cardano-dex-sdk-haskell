@@ -18,13 +18,18 @@ import qualified Data.Set        as Set
 import           Numeric.Natural
 
 import qualified Cardano.Api as Api
-import           Cardano.Api.Shelley   (ProtocolParameters(..), PoolId)
+import           Cardano.Api.Shelley   (ProtocolParameters(..), PoolId(..))
 import qualified Ouroboros.Consensus.HardFork.History as History
 import           Ouroboros.Consensus.HardFork.History.Summary as HSummary
 import           Ouroboros.Consensus.HardFork.History.EraParams as EP
 import           Ouroboros.Consensus.BlockchainTime.WallClock.Types
 import           Ouroboros.Consensus.Block
 import           Ouroboros.Consensus.Util.Counting
+import           Cardano.Api.Shelley (Hash (ScriptDataHash), KESPeriod (KESPeriod),
+                   OperationalCertificateIssueCounter (OperationalCertificateIssueCounter),
+                   PlutusScript (PlutusScriptSerialised), ProtocolParameters (ProtocolParameters),
+                   StakeCredential (StakeCredentialByKey), StakePoolKey)
+import Cardano.Crypto.Seed
 
 data SystemEnv = SystemEnv
   { pparams'           :: ProtocolParameters
@@ -34,6 +39,14 @@ data SystemEnv = SystemEnv
   , eraHistory'        :: Api.EraHistory Api.CardanoMode
   , collateralPercent' :: Int
   } deriving (Show, Generic)
+
+doTest :: PoolId
+doTest =
+  let
+    sk = Api.deterministicSigningKey Api.AsStakePoolKey (mkSeedFromBytes "736b6f766f726f64612047677572646120626f726f64612070726f766f646120")
+    vk = Api.getVerificationKey sk
+  in Api.verificationKeyHash vk
+ -- Api.verificationKeyHash $ Api.getVerificationKey <$> (Api.deterministicSigningKey Api.AsStakePoolKey 100)
 
 instance Show (Api.EraHistory Api.CardanoMode) where
   show _ = "This is era history"
@@ -48,7 +61,7 @@ instance FromJSON SystemEnv where
         { pparams' = pparams'
         , network'           = Api.Testnet $ Api.NetworkMagic 1097911063
         , sysstart'          = sysstart'
-        , pools'             = Set.empty
+        , pools'             = Set.fromList [doTest]
         , eraHistory'        = (Api.EraHistory (Api.CardanoMode) (History.mkInterpreter $ Summary $ NonEmptyOne $ 
           EraSummary {
               eraStart  = initBound

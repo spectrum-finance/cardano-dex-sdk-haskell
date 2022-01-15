@@ -80,7 +80,6 @@ buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
         valueMint = Sdk.unMintValue txCandidateValueMint
         policies  = Sdk.mintInputsPolicies txCandidateMintInputs
     in absorbError $ Interop.toCardanoMintValue redeemers valueMint policies
-
   pure $ TxBodyContent
     { txIns             = txIns
     , txInsCollateral   = txInsCollateral

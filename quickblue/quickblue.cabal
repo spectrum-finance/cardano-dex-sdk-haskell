@@ -90,4 +90,5 @@ library
         cardano-api,
         containers,
         ouroboros-consensus,
-        rio
+        rio,
+        cardano-crypto-class
