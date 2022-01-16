@@ -14,9 +14,11 @@ import qualified Plutus.V1.Ledger.Credential as P
 
 import           SubmitAPI.Config
 import           SubmitAPI.Internal.Transaction
+import           SubmitAPI.ViaPAB.Transaction as ViaPAB
 import           NetworkAPI.Service             hiding (submitTx)
 import qualified NetworkAPI.Service             as Network
 import           NetworkAPI.Env
+import           WalletAPI.Utxos
 import           WalletAPI.Vault
 
 data Transactions f = Transactions
@@ -35,6 +37,22 @@ mkSubmitService network wallet conf = Transactions
   , submitTx   = Network.submitTx network
   }
 
+finalizeTxViaPAB
+  :: MonadThrow f
+  => WalletOutputs f
+  -> Network f
+  -> TxAssemblyConfig
+  -> Sdk.TxCandidate
+  -> f (C.Tx C.AlonzoEra)
+finalizeTxViaPAB wallet Network{getSystemEnv} conf txc = do
+    sysenv      <- getSystemEnv
+    collaterals <- selectCollaterals wallet sysenv conf txc
+    
+    let utx = ViaPAB.mkUnbalancedTx collaterals txc
+
+    -- todo: Plutus.Contract.Wallet.handleTx
+    undefined
+
 finalizeTx'
   :: MonadThrow f
   => Network f
@@ -44,7 +62,7 @@ finalizeTx'
   -> f (C.Tx C.AlonzoEra)
 finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   sysenv      <- getSystemEnv
-  collaterals <- mkCollaterals wallet sysenv conf txc
+  collaterals <- selectCollaterals (narrowVault wallet) sysenv conf txc
 
   let
     isBalancedTx = amountIn == amountOut
@@ -67,16 +85,16 @@ finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCan
 
   pure $ signTx txb signers
 
-mkCollaterals
+selectCollaterals
   :: MonadThrow f
-  => Vault f
+  => WalletOutputs f
   -> SystemEnv
   -> TxAssemblyConfig
   -> Sdk.TxCandidate
   -> f (Set.Set Sdk.FullCollateralTxIn)
-mkCollaterals wallet sysenv@SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
+selectCollaterals WalletOutputs{selectUtxos} sysenv@SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   let isScriptIn Sdk.FullTxIn{fullTxInType=P.ConsumeScriptAddress {}} = True
-      isScriptIn _                                                     = False
+      isScriptIn _                                                    = False
 
       scriptInputs = filter isScriptIn (Set.elems txCandidateInputs)
 
@@ -89,7 +107,7 @@ mkCollaterals wallet sysenv@SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandida
             pure $ P.Lovelace $ collateralPercent' * fee' `div` 100
 
         collateral <- estimateCollateral' knownCollaterals
-        utxos      <- selectUtxos wallet (P.toValue collateral) >>= maybe (throwM FailedToSatisfyCollateral) pure
+        utxos      <- selectUtxos (P.toValue collateral) >>= maybe (throwM FailedToSatisfyCollateral) pure
 
         let collaterals = Set.fromList $ Set.elems utxos <&> Sdk.FullCollateralTxIn
 
