@@ -29,7 +29,7 @@ data SetupExecError =
   deriving (Show)
 
 data PoolSetup = PoolSetup
-  { poolDeploy :: Integer -> P.PoolParams -> [FullTxIn] -> Either SetupExecError TxCandidate
+  { poolDeploy :: Integer -> P.PoolDatum -> [FullTxIn] -> Either SetupExecError TxCandidate
   , poolInit   :: Integer -> Integer -> [FullTxIn] -> PubKeyHash -> Either SetupExecError TxCandidate
   }
 
@@ -39,8 +39,8 @@ mkPoolSetup (ChangeAddress changeAddr) = PoolSetup
   , poolInit   = poolInit' changeAddr
   }
 
-poolDeploy' :: Address -> Integer -> P.PoolParams -> [FullTxIn] -> Either SetupExecError TxCandidate
-poolDeploy' changeAddr adaAmount pp@P.PoolParams{..} inputs = do
+poolDeploy' :: Address -> Integer -> P.PoolDatum -> [FullTxIn] -> Either SetupExecError TxCandidate
+poolDeploy' changeAddr adaAmount pp@P.PoolDatum{..} inputs = do
   inNft <- tryGetInputAmountOf inputs poolNft
   inLq  <- tryGetInputAmountOf inputs poolLq
   unless (amountEq inNft 1) (Left InvalidNft) -- make sure valid NFT is provided
