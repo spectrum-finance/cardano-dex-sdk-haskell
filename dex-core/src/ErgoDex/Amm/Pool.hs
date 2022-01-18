@@ -16,7 +16,11 @@ import ErgoDex.Types
 import ErgoDex.State
 import ErgoDex.Contracts.Types
 import ErgoDex.Contracts.Pool
-import ErgoDex.OffChain
+import ErgoDex.Contracts.OffChain
+import ErgoDex.Contracts.Proxy.Order (isAda)
+import ErgoDex.Amm.Constants (minSafeOutputValue)
+import PlutusTx.Numeric (AdditiveMonoid(zero))
+import Plutus.V1.Ledger.Ada (lovelaceValueOf)
 
 newtype PoolId = PoolId { unPoolId :: Coin Nft }
   deriving (Show, Eq, Generic)
@@ -36,6 +40,7 @@ data Pool = Pool
   , poolCoinY     :: Coin Y
   , poolCoinLq    :: Coin Liquidity
   , poolFee       :: PoolFee
+  , collateral    :: Amount Lovelace
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 instance FromLedger Pool where
@@ -51,13 +56,15 @@ instance FromLedger Pool where
             , poolCoinY     = poolY
             , poolCoinLq    = poolLq
             , poolFee       = PoolFee feeNum feeDen
+            , collateral    = collateral
             }
         where
-          rx     = Amount $ assetClassValueOf fullTxOutValue (unCoin poolX)
-          ry     = Amount $ assetClassValueOf fullTxOutValue (unCoin poolY)
-          rlq    = Amount $ assetClassValueOf fullTxOutValue (unCoin poolLq)
-          lq     = maxLqCap - rlq -- actual LQ emission
-          feeDen = 1000
+          rx         = Amount $ assetClassValueOf fullTxOutValue (unCoin poolX)
+          ry         = Amount $ assetClassValueOf fullTxOutValue (unCoin poolY)
+          rlq        = Amount $ assetClassValueOf fullTxOutValue (unCoin poolLq)
+          lq         = maxLqCap - rlq -- actual LQ emission
+          collateral = if isAda poolX || isAda poolY then zero else minSafeOutputValue
+          feeDen     = 1000
       _ -> Nothing
   parseFromLedger _ = Nothing
 
@@ -74,7 +81,8 @@ instance ToLedger Pool where
       poolValue      = assetClassValue (unCoin nft) 1 <>
                        assetAmountValue (AssetAmount poolCoinLq poolLqReserves) <>
                        assetAmountValue (AssetAmount poolCoinX poolReservesX) <>
-                       assetAmountValue (AssetAmount poolCoinY poolReservesY)
+                       assetAmountValue (AssetAmount poolCoinY poolReservesY) <>
+                       lovelaceValueOf (unAmount collateral)
 
       nextPoolDatum = PoolDatum
         { poolNft = nft
@@ -86,7 +94,7 @@ instance ToLedger Pool where
 
 data PoolInitError = InvalidLiquidity Integer
 
-applyInit :: Pool -> (Amount X, Amount Y) -> Either PoolInitError (Predicted Pool)
+applyInit :: Pool -> (Amount X, Amount Y) -> Either PoolInitError (Predicted Pool, Amount Liquidity)
 applyInit p@Pool{..} (inX, inY) = do
   unlockedLq <- fmap getAmount (initialLiquidityAmount p (inX, inY))
   let
@@ -96,7 +104,7 @@ applyInit p@Pool{..} (inX, inY) = do
       , poolLiquidity = poolLiquidity + unlockedLq
       }
     nextPoolOut = toLedger nextPool
-  Right $ Predicted nextPoolOut nextPool
+  Right (Predicted nextPoolOut nextPool, unlockedLq)
 
 applyDeposit :: Pool -> (Amount X, Amount Y) -> Predicted Pool
 applyDeposit p@Pool{..} (inX, inY) =
