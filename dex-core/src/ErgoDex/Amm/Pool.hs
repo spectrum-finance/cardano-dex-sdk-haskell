@@ -41,7 +41,7 @@ data Pool = Pool
 instance FromLedger Pool where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
-      (Just (PoolDatum{..})) ->
+      (Just PoolDatum{..}) ->
           Just $ Confirmed fout Pool
             { poolId        = PoolId poolNft
             , poolReservesX = rx
