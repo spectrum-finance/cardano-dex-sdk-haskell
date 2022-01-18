@@ -28,6 +28,7 @@ data SetupExecError =
   | InvalidNft
   | InvalidLiquidity
   | InsufficientInputs
+  deriving Show
 
 data PoolSetup = PoolSetup
   { poolDeploy :: P.PoolDatum -> [FullTxIn] -> Either SetupExecError TxCandidate
