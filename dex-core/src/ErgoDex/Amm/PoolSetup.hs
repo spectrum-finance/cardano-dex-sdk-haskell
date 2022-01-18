@@ -12,42 +12,44 @@ import qualified Ledger.Typed.Scripts.Validators as Validators
 import           PlutusTx                        (toBuiltinData)
 
 import           ErgoDex.Types
-import           ErgoDex.Utils
 import           ErgoDex.State
 import           ErgoDex.Class
 import           ErgoDex.Amm.Pool       (Pool(..), applyInit)
+import           ErgoDex.Amm.Constants
 import qualified ErgoDex.Contracts.Pool as P
 import           ErgoDex.Contracts.Types
-import           ErgoDex.OffChain
+import           ErgoDex.Contracts.OffChain
 import           CardanoTx.Models
+import           ErgoDex.Contracts.Pool (maxLqCap)
 
 data SetupExecError =
     MissingAsset AssetClass
   | MissingPool
   | InvalidNft
   | InvalidLiquidity
-  deriving (Show)
+  | InsufficientInputs
 
 data PoolSetup = PoolSetup
-  { poolDeploy :: Integer -> P.PoolDatum -> [FullTxIn] -> Either SetupExecError TxCandidate
-  , poolInit   :: Integer -> Integer -> [FullTxIn] -> PubKeyHash -> Either SetupExecError TxCandidate
+  { poolDeploy :: P.PoolDatum -> [FullTxIn] -> Either SetupExecError TxCandidate
+  , poolInit   :: [FullTxIn]   -> PubKeyHash -> Either SetupExecError TxCandidate
   }
 
-mkPoolSetup :: ChangeAddress -> PoolSetup
-mkPoolSetup (ChangeAddress changeAddr) = PoolSetup
+mkPoolSetup :: Address -> PoolSetup
+mkPoolSetup changeAddr = PoolSetup
   { poolDeploy = poolDeploy' changeAddr
   , poolInit   = poolInit' changeAddr
   }
 
-poolDeploy' :: Address -> Integer -> P.PoolDatum -> [FullTxIn] -> Either SetupExecError TxCandidate
-poolDeploy' changeAddr adaAmount pp@P.PoolDatum{..} inputs = do
+poolDeploy' :: Address -> P.PoolDatum -> [FullTxIn] -> Either SetupExecError TxCandidate
+poolDeploy' changeAddr pp@P.PoolDatum{..} inputs = do
   inNft <- tryGetInputAmountOf inputs poolNft
   inLq  <- tryGetInputAmountOf inputs poolLq
   unless (amountEq inNft 1) (Left InvalidNft) -- make sure valid NFT is provided
+  unless (getAmount inLq == maxLqCap) (Left InvalidLiquidity) -- make sure valid amount of LQ tokens is provided
   let
     poolOutput = TxOutCandidate
       { txOutCandidateAddress = Validators.validatorAddress poolInstance
-      , txOutCandidateValue   = assetAmountValue inNft <> assetAmountValue inLq <> constantOneAdaValue adaAmount
+      , txOutCandidateValue   = assetAmountValue inNft <> assetAmountValue inLq <> minSafeOutputValue
       , txOutCandidateDatum   = Just $ Datum $ PlutusTx.toBuiltinData pp
       }
 
@@ -60,11 +62,11 @@ poolDeploy' changeAddr adaAmount pp@P.PoolDatum{..} inputs = do
     , txCandidateValidRange   = Interval.always
     }
 
-poolInit' :: Address -> Integer -> Integer -> [FullTxIn] -> PubKeyHash -> Either SetupExecError TxCandidate
-poolInit' changeAddr rewardAda adaAmount inputs rewardPkh = do
+poolInit' :: Address -> [FullTxIn] -> PubKeyHash -> Either SetupExecError TxCandidate
+poolInit' changeAddr inputs rewardPkh = do
   let
     poolAddress    = Validators.validatorAddress poolInstance
-    maybePoolInput = find (\i -> (fullTxOutAddress . fullTxInTxOut) i == poolAddress) inputs
+    maybePoolInput = find ((== poolAddress) . fullTxOutAddress . fullTxInTxOut) inputs
 
   poolInput        <- maybeToRight MissingPool maybePoolInput
   Confirmed _ pool <- maybeToRight MissingPool (parseFromLedger $ fullTxInTxOut poolInput)
@@ -72,24 +74,19 @@ poolInit' changeAddr rewardAda adaAmount inputs rewardPkh = do
   inX <- tryGetInputAmountOf inputs (poolCoinX pool)
   inY <- tryGetInputAmountOf inputs (poolCoinY pool)
 
-  Predicted poolOutput nextPool <- mapLeft (const InvalidLiquidity) (applyInit pool (getAmount inX, getAmount inY))
+  (Predicted poolOutput nextPool, unlockedLq) <-
+    mapLeft (const InvalidLiquidity) (applyInit pool (getAmount inX, getAmount inY))
 
   let
     inputsReordered = poolInput : filter (/= poolInput) inputs
 
-    mintLqValue = coinAmountValue (poolCoinLq nextPool) (poolLiquidity nextPool)
+    mintLqValue = coinAmountValue (poolCoinLq nextPool) unlockedLq
 
-    poolOutputWithAda = 
-      TxOutCandidate
-        { txOutCandidateAddress  = txOutCandidateAddress poolOutput
-        , txOutCandidateValue    = txOutCandidateValue poolOutput <> constantOneAdaValue adaAmount
-        , txOutCandidateDatum    = txOutCandidateDatum poolOutput
-        } 
-    outputs = [poolOutputWithAda, rewardOutput]
+    outputs = [poolOutput, rewardOutput]
       where
         rewardOutput = TxOutCandidate
           { txOutCandidateAddress = pubKeyHashAddress rewardPkh
-          , txOutCandidateValue   = mintLqValue <> constantOneAdaValue rewardAda
+          , txOutCandidateValue   = mintLqValue <> minSafeOutputValue
           , txOutCandidateDatum   = Nothing
           }
 
@@ -105,8 +102,8 @@ poolInit' changeAddr rewardAda adaAmount inputs rewardPkh = do
 tryGetInputAmountOf :: [FullTxIn] -> Coin a -> Either SetupExecError (AssetAmount a)
 tryGetInputAmountOf inputs c =
     if amountEq coinAmount 0
-    then Left $ MissingAsset $ unCoin c
-    else Right coinAmount
+    then Right coinAmount
+    else Left $ MissingAsset $ unCoin c
   where
     totalValueIn = foldr ( (<>) . fullTxOutValue . fullTxInTxOut) mempty inputs
     coinAmount   = assetAmountOfCoin totalValueIn c
