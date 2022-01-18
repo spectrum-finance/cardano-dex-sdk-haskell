@@ -10,7 +10,6 @@ import qualified Ledger.Interval as Interval
 import           Ledger.Value                    (AssetClass)
 import qualified Ledger.Typed.Scripts.Validators as Validators
 import           PlutusTx                        (toBuiltinData)
-import           Plutus.V1.Ledger.Ada            (lovelaceValueOf)
 
 import           ErgoDex.Types
 import           ErgoDex.State
@@ -50,7 +49,7 @@ poolDeploy' changeAddr pp@P.PoolDatum{..} inputs = do
   let
     poolOutput = TxOutCandidate
       { txOutCandidateAddress = Validators.validatorAddress poolInstance
-      , txOutCandidateValue   = assetAmountValue inNft <> assetAmountValue inLq <> lovelaceValueOf (unAmount minSafeOutputValue)
+      , txOutCandidateValue   = assetAmountValue inNft <> assetAmountValue inLq <> minSafeOutputValue
       , txOutCandidateDatum   = Just $ Datum $ PlutusTx.toBuiltinData pp
       }
 
@@ -87,7 +86,7 @@ poolInit' changeAddr inputs rewardPkh = do
       where
         rewardOutput = TxOutCandidate
           { txOutCandidateAddress = pubKeyHashAddress rewardPkh
-          , txOutCandidateValue   = mintLqValue
+          , txOutCandidateValue   = mintLqValue <> minSafeOutputValue
           , txOutCandidateDatum   = Nothing
           }
 

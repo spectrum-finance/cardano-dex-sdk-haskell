@@ -1,14 +1,16 @@
 module ErgoDex.Amm.Pool where
 
 import Data.Bifunctor
+import Data.Aeson     (FromJSON, ToJSON)
+import GHC.Generics   (Generic)
 
 import Ledger
 import Ledger.Value                    (assetClassValue, assetClassValueOf)
 import Ledger.Typed.Scripts.Validators
 import PlutusTx.IsData.Class
 import PlutusTx.Sqrt
-import Data.Aeson                      (FromJSON, ToJSON)
-import GHC.Generics                    (Generic)
+import PlutusTx.Numeric                (AdditiveMonoid(zero))
+import Plutus.V1.Ledger.Ada            (lovelaceValueOf)
 
 import CardanoTx.Models
 import ErgoDex.Class
@@ -18,9 +20,7 @@ import ErgoDex.Contracts.Types
 import ErgoDex.Contracts.Pool
 import ErgoDex.Contracts.OffChain
 import ErgoDex.Contracts.Proxy.Order (isAda)
-import ErgoDex.Amm.Constants (minSafeOutputValue)
-import PlutusTx.Numeric (AdditiveMonoid(zero))
-import Plutus.V1.Ledger.Ada (lovelaceValueOf)
+import ErgoDex.Amm.Constants         (minSafeOutputAmount)
 
 newtype PoolId = PoolId { unPoolId :: Coin Nft }
   deriving (Show, Eq, Generic)
@@ -40,7 +40,7 @@ data Pool = Pool
   , poolCoinY     :: Coin Y
   , poolCoinLq    :: Coin Liquidity
   , poolFee       :: PoolFee
-  , collateral    :: Amount Lovelace
+  , outCollateral :: Amount Lovelace
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 instance FromLedger Pool where
@@ -56,14 +56,14 @@ instance FromLedger Pool where
             , poolCoinY     = poolY
             , poolCoinLq    = poolLq
             , poolFee       = PoolFee feeNum feeDen
-            , collateral    = collateral
+            , outCollateral = collateral
             }
         where
           rx         = Amount $ assetClassValueOf fullTxOutValue (unCoin poolX)
           ry         = Amount $ assetClassValueOf fullTxOutValue (unCoin poolY)
           rlq        = Amount $ assetClassValueOf fullTxOutValue (unCoin poolLq)
           lq         = maxLqCap - rlq -- actual LQ emission
-          collateral = if isAda poolX || isAda poolY then zero else minSafeOutputValue
+          collateral = if isAda poolX || isAda poolY then zero else minSafeOutputAmount
           feeDen     = 1000
       _ -> Nothing
   parseFromLedger _ = Nothing
@@ -82,7 +82,7 @@ instance ToLedger Pool where
                        assetAmountValue (AssetAmount poolCoinLq poolLqReserves) <>
                        assetAmountValue (AssetAmount poolCoinX poolReservesX) <>
                        assetAmountValue (AssetAmount poolCoinY poolReservesY) <>
-                       lovelaceValueOf (unAmount collateral)
+                       lovelaceValueOf (unAmount outCollateral)
 
       nextPoolDatum = PoolDatum
         { poolNft = nft

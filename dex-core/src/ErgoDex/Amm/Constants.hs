@@ -1,6 +1,11 @@
 module ErgoDex.Amm.Constants where
 
+import Plutus.V1.Ledger.Ada    (lovelaceValueOf)
+import Ledger.Value
 import ErgoDex.Contracts.Types
 
-minSafeOutputValue :: Amount Lovelace
-minSafeOutputValue = Amount 2000000
+minSafeOutputAmount :: Amount Lovelace
+minSafeOutputAmount = Amount 2000000
+
+minSafeOutputValue:: Value
+minSafeOutputValue = lovelaceValueOf $ unAmount minSafeOutputAmount
