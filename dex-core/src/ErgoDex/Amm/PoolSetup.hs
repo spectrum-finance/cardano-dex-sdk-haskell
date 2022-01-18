@@ -15,16 +15,19 @@ import           ErgoDex.Types
 import           ErgoDex.State
 import           ErgoDex.Class
 import           ErgoDex.Amm.Pool       (Pool(..), applyInit)
+import           ErgoDex.Amm.Constants
 import qualified ErgoDex.Contracts.Pool as P
 import           ErgoDex.Contracts.Types
-import           ErgoDex.OffChain
+import           ErgoDex.Contracts.OffChain
 import           CardanoTx.Models
+import           ErgoDex.Contracts.Pool (maxLqCap)
 
 data SetupExecError =
     MissingAsset AssetClass
   | MissingPool
   | InvalidNft
   | InvalidLiquidity
+  | InsufficientInputs
 
 data PoolSetup = PoolSetup
   { poolDeploy :: P.PoolDatum -> [FullTxIn] -> Either SetupExecError TxCandidate
@@ -40,11 +43,13 @@ mkPoolSetup changeAddr = PoolSetup
 poolDeploy' :: Address -> P.PoolDatum -> [FullTxIn] -> Either SetupExecError TxCandidate
 poolDeploy' changeAddr pp@P.PoolDatum{..} inputs = do
   inNft <- tryGetInputAmountOf inputs poolNft
+  inLq  <- tryGetInputAmountOf inputs poolLq
   unless (amountEq inNft 1) (Left InvalidNft) -- make sure valid NFT is provided
+  unless (getAmount inLq == maxLqCap) (Left InvalidLiquidity) -- make sure valid amount of LQ tokens is provided
   let
     poolOutput = TxOutCandidate
       { txOutCandidateAddress = Validators.validatorAddress poolInstance
-      , txOutCandidateValue   = assetAmountValue inNft
+      , txOutCandidateValue   = assetAmountValue inNft <> assetAmountValue inLq <> minSafeOutputValue
       , txOutCandidateDatum   = Just $ Datum $ PlutusTx.toBuiltinData pp
       }
 
@@ -61,7 +66,7 @@ poolInit' :: Address -> [FullTxIn] -> PubKeyHash -> Either SetupExecError TxCand
 poolInit' changeAddr inputs rewardPkh = do
   let
     poolAddress    = Validators.validatorAddress poolInstance
-    maybePoolInput = find (\i -> (fullTxOutAddress . fullTxInTxOut) i == poolAddress) inputs
+    maybePoolInput = find ((== poolAddress) . fullTxOutAddress . fullTxInTxOut) inputs
 
   poolInput        <- maybeToRight MissingPool maybePoolInput
   Confirmed _ pool <- maybeToRight MissingPool (parseFromLedger $ fullTxInTxOut poolInput)
@@ -69,18 +74,19 @@ poolInit' changeAddr inputs rewardPkh = do
   inX <- tryGetInputAmountOf inputs (poolCoinX pool)
   inY <- tryGetInputAmountOf inputs (poolCoinY pool)
 
-  Predicted poolOutput nextPool <- mapLeft (const InvalidLiquidity) (applyInit pool (getAmount inX, getAmount inY))
+  (Predicted poolOutput nextPool, unlockedLq) <-
+    mapLeft (const InvalidLiquidity) (applyInit pool (getAmount inX, getAmount inY))
 
   let
     inputsReordered = poolInput : filter (/= poolInput) inputs
 
-    mintLqValue = coinAmountValue (poolCoinLq nextPool) (poolLiquidity nextPool)
+    mintLqValue = coinAmountValue (poolCoinLq nextPool) unlockedLq
 
     outputs = [poolOutput, rewardOutput]
       where
         rewardOutput = TxOutCandidate
           { txOutCandidateAddress = pubKeyHashAddress rewardPkh
-          , txOutCandidateValue   = mintLqValue
+          , txOutCandidateValue   = mintLqValue <> minSafeOutputValue
           , txOutCandidateDatum   = Nothing
           }
 
