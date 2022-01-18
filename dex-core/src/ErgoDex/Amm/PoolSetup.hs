@@ -77,7 +77,7 @@ poolInit' changeAddr rewardAda adaAmount inputs rewardPkh = do
   let
     inputsReordered = poolInput : filter (/= poolInput) inputs
 
-    mintLqValue = coinAmountValue (poolCoinLq nextPool) (Amount (-1 * (unAmount $ poolLiquidity nextPool)))
+    mintLqValue = coinAmountValue (poolCoinLq nextPool) (poolLiquidity nextPool)
 
     poolOutputWithAda = 
       TxOutCandidate
