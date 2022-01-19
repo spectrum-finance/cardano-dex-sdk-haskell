@@ -95,7 +95,7 @@ mkCollaterals wallet sysenv@SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandida
             pure $ P.Lovelace $ collateralPercent' * fee' `div` 100
 
         collateral <- estimateCollateral' knownCollaterals
-        utxos      <- selectUtxos wallet (P.toValue collateral) >>= maybe (throwM FailedToSatisfyCollateral) pure
+        utxos      <- selectUtxos wallet (P.toValue (P.Lovelace 20000000)) >>= maybe (throwM FailedToSatisfyCollateral) pure
         let inputsWOTokens = Set.filter onlyAdaValue utxos
         let refs = Set.map (\x -> Sdk.fullTxOutRef $ Sdk.fullTxInTxOut x) txCandidateInputs
         let filtered = Set.filter (\Sdk.FullTxOut{..}-> not (Set.member fullTxOutRef refs)) inputsWOTokens
