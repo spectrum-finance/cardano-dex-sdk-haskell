@@ -37,7 +37,7 @@ let
       "https://github.com/input-output-hk/cardano-wallet"."ae7569293e94241ef6829139ec02bd91abd069df" = "1mv1dhpkdj9ridm1fvq6jc85qs6zvbp172228rq72gyawjwrgvi6";
       "https://github.com/input-output-hk/cardano-addresses"."d2f86caa085402a953920c6714a0de6a50b655ec" = "0p6jbnd7ky2yf7bwb1350k8880py8dgqg39k49q02a6ij4ld01ay";
       "https://github.com/input-output-hk/plutus"."3f089ccf0ca746b399c99afe51e063b0640af547" = "1nx8xmdgwmnsla4qg4k67f5md8vm3p1p9i25ndalrqdg40z90486";
-      "https://github.com/ergolabs/cardano-dex-contracts"."152843883965bea25e59c54c5a1c52da01633f97" = "0yyhzbwwcva9zr2cms0rsa9r6whhf7wlslf2dp54105widd7hbxa";
+      "https://github.com/ergolabs/cardano-dex-contracts"."b9204cd690bc8962bc17019c8fd2612ba5a7d55d" = "0cz7p2q3f95lc1617i6dhdac68bqzawr73zi2894j564ckg6xv0g";
     };
 
     modules = [
