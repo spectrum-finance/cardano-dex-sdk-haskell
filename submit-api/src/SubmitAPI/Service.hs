@@ -101,6 +101,7 @@ mkCollaterals wallet sysenv@SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandida
         let filtered = Set.filter (\Sdk.FullTxOut{..}-> not (Set.member fullTxOutRef refs)) inputsWOTokens
         let collaterals = Set.fromList $ Set.elems filtered <&> Sdk.FullCollateralTxIn
         liftIO $ print "<!~~~~>!"
+        liftIO $ print utxos
         liftIO $ print inputsWOTokens
         liftIO $ print refs
         liftIO $ print filtered
