@@ -98,7 +98,7 @@ mkCollaterals wallet sysenv@SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandida
         utxos      <- selectUtxos wallet (P.toValue collateral) >>= maybe (throwM FailedToSatisfyCollateral) pure
         let inputsWOTokens = Set.filter onlyAdaValue utxos
         let refs = Set.map (\x -> Sdk.fullTxOutRef $ Sdk.fullTxInTxOut x) txCandidateInputs
-        let filtered = Set.filter (\Sdk.FullTxOut{..}-> Set.member fullTxOutRef refs) inputsWOTokens
+        let filtered = Set.filter (\Sdk.FullTxOut{..}-> not (Set.member fullTxOutRef refs)) inputsWOTokens
         let collaterals = Set.fromList $ Set.elems filtered <&> Sdk.FullCollateralTxIn
         liftIO $ print "<!~~~~>!"
         liftIO $ print inputsWOTokens
