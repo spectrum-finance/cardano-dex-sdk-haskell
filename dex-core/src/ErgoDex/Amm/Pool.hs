@@ -20,7 +20,7 @@ import ErgoDex.Contracts.Types
 import ErgoDex.Contracts.Pool
 import ErgoDex.Contracts.OffChain
 import ErgoDex.Contracts.Proxy.Order (isAda)
-import ErgoDex.Amm.Constants         (minSafeOutputAmount)
+import ErgoDex.Amm.Constants         (minSafeOutputAmount, minSafeOutputValue)
 
 newtype PoolId = PoolId { unPoolId :: Coin Nft }
   deriving (Show, Eq, Generic)
@@ -43,6 +43,9 @@ data Pool = Pool
   , outCollateral :: Amount Lovelace
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
+feeDen :: Integer
+feeDen = 1000
+
 instance FromLedger Pool where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
@@ -64,7 +67,6 @@ instance FromLedger Pool where
           rlq        = Amount $ assetClassValueOf fullTxOutValue (unCoin poolLq)
           lq         = maxLqCap - rlq -- actual LQ emission
           collateral = if isAda poolX || isAda poolY then zero else minSafeOutputAmount
-          feeDen     = 1000
       _ -> Nothing
   parseFromLedger _ = Nothing
 
@@ -94,17 +96,27 @@ instance ToLedger Pool where
 
 data PoolInitError = InvalidLiquidity Integer
 
-applyInit :: Pool -> (Amount X, Amount Y) -> Either PoolInitError (Predicted Pool, Amount Liquidity)
-applyInit p@Pool{..} (inX, inY) = do
-  unlockedLq <- fmap getAmount (initialLiquidityAmount p (inX, inY))
+initPool :: PoolDatum -> (Amount X, Amount Y) -> Either PoolInitError (Predicted Pool, Amount Liquidity)
+initPool PoolDatum{..} (inX, inY) = do
+  unlockedLq <- fmap getAmount (initialLiquidityAmount poolLq (inX, inY))
   let
-    nextPool = p
-      { poolReservesX = poolReservesX + inX
-      , poolReservesY = poolReservesY + inY
-      , poolLiquidity = poolLiquidity + unlockedLq
+    outCollateral =
+      if isAda poolX || isAda poolY
+        then zero
+        else minSafeOutputAmount
+    pool = Pool
+      { poolId        = PoolId poolNft
+      , poolReservesX = inX
+      , poolReservesY = inY
+      , poolLiquidity = unlockedLq
+      , poolCoinX     = poolX
+      , poolCoinY     = poolY
+      , poolCoinLq    = poolLq
+      , poolFee       = PoolFee feeNum feeDen
+      , outCollateral = outCollateral
       }
-    nextPoolOut = toLedger nextPool
-  Right (Predicted nextPoolOut nextPool, unlockedLq)
+    poolOut = toLedger pool
+  Right (Predicted poolOut pool, unlockedLq)
 
 applyDeposit :: Pool -> (Amount X, Amount Y) -> Predicted Pool
 applyDeposit p@Pool{..} (inX, inY) =
@@ -156,8 +168,8 @@ applySwap p@Pool{..} base =
 
     nextPoolOut = toLedger nextPool
 
-initialLiquidityAmount :: Pool -> (Amount X, Amount Y) -> Either PoolInitError (AssetAmount Liquidity)
-initialLiquidityAmount Pool{..} (Amount inX, Amount inY) =
+initialLiquidityAmount :: Coin Liquidity -> (Amount X, Amount Y) -> Either PoolInitError (AssetAmount Liquidity)
+initialLiquidityAmount poolCoinLq (Amount inX, Amount inY) =
   fmap (assetAmountCoinOf poolCoinLq) $ case isqrt (inX * inY) of
     Exactly l | l > 0       -> Right l
     Approximately l | l > 0 -> Right $ l + 1

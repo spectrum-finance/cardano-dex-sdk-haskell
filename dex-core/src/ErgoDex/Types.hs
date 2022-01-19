@@ -5,6 +5,7 @@ import Data.Aeson   (FromJSON, ToJSON)
 import GHC.Generics (Generic)
 
 import           Ledger
+import qualified Ledger.Ada        as Ada
 import           Ledger.Value      (AssetClass(..), assetClassValueOf, assetClassValue, Value(..))
 import           PlutusTx.Numeric  (AdditiveSemigroup(..), MultiplicativeSemigroup(..))
 import qualified PlutusTx.AssocMap as Map
@@ -69,6 +70,9 @@ assetAmountOfCoin v c =
 
 retagAmount :: forall a b. Amount a -> Amount b
 retagAmount (Amount x) = Amount x
+
+adaCoin :: Coin Lovelace
+adaCoin = Coin $ AssetClass (Ada.adaSymbol, Ada.adaToken )
 
 data ExFeePerToken = ExFeePerToken
   { exFeePerTokenNum :: Integer
