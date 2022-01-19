@@ -40,7 +40,7 @@ getSystemEnv' conf = do
   liftIO $ print $ show req
   return req
 
-mkGetRequest :: (MonadIO f, FromJSON a) => ExplorerConfig -> String -> f a
+mkGetRequest :: (MonadIO f, FromJSON a, Show a) => ExplorerConfig -> String -> f a
 mkGetRequest ExplorerConfig{..} path = do
   let
     request = defaultRequest
@@ -49,5 +49,7 @@ mkGetRequest ExplorerConfig{..} path = do
       & setRequestPort (naturalToInt explorerPort)
 
   response <- httpJSON request
+
+  liftIO $ print $ getResponseBody response
   
   pure $ getResponseBody response
