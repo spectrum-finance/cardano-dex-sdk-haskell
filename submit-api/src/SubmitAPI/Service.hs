@@ -1,17 +1,18 @@
 module SubmitAPI.Service where
 
+import qualified RIO.List as L
 import           RIO
 import qualified Data.Set              as Set
 import qualified Data.ByteString.Char8 as B8
 import           GHC.Natural           (naturalToInteger)
-
+import qualified PlutusTx.AssocMap as Map
 import qualified CardanoTx.Models            as Sdk
 import qualified Cardano.Api                 as C
 import qualified Ledger                      as P
 import qualified PlutusTx.Builtins.Internal  as P
 import qualified Ledger.Ada                  as P
 import qualified Plutus.V1.Ledger.Credential as P
-
+import Plutus.V1.Ledger.Api (Value(..))
 import           SubmitAPI.Config
 import           SubmitAPI.Internal.Transaction
 import           NetworkAPI.Service             hiding (submitTx)
@@ -95,9 +96,16 @@ mkCollaterals wallet sysenv@SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandida
 
         collateral <- estimateCollateral' knownCollaterals
         utxos      <- selectUtxos wallet (P.toValue collateral) >>= maybe (throwM FailedToSatisfyCollateral) pure
-
-        let collaterals = Set.fromList $ Set.elems utxos <&> Sdk.FullCollateralTxIn
-
+        let inputsWOTokens = Set.filter onlyAdaValue utxos
+        let refs = Set.map (\x -> Sdk.fullTxOutRef $ Sdk.fullTxInTxOut x) txCandidateInputs
+        let filtered = Set.filter (\Sdk.FullTxOut{..}-> Set.member fullTxOutRef refs) inputsWOTokens
+        let collaterals = Set.fromList $ Set.elems filtered <&> Sdk.FullCollateralTxIn
+        liftIO $ print "<!~~~~>!"
+        liftIO $ print inputsWOTokens
+        liftIO $ print refs
+        liftIO $ print filtered
+        liftIO $ print collaterals
+        liftIO $ print "<!~~~~>!"
         collateral' <- estimateCollateral' collaterals
 
         if collateral' > collateral
@@ -106,8 +114,19 @@ mkCollaterals wallet sysenv@SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandida
 
   case (scriptInputs, collateralPolicy) of
     ([], _)    -> pure mempty
-    (_, Cover) -> collectCollaterals mempty
+    (_, Cover) -> collectCollaterals mempty  
     _          -> throwM CollateralNotAllowed
+
+onlyAdaValue :: Sdk.FullTxOut -> Bool
+onlyAdaValue Sdk.FullTxOut{..} = 
+  let
+    value = Map.toList $ getValue fullTxOutValue
+    isAdaCs = L.length  value == 1
+    isAdaTn = case (L.headMaybe value) of
+                  Just (_, tns) -> L.length (Map.toList tns) == 1
+                  _ -> False
+  in isAdaCs && isAdaTn
+
 
 dummyAddr :: Sdk.ChangeAddress
 dummyAddr =
