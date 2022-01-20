@@ -2,10 +2,11 @@ module NetworkAPI.Env where
 
 import qualified Data.Set        as Set
 import           Numeric.Natural
-import GHC.Natural
-import Cardano.Api
-import Cardano.Api.Shelley   (ProtocolParameters, PoolId)
-import Cardano.Slotting.Time (SystemStart)
+import           GHC.Natural
+
+import          Cardano.Api
+import          Cardano.Api.Shelley   (ProtocolParameters, PoolId)
+import          Cardano.Slotting.Time (SystemStart)
 
 import qualified Explorer.Models as Explorer
 

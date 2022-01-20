@@ -46,9 +46,6 @@ finalizeTx'
 finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   sysenv      <- getSystemEnv
   collaterals <- mkCollaterals wallet sysenv conf txc
-  liftIO $ print "----"
-  liftIO $ print collaterals
-  liftIO $ print "----"
 
   let
     isBalancedTx = amountIn == amountOut
@@ -61,16 +58,13 @@ finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCan
     Just (Sdk.ReturnTo changeAddr) -> buildBalancedTx sysenv (Sdk.ChangeAddress changeAddr) collaterals txc
     _ | isBalancedTx               -> buildBalancedTx sysenv dummyAddr collaterals txc
 
-  liftIO $ print "<3>"
 
   let
     requiredSigners = Set.elems txCandidateInputs >>= getPkh
       where
         getPkh Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{fullTxOutAddress=P.Address (P.PubKeyCredential pkh) _}} = [pkh]
         getPkh _                                                                                                = []
-  liftIO $ print "<4>"
   signers <- mapM (\pkh -> getSigningKey pkh >>= maybe (throwM $ SignerNotFound pkh) pure) requiredSigners
-  liftIO $ print "<5>"
   pure $ signTx txb signers
 
 mkCollaterals
@@ -100,13 +94,6 @@ mkCollaterals wallet sysenv@SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandida
         let refs = Set.map (\x -> Sdk.fullTxOutRef $ Sdk.fullTxInTxOut x) txCandidateInputs
         let filtered = Set.filter (\Sdk.FullTxOut{..}-> not (Set.member fullTxOutRef refs)) inputsWOTokens
         let collaterals = Set.fromList $ Set.elems filtered <&> Sdk.FullCollateralTxIn
-        liftIO $ print "<!~~~~>!"
-        liftIO $ print utxos
-        liftIO $ print inputsWOTokens
-        liftIO $ print refs
-        liftIO $ print filtered
-        liftIO $ print collaterals
-        liftIO $ print "<!~~~~>!"
         collateral' <- estimateCollateral' collaterals
 
         if collateral' > collateral

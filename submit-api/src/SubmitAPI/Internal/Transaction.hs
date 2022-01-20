@@ -37,15 +37,11 @@ buildBalancedTx
 buildBalancedTx SystemEnv{..} defaultChangeAddr collateral txc@Sdk.TxCandidate{..} = do
   let eraInMode    = AlonzoEraInCardanoMode
       witOverrides = Nothing
-  liftIO $ print "<-1>"
   txBody     <- buildTxBodyContent pparams network collateral txc
-  liftIO $ print "<0>"
   inputsMap  <- buildInputsUTxO network (Set.elems txCandidateInputs)
-  liftIO $ print "<1>"
   changeAddr <- absorbError $ case txCandidateChangePolicy of
     Just (Sdk.ReturnTo addr) -> Interop.toCardanoAddress network addr
     _                        -> Interop.toCardanoAddress network $ Sdk.getAddress defaultChangeAddr
-  liftIO $ print "<2>"
   absorbBalancingError $ makeTransactionBodyAutoBalance eraInMode sysstart eraHistory pparams pools inputsMap txBody changeAddr witOverrides
     where
       absorbBalancingError (Left e)  = throwM $ BalancingError $ T.pack $ show e
@@ -59,19 +55,9 @@ buildTxBodyContent
   -> Sdk.TxCandidate
   -> f (TxBodyContent BuildTx AlonzoEra)
 buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
-  liftIO $ print "<---0>"
   txIns           <- buildTxIns $ Set.elems txCandidateInputs
-  liftIO $ print "<---1>"
   txInsCollateral <- buildTxCollateral $ Set.elems collateral
-  liftIO $ print "<---2>"
-  liftIO $ print txInsCollateral
-  liftIO $ print "<---3>"
-  liftIO $ print txCandidateOutputs
-  liftIO $ print "<---3>"
   txOuts          <- buildTxOuts network txCandidateOutputs
-  liftIO $ print "<-->"
-  liftIO $ print $ txOuts
-  liftIO $ print "<-->"
   txFee           <- absorbError $ Interop.toCardanoFee dummyFee
   txValidityRange <- absorbError $ Interop.toCardanoValidityRange txCandidateValidRange
   txMintValue     <-
@@ -185,8 +171,7 @@ data TxAssemblyError
 
 absorbError :: (MonadThrow f, MonadIO f) => Either Interop.ToCardanoError a -> f a
 absorbError (Left err) = do
-  liftIO . print $ "The err has occurred"
-  liftIO . print $ err
+  liftIO . print $ "The err has occurred: " ++ show err 
   throwM $ adaptInteropError err
 absorbError (Right vl) = pure vl
 

@@ -25,7 +25,6 @@ submitTx' NodeConfig{..} tx = do
   liftIO . print $ "Going to submit tx to cardano node"
   let
     serialisedTx = Lazy.fromStrict $ serialiseToCBOR tx
-
     request = defaultRequest
       & setRequestPath (pack "api/submit/tx")
       & setRequestHost (pack host)
@@ -33,6 +32,5 @@ submitTx' NodeConfig{..} tx = do
       & setRequestHeader "Content-Type" ["application/cbor"]
       & setRequestMethod (pack "POST")
       & setRequestBodyLBS serialisedTx
-  liftIO $ print $ show tx
   response <- liftIO (httpJSON request :: IO (Response String))
-  liftIO $ print $ getResponseBody response
+  liftIO $ print $ "Response aftre tx submit is: " ++ getResponseBody response
