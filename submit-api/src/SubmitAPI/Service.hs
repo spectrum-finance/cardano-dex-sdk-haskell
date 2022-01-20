@@ -111,10 +111,10 @@ containsOnlyAda Sdk.FullTxOut{..} =
   let
     checkedValue            = Map.toList $ getValue fullTxOutValue
     currencySymbolCondition = L.length checkedValue == 1
-    tokenN`ameConditione    = case L.headMaybe checkedValue of
+    tokenNameConditione     = case L.headMaybe checkedValue of
                                 Just (_, tns) -> L.length (Map.toList tns) == 1
                                 _             -> False
-  in currencySymbolCondition && ameConditione
+  in currencySymbolCondition && tokenNameConditione
 
 
 dummyAddr :: Sdk.ChangeAddress
