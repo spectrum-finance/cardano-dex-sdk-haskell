@@ -2,27 +2,21 @@ module ErgoDex.Amm.PoolSetup where
 
 import           Control.Monad           (unless)
 import           Data.Functor
-import           Data.Foldable
-import           Data.Either.Combinators (maybeToRight, mapLeft)
+import           Data.Either.Combinators (mapLeft)
 import qualified Data.Set                as Set
 
-import           Ledger                          (PubKeyHash(..), Datum(..), Address, pubKeyHashAddress)
+import           Ledger          (PubKeyHash(..), Address, pubKeyHashAddress)
 import qualified Ledger.Interval as Interval
-import           Ledger.Value                    (AssetClass)
-import qualified Ledger.Typed.Scripts.Validators as Validators
-import           PlutusTx                        (toBuiltinData)
+import           Ledger.Value    (AssetClass)
 
 import           ErgoDex.Types
 import           ErgoDex.State
-import           ErgoDex.Class
-import           ErgoDex.Amm.Pool       (Pool(..), initPool)
+import           ErgoDex.Amm.Pool        (Pool(..), initPool)
 import           ErgoDex.Amm.Constants
-import qualified ErgoDex.Contracts.Pool as P
+import qualified ErgoDex.Contracts.Pool  as P
 import           ErgoDex.Contracts.Types
-import           ErgoDex.Contracts.OffChain
 import           CardanoTx.Models
-import           ErgoDex.Contracts.Pool (maxLqCap)
-import           ErgoDex.Contracts.Proxy.Order (isAda)
+import           ErgoDex.Contracts.Pool  (maxLqCap)
 
 data SetupExecError =
     MissingAsset AssetClass
@@ -32,7 +26,7 @@ data SetupExecError =
   | InsufficientInputs
 
 data PoolSetup = PoolSetup
-  { poolDeploy :: PubKeyHash -> P.PoolDatum -> [FullTxIn] -> Either SetupExecError TxCandidate
+  { poolDeploy :: PubKeyHash -> P.PoolDatum -> [FullTxOut] -> Either SetupExecError TxCandidate
   }
 
 mkPoolSetup :: Address -> PoolSetup
@@ -40,9 +34,8 @@ mkPoolSetup changeAddr = PoolSetup
   { poolDeploy = poolDeploy' changeAddr
   }
 
-poolDeploy' :: Address -> PubKeyHash -> P.PoolDatum -> [FullTxIn] -> Either SetupExecError TxCandidate
-poolDeploy' changeAddr rewardPkh pp@P.PoolDatum{..} inputs = do
-  let utxosIn = inputs <&> fullTxInTxOut
+poolDeploy' :: Address -> PubKeyHash -> P.PoolDatum -> [FullTxOut] -> Either SetupExecError TxCandidate
+poolDeploy' changeAddr rewardPkh pp@P.PoolDatum{..} utxosIn = do
   inNft <- overallAmountOf utxosIn poolNft
   inLq  <- overallAmountOf utxosIn poolLq
   inX   <- overallAmountOf utxosIn poolX
@@ -62,6 +55,7 @@ poolDeploy' changeAddr rewardPkh pp@P.PoolDatum{..} inputs = do
       , txOutCandidateDatum   = Nothing
       }
 
+    inputs  = utxosIn <&> mkPkhTxIn
     outputs = [poolOutput, rewardOutput]
 
     overallAdaOut = assetAmountOfCoin totalValueIn adaCoin

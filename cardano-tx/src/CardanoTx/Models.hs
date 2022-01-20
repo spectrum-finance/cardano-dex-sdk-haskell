@@ -57,6 +57,9 @@ data FullTxIn = FullTxIn
   , fullTxInType  :: TxInType
   } deriving (Show, Eq, Ord, Generic, FromJSON, ToJSON)
 
+mkPkhTxIn :: FullTxOut -> FullTxIn
+mkPkhTxIn fout = FullTxIn fout ConsumePublicKeyAddress
+
 mkScriptTxIn :: FullTxOut -> Validator -> Redeemer -> FullTxIn
 mkScriptTxIn fout@FullTxOut{..} v r =
   FullTxIn fout $ case (fullTxOutAddress, fullTxOutDatum) of
