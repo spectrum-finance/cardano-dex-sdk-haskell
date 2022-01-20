@@ -2,6 +2,7 @@ module ErgoDex.Amm.PoolSetup where
 
 import           Control.Monad           (unless)
 import           Data.Functor
+
 import           Data.Either.Combinators (mapLeft)
 import qualified Data.Set                as Set
 
