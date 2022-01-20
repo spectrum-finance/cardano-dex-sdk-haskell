@@ -15,12 +15,14 @@ import Explorer.Config
 data Explorer f = Explorer
   { getUnspentOutputs        :: Gix -> Limit -> f (Items FullTxOut)
   , getUnspentOutputsByPCred :: PaymentCred -> Paging -> f (Items FullTxOut)
+  , getSystemEnv             :: f SystemEnv
   }
 
 mkExplorer :: MonadIO f => ExplorerConfig -> Explorer f
 mkExplorer conf = Explorer
   { getUnspentOutputs        = getUnspentOutputs' conf
   , getUnspentOutputsByPCred = getUnspentOutputsByPCred' conf
+  , getSystemEnv             = getSystemEnv' conf
   }
 
 getUnspentOutputs' :: MonadIO f => ExplorerConfig -> Gix -> Limit -> f (Items FullTxOut)
@@ -31,7 +33,10 @@ getUnspentOutputsByPCred' :: MonadIO f => ExplorerConfig -> PaymentCred -> Pagin
 getUnspentOutputsByPCred' conf pcred Paging{..} =
   mkGetRequest conf $ "/outputs/unspent/byPaymentCred/" ++ (T.unpack $ unPaymentCred pcred) ++  "/?offset=" ++ show offset ++ "&limit=" ++ show limit
 
-mkGetRequest :: (MonadIO f, FromJSON a) => ExplorerConfig -> String -> f a
+getSystemEnv' :: MonadIO f => ExplorerConfig -> f SystemEnv
+getSystemEnv' conf = mkGetRequest conf "/networkParams"
+
+mkGetRequest :: (MonadIO f, FromJSON a, Show a) => ExplorerConfig -> String -> f a
 mkGetRequest ExplorerConfig{..} path = do
   let
     request = defaultRequest
@@ -41,4 +46,8 @@ mkGetRequest ExplorerConfig{..} path = do
 
   response <- httpJSON request
 
-  pure $ getResponseBody response
+  let parsedResponse = getResponseBody response
+
+  liftIO . print $ "Response is: " ++ show parsedResponse
+  
+  pure parsedResponse

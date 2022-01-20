@@ -2,7 +2,6 @@
 
 module Explorer.Models where
 
-import           Data.Aeson        (FromJSON)
 import           Data.Aeson.Types
 import           Data.String       (IsString(..))
 import qualified Data.Text         as T
@@ -14,6 +13,60 @@ import           Explorer.Types
 import           Explorer.Class
 import qualified CardanoTx.Models       as Tx
 
+import qualified Data.Set        as Set
+
+import qualified Cardano.Api as Api
+import           Cardano.Api.Shelley   (ProtocolParameters(..), PoolId)
+import qualified Ouroboros.Consensus.HardFork.History as History
+import           Ouroboros.Consensus.HardFork.History.Summary as HSummary
+import           Ouroboros.Consensus.HardFork.History.EraParams as EP
+import           Ouroboros.Consensus.BlockchainTime.WallClock.Types
+import           Ouroboros.Consensus.Block
+import           Ouroboros.Consensus.Util.Counting
+
+data SystemEnv = SystemEnv
+  { pparams'           :: ProtocolParameters
+  , network'           :: Api.NetworkId
+  , sysstart'          :: SystemStart
+  , pools'             :: Set.Set PoolId
+  , eraHistory'        :: Api.EraHistory Api.CardanoMode
+  , collateralPercent' :: Int
+  } deriving (Show, Generic)
+
+instance Show (Api.EraHistory Api.CardanoMode) where
+  show _ = "Era history"
+
+instance FromJSON SystemEnv where
+  parseJSON = withObject "SystemEnv" $ \o -> do
+    pparams'           <- o .: "pparams"
+    sysstart'          <- o .: "sysstart"
+    collateralPercent' <- o .: "collateralPercent"
+    return 
+      SystemEnv
+        { pparams' = pparams'
+        , network'           = Api.Testnet $ Api.NetworkMagic 1097911063
+        , sysstart'          = sysstart'
+        , pools'             = Set.empty
+        , eraHistory'        = dummyEraHistory
+        , collateralPercent' = collateralPercent'
+        }
+
+dummyEraHistory :: Api.EraHistory Api.CardanoMode
+dummyEraHistory =
+  Api.EraHistory 
+    Api.CardanoMode 
+    (History.mkInterpreter $ Summary $ NonEmptyOne $ 
+      EraSummary {
+          eraStart  = initBound
+        , eraEnd    = EraUnbounded
+        , eraParams = EraParams {
+            eraEpochSize  = EpochSize 100
+          , eraSlotLength = mkSlotLength 100
+          , eraSafeZone   = UnsafeIndefiniteSafeZone
+          }
+        }
+    )
+        
 data Paging = Paging
   { offset :: Int
   , limit  :: Int

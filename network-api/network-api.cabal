@@ -97,4 +97,5 @@ library
         extra,
         cardano-api,
         text,
-        dhall
+        dhall,
+        quickblue
