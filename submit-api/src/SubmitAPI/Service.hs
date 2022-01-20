@@ -90,10 +90,11 @@ mkCollaterals wallet sysenv@SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandida
 
         collateral <- estimateCollateral' knownCollaterals
         utxos      <- selectUtxos wallet (P.toValue (P.Lovelace 20000000)) >>= maybe (throwM FailedToSatisfyCollateral) pure
-        let inputsWOTokens = Set.filter onlyAdaValue utxos
-        let refs = Set.map (\x -> Sdk.fullTxOutRef $ Sdk.fullTxInTxOut x) txCandidateInputs
-        let filtered = Set.filter (\Sdk.FullTxOut{..}-> not (Set.member fullTxOutRef refs)) inputsWOTokens
-        let collaterals = Set.fromList $ Set.elems filtered <&> Sdk.FullCollateralTxIn
+        let 
+          explorerInputsWithOnlyAda = Set.filter containsOnlyAda utxos
+          txInputRefs               = Set.map (\x -> Sdk.fullTxOutRef $ Sdk.fullTxInTxOut x) txCandidateInputs
+          filtered                  = Set.filter (\Sdk.FullTxOut{..} -> not (Set.member fullTxOutRef txInputRefs)) explorerInputsWithOnlyAda
+          collaterals               = Set.fromList $ Set.elems filtered <&> Sdk.FullCollateralTxIn
         collateral' <- estimateCollateral' collaterals
 
         if collateral' > collateral
@@ -105,15 +106,15 @@ mkCollaterals wallet sysenv@SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandida
     (_, Cover) -> collectCollaterals mempty  
     _          -> throwM CollateralNotAllowed
 
-onlyAdaValue :: Sdk.FullTxOut -> Bool
-onlyAdaValue Sdk.FullTxOut{..} = 
+containsOnlyAda :: Sdk.FullTxOut -> Bool
+containsOnlyAda Sdk.FullTxOut{..} = 
   let
-    value = Map.toList $ getValue fullTxOutValue
-    isAdaCs = L.length  value == 1
-    isAdaTn = case (L.headMaybe value) of
-                  Just (_, tns) -> L.length (Map.toList tns) == 1
-                  _ -> False
-  in isAdaCs && isAdaTn
+    checkedValue            = Map.toList $ getValue fullTxOutValue
+    currencySymbolCondition = L.length checkedValue == 1
+    tokenN`ameConditione    = case L.headMaybe checkedValue of
+                                Just (_, tns) -> L.length (Map.toList tns) == 1
+                                _             -> False
+  in currencySymbolCondition && ameConditione
 
 
 dummyAddr :: Sdk.ChangeAddress
