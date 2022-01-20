@@ -12,7 +12,7 @@ import qualified Ledger                      as P
 import qualified PlutusTx.Builtins.Internal  as P
 import qualified Ledger.Ada                  as P
 import qualified Plutus.V1.Ledger.Credential as P
-import Plutus.V1.Ledger.Api (Value(..))
+import           Plutus.V1.Ledger.Api (Value(..))
 import           SubmitAPI.Config
 import           SubmitAPI.Internal.Transaction
 import           NetworkAPI.Service             hiding (submitTx)
@@ -89,10 +89,10 @@ mkCollaterals wallet sysenv@SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandida
             pure $ P.Lovelace $ collateralPercent' * fee' `div` 100
 
         collateral <- estimateCollateral' knownCollaterals
-        utxos      <- selectUtxos wallet (P.toValue (P.Lovelace 20000000)) >>= maybe (throwM FailedToSatisfyCollateral) pure
+        utxos      <- selectUtxos wallet (P.toValue collateral) >>= maybe (throwM FailedToSatisfyCollateral) pure
         let 
           explorerInputsWithOnlyAda = Set.filter containsOnlyAda utxos
-          txInputRefs               = Set.map (\x -> Sdk.fullTxOutRef $ Sdk.fullTxInTxOut x) txCandidateInputs
+          txInputRefs               = Set.map (Sdk.fullTxOutRef . Sdk.fullTxInTxOut) txCandidateInputs
           filtered                  = Set.filter (\Sdk.FullTxOut{..} -> not (Set.member fullTxOutRef txInputRefs)) explorerInputsWithOnlyAda
           collaterals               = Set.fromList $ Set.elems filtered <&> Sdk.FullCollateralTxIn
         collateral' <- estimateCollateral' collaterals
