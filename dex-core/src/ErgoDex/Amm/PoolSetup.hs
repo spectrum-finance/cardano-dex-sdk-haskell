@@ -14,10 +14,10 @@ import           ErgoDex.Types
 import           ErgoDex.State
 import           ErgoDex.Amm.Pool        (Pool(..), initPool)
 import           ErgoDex.Amm.Constants
-import qualified ErgoDex.Contracts.Pool  as P
+import qualified ErgoDex.Contracts.Typed as P
 import           ErgoDex.Contracts.Types
 import           CardanoTx.Models
-import           ErgoDex.Contracts.Pool  (maxLqCap)
+import           ErgoDex.Contracts.Pool  (maxLqCapAmount)
 
 data SetupExecError =
     MissingAsset AssetClass
@@ -28,7 +28,7 @@ data SetupExecError =
   deriving Show
 
 data PoolSetup = PoolSetup
-  { poolDeploy :: PubKeyHash -> P.PoolDatum -> [FullTxOut] -> Either SetupExecError TxCandidate
+  { poolDeploy :: PubKeyHash -> P.PoolConfig -> [FullTxOut] -> Either SetupExecError TxCandidate
   }
 
 mkPoolSetup :: Address -> PoolSetup
@@ -36,15 +36,15 @@ mkPoolSetup changeAddr = PoolSetup
   { poolDeploy = poolDeploy' changeAddr
   }
 
-poolDeploy' :: Address -> PubKeyHash -> P.PoolDatum -> [FullTxOut] -> Either SetupExecError TxCandidate
-poolDeploy' changeAddr rewardPkh pp@P.PoolDatum{..} utxosIn = do
+poolDeploy' :: Address -> PubKeyHash -> P.PoolConfig -> [FullTxOut] -> Either SetupExecError TxCandidate
+poolDeploy' changeAddr rewardPkh pp@P.PoolConfig{..} utxosIn = do
   inNft <- overallAmountOf utxosIn poolNft
   inLq  <- overallAmountOf utxosIn poolLq
   inX   <- overallAmountOf utxosIn poolX
   inY   <- overallAmountOf utxosIn poolY
 
   unless (amountEq inNft 1) (Left InvalidNft) -- make sure valid NFT is provided
-  unless (getAmount inLq == maxLqCap) (Left InvalidLiquidity) -- make sure valid amount of LQ tokens is provided
+  unless (getAmount inLq == maxLqCapAmount) (Left InvalidLiquidity) -- make sure valid amount of LQ tokens is provided
 
   (Predicted poolOutput nextPool, unlockedLq) <-
     mapLeft (const InvalidLiquidity) (initPool pp (getAmount inX, getAmount inY))

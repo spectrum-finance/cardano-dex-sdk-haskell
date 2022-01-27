@@ -1,6 +1,7 @@
 module ErgoDex.Amm.Pool where
 
 import Data.Bifunctor
+import Data.Functor
 import Data.Aeson     (FromJSON, ToJSON)
 import GHC.Generics   (Generic)
 
@@ -12,23 +13,24 @@ import PlutusTx.Sqrt
 import PlutusTx.Numeric                (AdditiveMonoid(zero))
 import Plutus.V1.Ledger.Ada            (lovelaceValueOf)
 
-import CardanoTx.Models
-import ErgoDex.Class
-import ErgoDex.Types
-import ErgoDex.State
-import ErgoDex.Contracts.Types
-import ErgoDex.Contracts.Pool
-import ErgoDex.Contracts.OffChain
-import ErgoDex.Contracts.Proxy.Order (isAda)
-import ErgoDex.Amm.Constants         (minSafeOutputAmount, minSafeOutputValue)
+import           CardanoTx.Models
+import           ErgoDex.Class
+import           ErgoDex.Types
+import           ErgoDex.State
+import qualified ErgoDex.Contracts.Typed       as S
+import           ErgoDex.Contracts.Types
+import qualified ErgoDex.Contracts.Proxy.Order as W
+import           ErgoDex.Contracts.Pool
+import           ErgoDex.Contracts.OffChain
+import           ErgoDex.Amm.Constants         (minSafeOutputAmount, minSafeOutputValue)
 
 newtype PoolId = PoolId { unPoolId :: Coin Nft }
   deriving (Show, Eq, Generic)
   deriving newtype (FromJSON, ToJSON)
 
 data PoolFee = PoolFee
-  { poolFeeNum :: Integer
-  , poolFeeDen :: Integer
+  { poolFeeNum' :: Integer
+  , poolFeeDen' :: Integer
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 data Pool = Pool
@@ -49,24 +51,24 @@ feeDen = 1000
 instance FromLedger Pool where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
-      (Just PoolDatum{..}) ->
+      (Just PoolConfig{..}) ->
           Just $ Confirmed fout Pool
-            { poolId        = PoolId poolNft
+            { poolId        = PoolId $ Coin  poolNft
             , poolReservesX = rx
             , poolReservesY = ry
             , poolLiquidity = lq
-            , poolCoinX     = poolX
-            , poolCoinY     = poolY
-            , poolCoinLq    = poolLq
-            , poolFee       = PoolFee feeNum feeDen
+            , poolCoinX     = Coin poolX
+            , poolCoinY     = Coin poolY
+            , poolCoinLq    = Coin poolLq
+            , poolFee       = PoolFee poolFeeNum feeDen
             , outCollateral = collateral
             }
         where
-          rx         = Amount $ assetClassValueOf fullTxOutValue (unCoin poolX)
-          ry         = Amount $ assetClassValueOf fullTxOutValue (unCoin poolY)
-          rlq        = Amount $ assetClassValueOf fullTxOutValue (unCoin poolLq)
-          lq         = maxLqCap - rlq -- actual LQ emission
-          collateral = if isAda poolX || isAda poolY then zero else minSafeOutputAmount
+          rx         = Amount $ assetClassValueOf fullTxOutValue poolX
+          ry         = Amount $ assetClassValueOf fullTxOutValue poolY
+          rlq        = Amount $ assetClassValueOf fullTxOutValue poolLq
+          lq         = maxLqCapAmount - rlq -- actual LQ emission
+          collateral = if W.isAda poolX || W.isAda poolY then zero else minSafeOutputAmount
       _ -> Nothing
   parseFromLedger _ = Nothing
 
@@ -75,29 +77,29 @@ instance ToLedger Pool where
       TxOutCandidate
         { txOutCandidateAddress  = validatorAddress poolInstance
         , txOutCandidateValue    = poolValue
-        , txOutCandidateDatum    = Just $ Datum $ toBuiltinData nextPoolDatum
+        , txOutCandidateDatum    = Just $ Datum $ toBuiltinData poolConf
         }
     where
       nft            = unPoolId poolId
-      poolLqReserves = maxLqCap - poolLiquidity
+      poolLqReserves = maxLqCapAmount - poolLiquidity
       poolValue      = assetClassValue (unCoin nft) 1 <>
                        assetAmountValue (AssetAmount poolCoinLq poolLqReserves) <>
                        assetAmountValue (AssetAmount poolCoinX poolReservesX) <>
                        assetAmountValue (AssetAmount poolCoinY poolReservesY) <>
                        lovelaceValueOf (unAmount outCollateral)
 
-      nextPoolDatum = PoolDatum
-        { poolNft = nft
-        , poolX   = poolCoinX
-        , poolY   = poolCoinY
-        , poolLq  = poolCoinLq
-        , feeNum  = poolFeeNum poolFee
+      poolConf = PoolConfig
+        { poolNft    = unCoin nft
+        , poolX      = unCoin poolCoinX
+        , poolY      = unCoin poolCoinY
+        , poolLq     = unCoin poolCoinLq
+        , poolFeeNum = poolFeeNum' poolFee
         }
 
 data PoolInitError = InvalidLiquidity Integer
 
-initPool :: PoolDatum -> (Amount X, Amount Y) -> Either PoolInitError (Predicted Pool, Amount Liquidity)
-initPool PoolDatum{..} (inX, inY) = do
+initPool :: S.PoolConfig -> (Amount X, Amount Y) -> Either PoolInitError (Predicted Pool, Amount Liquidity)
+initPool S.PoolConfig{..} (inX, inY) = do
   unlockedLq <- fmap getAmount (initialLiquidityAmount poolLq (inX, inY))
   let
     outCollateral =
@@ -112,7 +114,7 @@ initPool PoolDatum{..} (inX, inY) = do
       , poolCoinX     = poolX
       , poolCoinY     = poolY
       , poolCoinLq    = poolLq
-      , poolFee       = PoolFee feeNum feeDen
+      , poolFee       = PoolFee poolFeeNum feeDen
       , outCollateral = outCollateral
       }
     poolOut = toLedger pool
@@ -199,10 +201,10 @@ outputAmount :: Pool -> AssetAmount Base -> AssetAmount Quote
 outputAmount Pool{poolFee=PoolFee{..}, ..} (AssetAmount baseAsset (Amount baseAmount)) =
     if xy then
       assetAmountCoinOf (retagCoin poolCoinY)
-        ((poolReservesY' * baseAmount * poolFeeNum) `div` (poolReservesX' * poolFeeDen + baseAmount * poolFeeNum))
+        ((poolReservesY' * baseAmount * poolFeeNum') `div` (poolReservesX' * poolFeeDen' + baseAmount * poolFeeNum'))
     else
       assetAmountCoinOf (retagCoin poolCoinX)
-        ((poolReservesX' * baseAmount * poolFeeNum) `div` (poolReservesY' * poolFeeDen + baseAmount * poolFeeNum))
+        ((poolReservesX' * baseAmount * poolFeeNum') `div` (poolReservesY' * poolFeeDen' + baseAmount * poolFeeNum'))
   where
     xy             = unCoin baseAsset == unCoin poolCoinX
     poolReservesX' = unAmount poolReservesX

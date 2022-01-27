@@ -35,18 +35,18 @@ data Swap = Swap
 instance FromLedger Swap where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
-      (Just SwapDatum{..}) ->
+      (Just SwapConfig{..}) ->
           Just $ Confirmed fout Swap
-            { swapPoolId      = PoolId poolNft
+            { swapPoolId      = PoolId $ Coin poolNft
             , swapBaseIn      = baseIn
-            , swapMinQuoteOut = minQuoteAmount
-            , swapBase        = base
-            , swapQuote       = quote
+            , swapMinQuoteOut = Amount minQuoteAmount
+            , swapBase        = Coin base
+            , swapQuote       = Coin quote
             , swapExFee       = ExFeePerToken exFeePerTokenNum exFeePerTokenDen
             , swapRewardPkh   = rewardPkh
             }
         where
-          baseIn = Amount $ assetClassValueOf fullTxOutValue (unCoin base)
+          baseIn = Amount $ assetClassValueOf fullTxOutValue base
       _ -> Nothing
   parseFromLedger _ = Nothing
 
@@ -61,15 +61,15 @@ data Deposit = Deposit
 instance FromLedger Deposit where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
-      (Just DepositDatum{..}) ->
+      (Just DepositConfig{..}) ->
         case extractPairValue fullTxOutValue of
           [assetX, assetY] ->
               Just $ Confirmed fout Deposit
-                { depositPoolId    = PoolId poolNft
+                { depositPoolId    = PoolId $ Coin poolNft
                 , depositPair      = pair
-                , depositExFee     = ExFee exFee
+                , depositExFee     = ExFee $ Amount exFee
                 , depositRewardPkh = rewardPkh
-                , adaCollateral    = collateralAda
+                , adaCollateral    = Amount collateralAda
                 }
             where
               toEntry = uncurry3 assetEntry
@@ -89,14 +89,14 @@ data Redeem = Redeem
 instance FromLedger Redeem where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
-      (Just RedeemDatum{..}) ->
+      (Just RedeemConfig{..}) ->
         case extractPairValue fullTxOutValue of
           [(ac, tn, v)] ->
               Just $ Confirmed fout Redeem
-                { redeemPoolId    = PoolId poolNft
+                { redeemPoolId    = PoolId $ Coin poolNft
                 , redeemLqIn      = Amount v
                 , redeemLq        = Coin $ AssetClass (ac, tn)
-                , redeemExFee     = ExFee exFee
+                , redeemExFee     = ExFee $ Amount exFee
                 , redeemRewardPkh = rewardPkh
                 }
           _ -> Nothing
