@@ -22,7 +22,7 @@ import           ErgoDex.Contracts.Types
 import qualified ErgoDex.Contracts.Proxy.Order as W
 import           ErgoDex.Contracts.Pool
 import           ErgoDex.Contracts.OffChain
-import           ErgoDex.Amm.Constants         (minSafeOutputAmount, minSafeOutputValue)
+import           ErgoDex.Amm.Constants         (minSafeOutputAmount)
 
 newtype PoolId = PoolId { unPoolId :: Coin Nft }
   deriving (Show, Eq, Generic)
@@ -52,7 +52,7 @@ instance FromLedger Pool where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
       (Just PoolConfig{..}) ->
-          Just $ Confirmed fout Pool
+          Just $ OnChain fout Pool
             { poolId        = PoolId $ Coin  poolNft
             , poolReservesX = rx
             , poolReservesY = ry
