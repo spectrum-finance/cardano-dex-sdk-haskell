@@ -2,6 +2,7 @@ module ErgoDex.Amm.Orders where
 
 import           Data.Tuple.Extra
 import           Data.Bifunctor
+import           Control.Monad    (when)
 import           Data.Function
 import           Data.Aeson       (FromJSON(..), ToJSON(..), object, (.=), (.:))
 import qualified Data.Aeson       as JSON
@@ -11,6 +12,7 @@ import           Ledger
 import           PlutusTx.IsData.Class
 import           Ledger.Value          (AssetClass(..), assetClassValueOf, flattenValue)
 import qualified Ledger.Ada            as Ada
+import           PlutusTx.Prelude      (divide)
 
 import CardanoTx.Models
 import ErgoDex.Types
@@ -35,18 +37,24 @@ data Swap = Swap
 instance FromLedger Swap where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
-      (Just SwapConfig{..}) ->
-          Just $ Confirmed fout Swap
-            { swapPoolId      = PoolId $ Coin poolNft
-            , swapBaseIn      = baseIn
-            , swapMinQuoteOut = Amount minQuoteAmount
-            , swapBase        = Coin base
-            , swapQuote       = Coin quote
-            , swapExFee       = ExFeePerToken exFeePerTokenNum exFeePerTokenDen
-            , swapRewardPkh   = rewardPkh
-            }
-        where
-          baseIn = Amount $ assetClassValueOf fullTxOutValue base
+      (Just SwapConfig{..}) -> do
+        let
+          swapBase = Coin base
+          baseIn   = Amount $ assetClassValueOf fullTxOutValue base
+          minBase  =
+            if isAda swapBase
+              then baseAmount + divide (minQuoteAmount * exFeePerTokenNum) exFeePerTokenDen
+              else baseAmount
+        when (unAmount baseIn < minBase) Nothing
+        Just $ OnChain fout Swap
+          { swapPoolId      = PoolId $ Coin poolNft
+          , swapBaseIn      = Amount baseAmount
+          , swapMinQuoteOut = Amount minQuoteAmount
+          , swapBase        = swapBase
+          , swapQuote       = Coin quote
+          , swapExFee       = ExFeePerToken exFeePerTokenNum exFeePerTokenDen
+          , swapRewardPkh   = rewardPkh
+          }
       _ -> Nothing
   parseFromLedger _ = Nothing
 
@@ -61,10 +69,13 @@ data Deposit = Deposit
 instance FromLedger Deposit where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
-      (Just DepositConfig{..}) ->
+      (Just DepositConfig{..}) -> do
+        let adaIn       = Ada.getLovelace $ Ada.fromValue fullTxOutValue
+            adaDeclared = exFee + collateralAda
+        when (adaIn < adaDeclared) Nothing
         case extractPairValue fullTxOutValue of
           [assetX, assetY] ->
-              Just $ Confirmed fout Deposit
+              Just $ OnChain fout Deposit
                 { depositPoolId    = PoolId $ Coin poolNft
                 , depositPair      = pair
                 , depositExFee     = ExFee $ Amount exFee
@@ -89,10 +100,12 @@ data Redeem = Redeem
 instance FromLedger Redeem where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
     case fromBuiltinData d of
-      (Just RedeemConfig{..}) ->
+      (Just RedeemConfig{..}) -> do
+        let adaIn = Ada.getLovelace $ Ada.fromValue fullTxOutValue
+        when (adaIn < exFee) Nothing
         case extractPairValue fullTxOutValue of
           [(ac, tn, v)] ->
-              Just $ Confirmed fout Redeem
+              Just $ OnChain fout Redeem
                 { redeemPoolId    = PoolId $ Coin poolNft
                 , redeemLqIn      = Amount v
                 , redeemLq        = Coin $ AssetClass (ac, tn)
