@@ -25,7 +25,6 @@ import qualified ErgoDex.Contracts.Pool as P
 import           ErgoDex.Contracts.Types
 import           ErgoDex.Amm.Scripts
 import           CardanoTx.Models
-import ErgoDex.Contracts.Proxy.Order (isAda)
 
 data OrderExecErr =
     PriceTooHigh

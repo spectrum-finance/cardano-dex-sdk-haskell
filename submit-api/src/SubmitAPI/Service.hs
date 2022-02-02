@@ -1,17 +1,18 @@
 module SubmitAPI.Service where
 
+import qualified RIO.List as L
 import           RIO
 import qualified Data.Set              as Set
 import qualified Data.ByteString.Char8 as B8
 import           GHC.Natural           (naturalToInteger)
-
+import qualified PlutusTx.AssocMap as Map
 import qualified CardanoTx.Models            as Sdk
 import qualified Cardano.Api                 as C
 import qualified Ledger                      as P
 import qualified PlutusTx.Builtins.Internal  as P
 import qualified Ledger.Ada                  as P
 import qualified Plutus.V1.Ledger.Credential as P
-
+import           Plutus.V1.Ledger.Api (Value(..))
 import           SubmitAPI.Config
 import           SubmitAPI.Internal.Transaction
 import           SubmitAPI.ViaPAB.Transaction as ViaPAB
@@ -27,7 +28,7 @@ data Transactions f = Transactions
   }
 
 mkSubmitService
-  :: MonadThrow f
+  :: (MonadThrow f, MonadIO f)
   => Network f
   -> Vault f
   -> TxAssemblyConfig
@@ -54,7 +55,7 @@ finalizeTxViaPAB wallet Network{getSystemEnv} conf txc = do
     undefined
 
 finalizeTx'
-  :: MonadThrow f
+  :: (MonadThrow f, MonadIO f)
   => Network f
   -> Vault f
   -> TxAssemblyConfig
@@ -75,14 +76,13 @@ finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCan
     Just (Sdk.ReturnTo changeAddr) -> buildBalancedTx sysenv (Sdk.ChangeAddress changeAddr) collaterals txc
     _ | isBalancedTx               -> buildBalancedTx sysenv dummyAddr collaterals txc
 
+
   let
     requiredSigners = Set.elems txCandidateInputs >>= getPkh
       where
         getPkh Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{fullTxOutAddress=P.Address (P.PubKeyCredential pkh) _}} = [pkh]
         getPkh _                                                                                                = []
-
   signers <- mapM (\pkh -> getSigningKey pkh >>= maybe (throwM $ SignerNotFound pkh) pure) requiredSigners
-
   pure $ signTx txb signers
 
 selectCollaterals
@@ -119,8 +119,19 @@ selectCollaterals WalletOutputs{selectUtxos} sysenv@SystemEnv{..} TxAssemblyConf
 
   case (scriptInputs, collateralPolicy) of
     ([], _)    -> pure mempty
-    (_, Cover) -> collectCollaterals mempty
+    (_, Cover) -> collectCollaterals mempty  
     _          -> throwM CollateralNotAllowed
+
+containsOnlyAda :: Sdk.FullTxOut -> Bool
+containsOnlyAda Sdk.FullTxOut{..} = 
+  let
+    checkedValue            = Map.toList $ getValue fullTxOutValue
+    currencySymbolCondition = L.length checkedValue == 1
+    tokenNameConditione     = case L.headMaybe checkedValue of
+                                Just (_, tns) -> L.length (Map.toList tns) == 1
+                                _             -> False
+  in currencySymbolCondition && tokenNameConditione
+
 
 dummyAddr :: Sdk.ChangeAddress
 dummyAddr =

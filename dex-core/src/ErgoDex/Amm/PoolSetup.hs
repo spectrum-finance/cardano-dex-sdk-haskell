@@ -1,103 +1,85 @@
 module ErgoDex.Amm.PoolSetup where
 
 import           Control.Monad           (unless)
-import           Data.Foldable
-import           Data.Either.Combinators (maybeToRight, mapLeft)
+import           Data.Functor
+
+import           Data.Either.Combinators (mapLeft)
 import qualified Data.Set                as Set
 
-import           Ledger                          (PubKeyHash(..), Datum(..), Address, pubKeyHashAddress)
+import           Ledger          (PubKeyHash(..), Address, pubKeyHashAddress)
 import qualified Ledger.Interval as Interval
-import           Ledger.Value                    (AssetClass)
-import qualified Ledger.Typed.Scripts.Validators as Validators
-import           PlutusTx                        (toBuiltinData)
+import           Ledger.Value    (AssetClass)
 
 import           ErgoDex.Types
 import           ErgoDex.State
-import           ErgoDex.Class
-import           ErgoDex.Amm.Pool       (Pool(..), applyInit)
-import qualified ErgoDex.Contracts.Pool as P
+import           ErgoDex.Amm.Pool        (Pool(..), initPool)
+import           ErgoDex.Amm.Constants
+import qualified ErgoDex.Contracts.Typed as P
 import           ErgoDex.Contracts.Types
-import           ErgoDex.OffChain
 import           CardanoTx.Models
+import           ErgoDex.Contracts.Pool  (maxLqCapAmount)
 
 data SetupExecError =
     MissingAsset AssetClass
   | MissingPool
   | InvalidNft
   | InvalidLiquidity
+  | InsufficientInputs
+  deriving Show
 
 data PoolSetup = PoolSetup
-  { poolDeploy :: P.PoolDatum -> [FullTxIn] -> Either SetupExecError TxCandidate
-  , poolInit   :: [FullTxIn]   -> PubKeyHash -> Either SetupExecError TxCandidate
+  { poolDeploy :: PubKeyHash -> P.PoolConfig -> [FullTxOut] -> Either SetupExecError TxCandidate
   }
 
 mkPoolSetup :: Address -> PoolSetup
 mkPoolSetup changeAddr = PoolSetup
   { poolDeploy = poolDeploy' changeAddr
-  , poolInit   = poolInit' changeAddr
   }
 
-poolDeploy' :: Address -> P.PoolDatum -> [FullTxIn] -> Either SetupExecError TxCandidate
-poolDeploy' changeAddr pp@P.PoolDatum{..} inputs = do
-  inNft <- tryGetInputAmountOf inputs poolNft
+poolDeploy' :: Address -> PubKeyHash -> P.PoolConfig -> [FullTxOut] -> Either SetupExecError TxCandidate
+poolDeploy' changeAddr rewardPkh pp@P.PoolConfig{..} utxosIn = do
+  inNft <- overallAmountOf utxosIn poolNft
+  inLq  <- overallAmountOf utxosIn poolLq
+  inX   <- overallAmountOf utxosIn poolX
+  inY   <- overallAmountOf utxosIn poolY
+
   unless (amountEq inNft 1) (Left InvalidNft) -- make sure valid NFT is provided
+  unless (getAmount inLq == maxLqCapAmount) (Left InvalidLiquidity) -- make sure valid amount of LQ tokens is provided
+
+  (Predicted poolOutput nextPool, unlockedLq) <-
+    mapLeft (const InvalidLiquidity) (initPool pp (getAmount inX, getAmount inY))
+
   let
-    poolOutput = TxOutCandidate
-      { txOutCandidateAddress = Validators.validatorAddress poolInstance
-      , txOutCandidateValue   = assetAmountValue inNft
-      , txOutCandidateDatum   = Just $ Datum $ PlutusTx.toBuiltinData pp
+    mintLqValue  = coinAmountValue (poolCoinLq nextPool) unlockedLq
+    rewardOutput = TxOutCandidate
+      { txOutCandidateAddress = pubKeyHashAddress rewardPkh
+      , txOutCandidateValue   = mintLqValue <> minSafeOutputValue
+      , txOutCandidateDatum   = Nothing
       }
+
+    inputs  = utxosIn <&> mkPkhTxIn
+    outputs = [poolOutput, rewardOutput]
+
+    overallAdaOut = assetAmountOfCoin totalValueIn adaCoin
+      where totalValueIn = foldr ( (<>) . txOutCandidateValue) mempty outputs
+
+  overallAdaIn <- overallAmountOf utxosIn adaCoin
+  unless (overallAdaIn >= overallAdaOut) (Left InsufficientInputs)
 
   Right $ TxCandidate
     { txCandidateInputs       = Set.fromList inputs
-    , txCandidateOutputs      = [poolOutput]
+    , txCandidateOutputs      = [poolOutput, rewardOutput]
     , txCandidateValueMint    = mempty -- todo: mint NFT and LQ right there?
     , txCandidateMintInputs   = mempty
     , txCandidateChangePolicy = Just $ ReturnTo changeAddr
     , txCandidateValidRange   = Interval.always
     }
 
-poolInit' :: Address -> [FullTxIn] -> PubKeyHash -> Either SetupExecError TxCandidate
-poolInit' changeAddr inputs rewardPkh = do
-  let
-    poolAddress    = Validators.validatorAddress poolInstance
-    maybePoolInput = find (\i -> (fullTxOutAddress . fullTxInTxOut) i == poolAddress) inputs
-
-  poolInput        <- maybeToRight MissingPool maybePoolInput
-  Confirmed _ pool <- maybeToRight MissingPool (parseFromLedger $ fullTxInTxOut poolInput)
-
-  inX <- tryGetInputAmountOf inputs (poolCoinX pool)
-  inY <- tryGetInputAmountOf inputs (poolCoinY pool)
-
-  Predicted poolOutput nextPool <- mapLeft (const InvalidLiquidity) (applyInit pool (getAmount inX, getAmount inY))
-
-  let
-    inputsReordered = poolInput : filter (/= poolInput) inputs
-
-    mintLqValue = coinAmountValue (poolCoinLq nextPool) (poolLiquidity nextPool)
-
-    outputs = [poolOutput, rewardOutput]
-      where
-        rewardOutput = TxOutCandidate
-          { txOutCandidateAddress = pubKeyHashAddress rewardPkh
-          , txOutCandidateValue   = mintLqValue
-          , txOutCandidateDatum   = Nothing
-          }
-
-  Right $ TxCandidate
-    { txCandidateInputs       = Set.fromList inputsReordered
-    , txCandidateOutputs      = outputs
-    , txCandidateValueMint    = mempty
-    , txCandidateMintInputs   = mempty
-    , txCandidateChangePolicy = Just $ ReturnTo changeAddr
-    , txCandidateValidRange   = Interval.always
-    }
-
-tryGetInputAmountOf :: [FullTxIn] -> Coin a -> Either SetupExecError (AssetAmount a)
-tryGetInputAmountOf inputs c =
+overallAmountOf :: [FullTxOut] -> Coin a -> Either SetupExecError (AssetAmount a)
+overallAmountOf utxos c =
     if amountEq coinAmount 0
-    then Right coinAmount
-    else Left $ MissingAsset $ unCoin c
+    then Left $ MissingAsset $ unCoin c
+    else Right coinAmount
   where
-    totalValueIn = foldr ( (<>) . fullTxOutValue . fullTxInTxOut) mempty inputs
+    totalValueIn = foldr ( (<>) . fullTxOutValue) mempty utxos
     coinAmount   = assetAmountOfCoin totalValueIn c

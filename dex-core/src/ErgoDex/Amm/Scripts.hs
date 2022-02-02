@@ -3,7 +3,8 @@ module ErgoDex.Amm.Scripts where
 import Ledger
 import Ledger.Typed.Scripts.Validators
 
-import ErgoDex.OffChain
+import ErgoDex.Contracts.OffChain
+import ErgoDex.Contracts.Proxy.OffChain
 
 poolScript :: Validator
 poolScript = validatorScript poolInstance

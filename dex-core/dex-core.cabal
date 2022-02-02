@@ -78,8 +78,8 @@ library
                      ErgoDex.Amm.PoolActions
                      ErgoDex.Amm.PoolSetup
                      ErgoDex.Amm.Scripts
+                     ErgoDex.Amm.Constants
                      ErgoDex.Types
-                     ErgoDex.Utils
 
     build-depends:
         cardano-tx==0.1.0.0,

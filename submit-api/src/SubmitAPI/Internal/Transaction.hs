@@ -28,7 +28,7 @@ signTx body keys =
     where wits = keys <&> makeShelleyKeyWitness body
 
 buildBalancedTx
-  :: MonadThrow f
+  :: (MonadThrow f, MonadIO f)
   => SystemEnv
   -> Sdk.ChangeAddress
   -> Set.Set Sdk.FullCollateralTxIn
@@ -37,20 +37,18 @@ buildBalancedTx
 buildBalancedTx SystemEnv{..} defaultChangeAddr collateral txc@Sdk.TxCandidate{..} = do
   let eraInMode    = AlonzoEraInCardanoMode
       witOverrides = Nothing
-
   txBody     <- buildTxBodyContent pparams network collateral txc
   inputsMap  <- buildInputsUTxO network (Set.elems txCandidateInputs)
   changeAddr <- absorbError $ case txCandidateChangePolicy of
     Just (Sdk.ReturnTo addr) -> Interop.toCardanoAddress network addr
     _                        -> Interop.toCardanoAddress network $ Sdk.getAddress defaultChangeAddr
-
   absorbBalancingError $ makeTransactionBodyAutoBalance eraInMode sysstart eraHistory pparams pools inputsMap txBody changeAddr witOverrides
     where
       absorbBalancingError (Left e)  = throwM $ BalancingError $ T.pack $ show e
       absorbBalancingError (Right a) = pure a
 
 buildTxBodyContent
-  :: MonadThrow f
+  :: (MonadThrow f, MonadIO f)
   => ProtocolParameters
   -> NetworkId
   -> Set.Set Sdk.FullCollateralTxIn
@@ -67,7 +65,6 @@ buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
         valueMint = Sdk.unMintValue txCandidateValueMint
         policies  = Sdk.mintInputsPolicies txCandidateMintInputs
     in absorbError $ Interop.toCardanoMintValue redeemers valueMint policies
-
   pure $ TxBodyContent
     { txIns             = txIns
     , txInsCollateral   = txInsCollateral
@@ -87,7 +84,7 @@ buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
     }
 
 buildTxIns
-  :: MonadThrow f
+  :: (MonadThrow f, MonadIO f)
   => [Sdk.FullTxIn]
   -> f [(TxIn, BuildTxWith BuildTx (Witness WitCtxTxIn AlonzoEra))]
 buildTxIns =
@@ -100,7 +97,7 @@ buildTxIns =
       pure (txIn, BuildTxWith sWit)
 
 buildTxCollateral
-  :: MonadThrow f
+  :: (MonadThrow f, MonadIO f)
   => [Sdk.FullCollateralTxIn]
   -> f (TxInsCollateral AlonzoEra)
 buildTxCollateral ins =
@@ -110,7 +107,7 @@ buildTxCollateral ins =
       absorbError $ Interop.toCardanoTxIn fullTxOutRef
 
 buildTxOuts
-  :: MonadThrow f
+  :: (MonadThrow f, MonadIO f)
   => NetworkId
   -> [Sdk.TxOutCandidate]
   -> f [TxOut CtxTx AlonzoEra]
@@ -120,7 +117,7 @@ buildTxOuts network =
     translate sdkOut = absorbError $ Interop.toCardanoTxOut network $ toPlutus sdkOut
 
 buildInputsUTxO
-  :: MonadThrow f
+  :: (MonadThrow f, MonadIO f)
   => NetworkId
   -> [Sdk.FullTxIn]
   -> f (UTxO AlonzoEra)
@@ -172,8 +169,10 @@ data TxAssemblyError
   | SignerNotFound P.PubKeyHash
   deriving (Show, Exception)
 
-absorbError :: MonadThrow f => Either Interop.ToCardanoError a -> f a
-absorbError (Left err) = throwM $ adaptInteropError err
+absorbError :: (MonadThrow f, MonadIO f) => Either Interop.ToCardanoError a -> f a
+absorbError (Left err) = do
+  liftIO . print $ "The err has occurred: " ++ show err 
+  throwM $ adaptInteropError err
 absorbError (Right vl) = pure vl
 
 adaptInteropError :: Interop.ToCardanoError -> TxAssemblyError
