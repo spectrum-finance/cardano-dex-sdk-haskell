@@ -1,9 +1,9 @@
 cabal-version:      2.4
-name:               quickblue
+name:               common
 version:            0.1.0.0
 
 author:             ErgoLabs
-maintainer:         
+maintainer:
 
 extra-source-files: CHANGELOG.md
 
@@ -70,26 +70,7 @@ library
     import: base, project-config
 
     hs-source-dirs: src
-    
-    exposed-modules: Explorer.Types
-                     Explorer.Models
-                     Explorer.Service
-                     Explorer.Config
-                     Explorer.Class
 
-    build-depends:
-        cardano-tx==0.1.0.0,
-        http-conduit,
-        plutus-ledger,
-        plutus-ledger-api,
-        bytestring,
-        aeson,
-        text,
-        dhall == 1.38.1,
-        cardano-slotting,
-        cardano-api,
-        containers,
-        ouroboros-consensus,
-        rio,
-        cardano-crypto-class,
-        common
+    exposed-modules: SdkCore.Throw.Combinators
+
+    build-depends:  rio, plutus-ledger-api, plutus-tx, containers

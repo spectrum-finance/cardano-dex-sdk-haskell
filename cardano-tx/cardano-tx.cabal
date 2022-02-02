@@ -75,6 +75,7 @@ library
     exposed-modules: CardanoTx.Models
                      CardanoTx.Address
                      CardanoTx.ToPlutus
+                     CardanoTx.Value
 
     build-depends:
         mtl==2.2.2,
