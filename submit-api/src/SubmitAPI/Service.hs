@@ -21,7 +21,6 @@ import qualified NetworkAPI.Service           as Network
 import           NetworkAPI.Env
 import           WalletAPI.Utxos
 import           WalletAPI.Vault
-import           Plutus.Contract.Wallet
 
 data Transactions f = Transactions
   { finalizeTx :: Sdk.TxCandidate  -> f (C.Tx C.AlonzoEra)
@@ -102,7 +101,7 @@ selectCollaterals WalletOutputs{selectUtxos} sysenv@SystemEnv{..} TxAssemblyConf
       collectCollaterals knownCollaterals = do
         let
           estimateCollateral' collaterals = do
-            (C.BalancedTxBody _ _ fee) <- buildBalancedTx sysenv dummyAddr collaterals txc
+            fee <- estimateTxFee pparams network txc
             let (C.Quantity fee')  = C.lovelaceToQuantity fee
                 collateralPercent' = naturalToInteger collateralPercent
             pure $ P.Lovelace $ collateralPercent' * fee' `div` 100
