@@ -16,11 +16,12 @@ import           Plutus.V1.Ledger.Api (Value(..))
 import           SubmitAPI.Config
 import           SubmitAPI.Internal.Transaction
 import           SubmitAPI.ViaPAB.Transaction as ViaPAB
-import           NetworkAPI.Service             hiding (submitTx)
-import qualified NetworkAPI.Service             as Network
+import           NetworkAPI.Service           hiding (submitTx)
+import qualified NetworkAPI.Service           as Network
 import           NetworkAPI.Env
 import           WalletAPI.Utxos
 import           WalletAPI.Vault
+import           Plutus.Contract.Wallet
 
 data Transactions f = Transactions
   { finalizeTx :: Sdk.TxCandidate  -> f (C.Tx C.AlonzoEra)
@@ -40,6 +41,7 @@ mkSubmitService network wallet conf = Transactions
 
 finalizeTxViaPAB
   :: MonadThrow f
+  => MonadIO f
   => WalletOutputs f
   -> Network f
   -> TxAssemblyConfig
@@ -51,7 +53,6 @@ finalizeTxViaPAB wallet Network{getSystemEnv} conf txc = do
     
     let utx = ViaPAB.mkUnbalancedTx collaterals txc
 
-    -- todo: Plutus.Contract.Wallet.handleTx
     undefined
 
 finalizeTx'
@@ -76,7 +77,6 @@ finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCan
     Just (Sdk.ReturnTo changeAddr) -> buildBalancedTx sysenv (Sdk.ChangeAddress changeAddr) collaterals txc
     _ | isBalancedTx               -> buildBalancedTx sysenv dummyAddr collaterals txc
 
-
   let
     requiredSigners = Set.elems txCandidateInputs >>= getPkh
       where
@@ -87,6 +87,7 @@ finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCan
 
 selectCollaterals
   :: MonadThrow f
+  => MonadIO f
   => WalletOutputs f
   -> SystemEnv
   -> TxAssemblyConfig
