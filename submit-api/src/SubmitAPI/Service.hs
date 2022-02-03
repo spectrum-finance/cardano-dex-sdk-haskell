@@ -92,7 +92,7 @@ selectCollaterals
   -> TxAssemblyConfig
   -> Sdk.TxCandidate
   -> f (Set.Set Sdk.FullCollateralTxIn)
-selectCollaterals WalletOutputs{selectUtxos} sysenv@SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
+selectCollaterals WalletOutputs{selectUtxos} SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   let isScriptIn Sdk.FullTxIn{fullTxInType=P.ConsumeScriptAddress {}} = True
       isScriptIn _                                                    = False
 
@@ -101,7 +101,7 @@ selectCollaterals WalletOutputs{selectUtxos} sysenv@SystemEnv{..} TxAssemblyConf
       collectCollaterals knownCollaterals = do
         let
           estimateCollateral' collaterals = do
-            fee <- estimateTxFee pparams network txc
+            fee <- estimateTxFee pparams network collaterals txc
             let (C.Quantity fee')  = C.lovelaceToQuantity fee
                 collateralPercent' = naturalToInteger collateralPercent
             pure $ P.Lovelace $ collateralPercent' * fee' `div` 100

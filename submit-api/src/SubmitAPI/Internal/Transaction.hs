@@ -51,10 +51,11 @@ estimateTxFee
   :: (MonadThrow f, MonadIO f)
   => ProtocolParameters
   -> NetworkId
+  -> Set.Set Sdk.FullCollateralTxIn
   -> Sdk.TxCandidate
   -> f Lovelace
-estimateTxFee pparams network txc = do
-  txBodyContent <- buildTxBodyContent pparams network mempty txc
+estimateTxFee pparams network collateral txc = do
+  txBodyContent <- buildTxBodyContent pparams network collateral txc
   txBody        <- either (throwM . TxBodyError . T.pack . show) pure (makeTransactionBody txBodyContent)
   let noWitTx = makeSignedTransaction [] txBody
   pure $ estimateTransactionFee network 1 1 noWitTx 0 0 0 0
