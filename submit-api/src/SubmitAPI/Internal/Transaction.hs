@@ -10,7 +10,7 @@ import           Data.Text.Prettyprint.Doc (Pretty(..))
 import qualified Data.Set                  as Set
 
 import           Cardano.Api          hiding (TxBodyError)
-import           Cardano.Api.Shelley  (ProtocolParameters)
+import           Cardano.Api.Shelley  (ProtocolParameters(..))
 import qualified Ledger               as P
 import qualified Ledger.Tx.CardanoAPI as Interop
 import qualified Ledger.Ada           as Ada
@@ -54,11 +54,11 @@ estimateTxFee
   -> Set.Set Sdk.FullCollateralTxIn
   -> Sdk.TxCandidate
   -> f Lovelace
-estimateTxFee pparams network collateral txc = do
+estimateTxFee pparams@ProtocolParameters{..} network collateral txc = do
   txBodyContent <- buildTxBodyContent pparams network collateral txc
   txBody        <- either (throwM . TxBodyError . T.pack . show) pure (makeTransactionBody txBodyContent)
   let noWitTx = makeSignedTransaction [] txBody
-  pure $ estimateTransactionFee network 1 1 noWitTx 0 0 0 0
+  pure $ estimateTransactionFee network protocolParamTxFeeFixed protocolParamTxFeePerByte noWitTx 0 0 0 0
 
 buildTxBodyContent
   :: (MonadThrow f, MonadIO f)

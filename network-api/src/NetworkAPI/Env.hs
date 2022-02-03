@@ -20,12 +20,12 @@ data SystemEnv = SystemEnv
   }
 
 toNetworkApiSystemEnv :: Explorer.SystemEnv -> SystemEnv
-toNetworkApiSystemEnv input =
+toNetworkApiSystemEnv explorerSysenv =
   SystemEnv 
-    { pparams           = Explorer.pparams' input
-    , network           = Explorer.network' input
-    , sysstart          = Explorer.sysstart' input
-    , pools             = Explorer.pools' input
-    , eraHistory        = Explorer.eraHistory' input
-    , collateralPercent = intToNatural $ Explorer.collateralPercent' input
+    { pparams           = Explorer.pparams' explorerSysenv
+    , network           = Explorer.network' explorerSysenv
+    , sysstart          = Explorer.sysstart' explorerSysenv
+    , pools             = Explorer.pools' explorerSysenv
+    , eraHistory        = Explorer.eraHistory' explorerSysenv
+    , collateralPercent = intToNatural $ Explorer.collateralPercent' explorerSysenv
     }

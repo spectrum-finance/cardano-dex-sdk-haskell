@@ -114,8 +114,8 @@ selectCollaterals WalletOutputs{selectUtxos} SystemEnv{..} TxAssemblyConfig{..} 
         collateral' <- estimateCollateral' collaterals
 
         if collateral' > collateral
-        then collectCollaterals collaterals
-        else pure collaterals
+          then collectCollaterals collaterals
+          else pure collaterals
 
   case (scriptInputs, collateralPolicy) of
     ([], _)    -> pure mempty
