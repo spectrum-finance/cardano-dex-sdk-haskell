@@ -54,11 +54,10 @@ estimateTxFee
   -> Set.Set Sdk.FullCollateralTxIn
   -> Sdk.TxCandidate
   -> f Lovelace
-estimateTxFee pparams@ProtocolParameters{..} network collateral txc = do
+estimateTxFee pparams network collateral txc = do
   txBodyContent <- buildTxBodyContent pparams network collateral txc
   txBody        <- either (throwM . TxBodyError . T.pack . show) pure (makeTransactionBody txBodyContent)
-  let noWitTx = makeSignedTransaction [] txBody
-  pure $ estimateTransactionFee network protocolParamTxFeeFixed protocolParamTxFeePerByte noWitTx 0 0 0 0
+  pure $ evaluateTransactionFee pparams txBody 0 0
 
 buildTxBodyContent
   :: (MonadThrow f, MonadIO f)
