@@ -41,7 +41,7 @@ instance FromJSON SystemEnv where
     pparams'           <- o .: "pparams"
     sysstart'          <- o .: "sysstart"
     collateralPercent' <- o .: "collateralPercent"
-    return 
+    return
       SystemEnv
         { pparams' = pparams'
         , network'           = Api.Testnet $ Api.NetworkMagic 1097911063
@@ -53,9 +53,9 @@ instance FromJSON SystemEnv where
 
 dummyEraHistory :: Api.EraHistory Api.CardanoMode
 dummyEraHistory =
-  Api.EraHistory 
-    Api.CardanoMode 
-    (History.mkInterpreter $ Summary $ NonEmptyOne $ 
+  Api.EraHistory
+    Api.CardanoMode
+    (History.mkInterpreter $ Summary $ NonEmptyOne $
       EraSummary {
           eraStart  = initBound
         , eraEnd    = EraUnbounded
@@ -66,7 +66,7 @@ dummyEraHistory =
           }
         }
     )
-        
+
 data Paging = Paging
   { offset :: Int
   , limit  :: Int
@@ -105,7 +105,7 @@ instance ToCardanoTx FullTxOut Tx.FullTxOut where
   toCardanoTx FullTxOut{..} = Tx.FullTxOut
     { fullTxOutRef       = toCardanoTx ref
     , fullTxOutAddress   = toCardanoTx addr
-    , fullTxOutValue     = foldr (\a -> \acc -> acc <> toCardanoTx a) mempty value
+    , fullTxOutValue     = foldr (\ a acc -> acc <> toCardanoTx a) mempty value
     , fullTxOutDatumHash = dataHash
     , fullTxOutDatum     = data'
     }

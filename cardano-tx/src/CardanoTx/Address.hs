@@ -24,4 +24,4 @@ renderToShellyAddress network validatorInstance =
 readShellyAddress :: Text -> Maybe P.Address
 readShellyAddress text = do
   saddr <- C.deserialiseAddress (C.AsAddress C.AsShelleyAddr) text
-  rightToMaybe $ Interop.fromCardanoAddress $ (C.shelleyAddressInEra saddr :: C.AddressInEra C.AlonzoEra)
+  rightToMaybe $ Interop.fromCardanoAddress (C.shelleyAddressInEra saddr :: C.AddressInEra C.AlonzoEra)

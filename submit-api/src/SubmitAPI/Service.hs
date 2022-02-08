@@ -15,10 +15,15 @@ import qualified Plutus.V1.Ledger.Credential as P
 import           Plutus.V1.Ledger.Api (Value(..))
 import           SubmitAPI.Config
 import           SubmitAPI.Internal.Transaction
-import           NetworkAPI.Service             hiding (submitTx)
-import qualified NetworkAPI.Service             as Network
+import           SubmitAPI.ViaPAB.Transaction as ViaPAB
+import           NetworkAPI.Service           hiding (submitTx)
+import qualified NetworkAPI.Service           as Network
 import           NetworkAPI.Env
+import           WalletAPI.Utxos
 import           WalletAPI.Vault
+import           Plutus.Contract.Wallet
+import           Control.Monad.Freer as Eff
+import qualified Ledger.Tx.CardanoAPI as Interop
 
 data Transactions f = Transactions
   { finalizeTx :: Sdk.TxCandidate  -> f (C.Tx C.AlonzoEra)
@@ -36,6 +41,31 @@ mkSubmitService network wallet conf = Transactions
   , submitTx   = Network.submitTx network
   }
 
+finalizeTxViaPAB
+  :: MonadThrow f
+  => MonadIO f
+  => WalletOutputs f
+  -> Network f
+  -> TxAssemblyConfig
+  -> Sdk.TxCandidate
+  -> f (C.Tx C.AlonzoEra)
+finalizeTxViaPAB wallet Network{getSystemEnv} conf txc = do
+    sysenv@SystemEnv{..} <- getSystemEnv
+    collaterals          <- selectCollaterals wallet sysenv conf txc
+    
+    let utx = ViaPAB.mkUnbalancedTx collaterals txc
+        handled = handleTx utx
+
+    runned <- Eff.runM handled
+    let eitherTx = unsafeFromEither runned
+        txBody = unsafeFromEither $ Interop.toCardanoTxBody [] (Just pparams) network eitherTx
+        res = C.makeSignedTransaction [] txBody
+    return res
+
+unsafeFromEither :: Either b a -> a
+unsafeFromEither (Left _)    = undefined
+unsafeFromEither (Right value) = value
+
 finalizeTx'
   :: (MonadThrow f, MonadIO f)
   => Network f
@@ -45,7 +75,7 @@ finalizeTx'
   -> f (C.Tx C.AlonzoEra)
 finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   sysenv      <- getSystemEnv
-  collaterals <- mkCollaterals wallet sysenv conf txc
+  collaterals <- selectCollaterals (narrowVault wallet) sysenv conf txc
 
   let
     isBalancedTx = amountIn == amountOut
@@ -58,7 +88,6 @@ finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCan
     Just (Sdk.ReturnTo changeAddr) -> buildBalancedTx sysenv (Sdk.ChangeAddress changeAddr) collaterals txc
     _ | isBalancedTx               -> buildBalancedTx sysenv dummyAddr collaterals txc
 
-
   let
     requiredSigners = Set.elems txCandidateInputs >>= getPkh
       where
@@ -67,14 +96,15 @@ finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCan
   signers <- mapM (\pkh -> getSigningKey pkh >>= maybe (throwM $ SignerNotFound pkh) pure) requiredSigners
   pure $ signTx txb signers
 
-mkCollaterals
-  :: (MonadThrow f, MonadIO f)
-  => Vault f
+selectCollaterals
+  :: MonadThrow f
+  => MonadIO f
+  => WalletOutputs f
   -> SystemEnv
   -> TxAssemblyConfig
   -> Sdk.TxCandidate
   -> f (Set.Set Sdk.FullCollateralTxIn)
-mkCollaterals wallet sysenv@SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
+selectCollaterals WalletOutputs{selectUtxos} SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   let isScriptIn Sdk.FullTxIn{fullTxInType=P.ConsumeScriptAddress {}} = True
       isScriptIn _                                                    = False
 
@@ -83,23 +113,21 @@ mkCollaterals wallet sysenv@SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandida
       collectCollaterals knownCollaterals = do
         let
           estimateCollateral' collaterals = do
-            (C.BalancedTxBody _ _ fee) <- buildBalancedTx sysenv dummyAddr collaterals txc
+            fee <- estimateTxFee pparams network collaterals txc
             let (C.Quantity fee')  = C.lovelaceToQuantity fee
                 collateralPercent' = naturalToInteger collateralPercent
             pure $ P.Lovelace $ collateralPercent' * fee' `div` 100
 
         collateral <- estimateCollateral' knownCollaterals
-        utxos      <- selectUtxos wallet (P.toValue collateral) >>= maybe (throwM FailedToSatisfyCollateral) pure
-        let 
-          explorerInputsWithOnlyAda = Set.filter containsOnlyAda utxos
-          txInputRefs               = Set.map (Sdk.fullTxOutRef . Sdk.fullTxInTxOut) txCandidateInputs
-          filtered                  = Set.filter (\Sdk.FullTxOut{..} -> not (Set.member fullTxOutRef txInputRefs)) explorerInputsWithOnlyAda
-          collaterals               = Set.fromList $ Set.elems filtered <&> Sdk.FullCollateralTxIn
+        utxos      <- selectUtxos (P.toValue collateral) >>= maybe (throwM FailedToSatisfyCollateral) pure
+
+        let collaterals = Set.fromList $ Set.elems utxos <&> Sdk.FullCollateralTxIn
+
         collateral' <- estimateCollateral' collaterals
 
         if collateral' > collateral
-        then collectCollaterals collaterals
-        else pure collaterals
+          then collectCollaterals collaterals
+          else pure collaterals
 
   case (scriptInputs, collateralPolicy) of
     ([], _)    -> pure mempty

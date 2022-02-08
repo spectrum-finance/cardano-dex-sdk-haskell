@@ -4,16 +4,16 @@ import           RIO
 import qualified Data.Text       as T
 import qualified Data.Map.Strict as Map
 
-import Codec.Serialise ( serialise )
+import           Codec.Serialise           (serialise)
 import           Data.ByteString.Lazy      (toStrict)
 import           Data.Text.Prettyprint.Doc (Pretty(..))
 import qualified Data.Set                  as Set
 
-import           Cardano.Api                    hiding (TxBodyError)
-import           Cardano.Api.Shelley            (ProtocolParameters)
-import qualified Ledger                         as P
-import qualified Ledger.Tx.CardanoAPI           as Interop
-import qualified Ledger.Ada                     as Ada
+import           Cardano.Api          hiding (TxBodyError)
+import           Cardano.Api.Shelley  (ProtocolParameters(..))
+import qualified Ledger               as P
+import qualified Ledger.Tx.CardanoAPI as Interop
+import qualified Ledger.Ada           as Ada
 
 import qualified CardanoTx.Models   as Sdk
 import           CardanoTx.ToPlutus
@@ -46,6 +46,18 @@ buildBalancedTx SystemEnv{..} defaultChangeAddr collateral txc@Sdk.TxCandidate{.
     where
       absorbBalancingError (Left e)  = throwM $ BalancingError $ T.pack $ show e
       absorbBalancingError (Right a) = pure a
+
+estimateTxFee
+  :: (MonadThrow f, MonadIO f)
+  => ProtocolParameters
+  -> NetworkId
+  -> Set.Set Sdk.FullCollateralTxIn
+  -> Sdk.TxCandidate
+  -> f Lovelace
+estimateTxFee pparams network collateral txc = do
+  txBodyContent <- buildTxBodyContent pparams network collateral txc
+  txBody        <- either (throwM . TxBodyError . T.pack . show) pure (makeTransactionBody txBodyContent)
+  pure $ evaluateTransactionFee pparams txBody 0 0
 
 buildTxBodyContent
   :: (MonadThrow f, MonadIO f)
