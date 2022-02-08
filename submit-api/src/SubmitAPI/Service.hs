@@ -21,6 +21,9 @@ import qualified NetworkAPI.Service           as Network
 import           NetworkAPI.Env
 import           WalletAPI.Utxos
 import           WalletAPI.Vault
+import           Plutus.Contract.Wallet
+import           Control.Monad.Freer as Eff
+import qualified Ledger.Tx.CardanoAPI as Interop
 
 data Transactions f = Transactions
   { finalizeTx :: Sdk.TxCandidate  -> f (C.Tx C.AlonzoEra)
@@ -47,12 +50,21 @@ finalizeTxViaPAB
   -> Sdk.TxCandidate
   -> f (C.Tx C.AlonzoEra)
 finalizeTxViaPAB wallet Network{getSystemEnv} conf txc = do
-    sysenv      <- getSystemEnv
-    collaterals <- selectCollaterals wallet sysenv conf txc
+    sysenv@SystemEnv{..} <- getSystemEnv
+    collaterals          <- selectCollaterals wallet sysenv conf txc
     
     let utx = ViaPAB.mkUnbalancedTx collaterals txc
+        handled = handleTx utx
 
-    undefined
+    runned <- Eff.runM handled
+    let eitherTx = unsafeFromEither runned
+        txBody = unsafeFromEither $ Interop.toCardanoTxBody [] (Just pparams) network eitherTx
+        res = C.makeSignedTransaction [] txBody
+    return res
+
+unsafeFromEither :: Either b a -> a
+unsafeFromEither (Left _)    = undefined
+unsafeFromEither (Right value) = value
 
 finalizeTx'
   :: (MonadThrow f, MonadIO f)

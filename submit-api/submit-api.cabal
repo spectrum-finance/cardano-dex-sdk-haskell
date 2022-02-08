@@ -102,4 +102,7 @@ library
         extra,
         cardano-api,
         text,
-        dhall
+        dhall,
+        plutus-contract,
+        freer-simple==1.2.1.1
+        -- free-er==0.1.0.0
