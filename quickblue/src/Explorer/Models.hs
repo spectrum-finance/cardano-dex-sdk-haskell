@@ -12,6 +12,7 @@ import qualified Plutus.V1.Ledger.Value as Value
 import           Explorer.Types
 import           Explorer.Class
 import qualified CardanoTx.Models       as Tx
+import           CardanoTx.Value
 
 import qualified Data.Set        as Set
 
@@ -105,7 +106,7 @@ instance ToCardanoTx FullTxOut Tx.FullTxOut where
   toCardanoTx FullTxOut{..} = Tx.FullTxOut
     { fullTxOutRef       = toCardanoTx ref
     , fullTxOutAddress   = toCardanoTx addr
-    , fullTxOutValue     = foldr (\ a acc -> acc <> toCardanoTx a) mempty value
+    , fullTxOutValue     = foldr (\a acc -> unionVal acc (toCardanoTx a)) mempty value
     , fullTxOutDatumHash = dataHash
     , fullTxOutDatum     = data'
     }
