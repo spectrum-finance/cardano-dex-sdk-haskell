@@ -6,11 +6,11 @@ module CardanoTx.Address
 import Data.Text
 import Data.Either.Combinators
 
-import qualified Ledger.Typed.Scripts     as Scripts
-import qualified Plutus.V1.Ledger.Scripts as Scripts
-import qualified Ledger.Scripts           as Scripts
-import qualified Ledger                   as P
-import qualified Cardano.Api              as C
+import qualified Ledger.Typed.Scripts       as Scripts
+import qualified Plutus.V1.Ledger.Scripts   as Scripts
+import qualified Ledger.Scripts             as Scripts
+import qualified Ledger                     as P
+import qualified Cardano.Api                as C
 import qualified Plutus.Contract.CardanoAPI as Interop
 
 renderToShellyAddress :: C.NetworkId -> forall a . Scripts.TypedValidator a -> Text

@@ -126,7 +126,7 @@ buildTxOuts
 buildTxOuts network =
     mapM translate
   where
-    translate sdkOut = absorbError $ Interop.toCardanoTxOut network $ toPlutus sdkOut
+    translate sdkOut = absorbError $ Interop.toCardanoTxOut network undefined $ toPlutus sdkOut
 
 buildInputsUTxO
   :: (MonadThrow f, MonadIO f)
@@ -138,7 +138,7 @@ buildInputsUTxO network inputs =
   where
     translate Sdk.FullTxIn{fullTxInTxOut=out@Sdk.FullTxOut{..}} = do
       txIn  <- Interop.toCardanoTxIn fullTxOutRef
-      txOut <- Interop.toCardanoTxOut network $ toPlutus out
+      txOut <- Interop.toCardanoTxOut network undefined $ toPlutus out
 
       pure (txIn, toCtxUTxOTxOut txOut)
 
@@ -201,7 +201,6 @@ adaptInteropError err =
       Interop.MissingMintingPolicy               -> MissingMintingPolicy
       Interop.MissingMintingPolicyRedeemer       -> MissingMintingPolicyRedeemer
       Interop.ScriptPurposeNotSupported t        -> ScriptPurposeNotSupported t
-      Interop.PublicKeyInputsNotSupported        -> PublicKeyInputsNotSupported
       Interop.Tag _ e                            -> adaptInteropError e
   where renderedErr = T.pack $ show $ pretty err
 

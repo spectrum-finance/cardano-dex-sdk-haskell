@@ -41,10 +41,10 @@ mkPlutusTx collateral Sdk.TxCandidate{..} =
     , txData        = collectOutputsData txCandidateOutputs
     }
 
-collectKeys :: [Sdk.FullTxOut] -> Map.Map P.PubKeyHash (Maybe P.PubKey)
+collectKeys :: [Sdk.FullTxOut] -> Map.Map P.PaymentPubKeyHash (Maybe P.PaymentPubKey)
 collectKeys inputs = Map.fromList $ inputs >>= extractPkh
   where
-    extractPkh Sdk.FullTxOut{fullTxOutAddress=P.Address (P.PubKeyCredential pkh) _} = [(pkh, Nothing)]
+    extractPkh Sdk.FullTxOut{fullTxOutAddress=P.Address (P.PubKeyCredential pkh) _} = [(P.PaymentPubKeyHash pkh, Nothing)]
     extractPkh _ = []
 
 collectOutputsData :: [Sdk.TxOutCandidate] -> Map.Map P.DatumHash P.Datum
