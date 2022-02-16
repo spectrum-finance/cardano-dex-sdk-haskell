@@ -12,7 +12,6 @@ import qualified Data.Set                  as Set
 import           Cardano.Api                 hiding (TxBodyError)
 import           Cardano.Api.Shelley         (ProtocolParameters(..))
 import qualified Ledger                      as P
-import qualified Plutus.V1.Ledger.Credential as P
 import qualified Ledger.Tx.CardanoAPI        as Interop
 import qualified Ledger.Ada                  as Ada
 
