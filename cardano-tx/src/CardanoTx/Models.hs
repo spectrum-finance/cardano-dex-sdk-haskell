@@ -109,4 +109,5 @@ data TxCandidate = TxCandidate
   , txCandidateMintInputs   :: MintInputs
   , txCandidateChangePolicy :: Maybe ChangePolicy
   , txCandidateValidRange   :: SlotRange
+  , txCandidateSigners      :: [PaymentPubKeyHash]
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)

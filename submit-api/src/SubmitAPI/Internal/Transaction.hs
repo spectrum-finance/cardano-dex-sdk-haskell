@@ -9,11 +9,12 @@ import           Data.ByteString.Lazy      (toStrict)
 import           Data.Text.Prettyprint.Doc (Pretty(..))
 import qualified Data.Set                  as Set
 
-import           Cardano.Api          hiding (TxBodyError)
-import           Cardano.Api.Shelley  (ProtocolParameters(..))
-import qualified Ledger               as P
-import qualified Ledger.Tx.CardanoAPI as Interop
-import qualified Ledger.Ada           as Ada
+import           Cardano.Api                 hiding (TxBodyError)
+import           Cardano.Api.Shelley         (ProtocolParameters(..))
+import qualified Ledger                      as P
+import qualified Plutus.V1.Ledger.Credential as P
+import qualified Ledger.Tx.CardanoAPI        as Interop
+import qualified Ledger.Ada                  as Ada
 
 import qualified CardanoTx.Models   as Sdk
 import           CardanoTx.ToPlutus
@@ -77,6 +78,7 @@ buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
         valueMint = Sdk.unMintValue txCandidateValueMint
         policies  = Sdk.mintInputsPolicies txCandidateMintInputs
     in absorbError $ Interop.toCardanoMintValue redeemers valueMint policies
+  wits <- absorbError $ traverse Interop.toCardanoPaymentKeyHash txCandidateSigners
   pure $ TxBodyContent
     { txIns             = txIns
     , txInsCollateral   = txInsCollateral
@@ -85,11 +87,11 @@ buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
     , txValidityRange   = txValidityRange
     , txMintValue       = txMintValue
     , txProtocolParams  = BuildTxWith $ Just protocolParams
-    , txScriptValidity  = TxScriptValidityNone
+    , txExtraKeyWits    = TxExtraKeyWitnesses ExtraKeyWitnessesInAlonzoEra wits
     -- unused:
+    , txScriptValidity = TxScriptValidityNone
     , txMetadata       = TxMetadataNone
     , txAuxScripts     = TxAuxScriptsNone
-    , txExtraKeyWits   = TxExtraKeyWitnessesNone
     , txWithdrawals    = TxWithdrawalsNone
     , txCertificates   = TxCertificatesNone
     , txUpdateProposal = TxUpdateProposalNone

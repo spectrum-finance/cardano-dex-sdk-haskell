@@ -18,7 +18,7 @@ mkUnbalancedTx collateral tx@Sdk.TxCandidate{..} =
     P.UnbalancedTx
       { unBalancedTxTx                  = mkPlutusTx collateral tx
       , unBalancedTxRequiredSignatories = collectKeys allInputs
-      , unBalancedTxUtxoIndex           = Map.fromList $ allInputs <&> (\fout -> (Sdk.fullTxOutRef fout, toPlutus fout))
+      , unBalancedTxUtxoIndex           = undefined --Map.fromList $ allInputs <&> (\fout -> (Sdk.fullTxOutRef fout, toPlutus fout))
       , unBalancedTxValidityTimeRange   = P.always -- todo
       }
   where
