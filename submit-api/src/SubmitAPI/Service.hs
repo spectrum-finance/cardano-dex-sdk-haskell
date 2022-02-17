@@ -40,7 +40,8 @@ mkSubmitService network wallet conf = Transactions
   }
 
 finalizeTx'
-  :: (MonadThrow f, MonadIO f)
+  :: MonadThrow f
+  => MonadIO f
   => Network f
   -> Vault f
   -> TxAssemblyConfig

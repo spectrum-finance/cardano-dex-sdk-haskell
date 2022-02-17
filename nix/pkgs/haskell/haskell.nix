@@ -50,6 +50,7 @@ let
           wallet-api.package.buildable = false;
           network-api.package.buildable = false;
           submit-api.package.buildable = false;
+          submit-api-plutus.package.buildable = false;
           datum-keeper-client.package.buildable = false;
 
           # Broken due to haddock errors. Refer to https://github.com/input-output-hk/plutus/blob/master/nix/pkgs/haskell/haskell.nix

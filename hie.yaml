@@ -12,5 +12,7 @@ cradle:
       component: "wallet-api:lib:wallet-api"
     - path: "./submit-api/src"
       component: "submit-api:lib:submit-api"
+    - path: "./submit-api-plutus/src"
+      component: "submit-api:lib:submit-api-plutus"
     - path: "./datum-keeper-client/src"
       component: "datum-keeper-client:lib:datum-keeper-client"
