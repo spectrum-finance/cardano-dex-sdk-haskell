@@ -34,8 +34,8 @@ mkSubmitService
   => MonadIO f
   => Network f
   -> Transactions f
-mkSubmitService = Transactions
-  { handleTx = handleTx'
+mkSubmitService network = Transactions
+  { handleTx = handleTx' network
   }
 
 handleTx'

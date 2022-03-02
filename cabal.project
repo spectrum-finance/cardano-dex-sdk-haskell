@@ -257,7 +257,7 @@ source-repository-package
 source-repository-package
  type: git
  location: https://github.com/input-output-hk/plutus
- tag: 2721c59fd2302b75c4138456c29fd5b509e8340a
+ tag: 184f27c67dc696f4dfd558e0ccdfef0f054b519b
  subdir:
    plutus-ledger-api
    word-array
@@ -269,5 +269,10 @@ source-repository-package
 
 source-repository-package
   type: git
+  location: https://github.com/Plutonomicon/plutarch
+  tag: 473424c89b4457e58e009e65d411ace1efc3ea9e
+
+source-repository-package
+  type: git
   location: https://github.com/ergolabs/cardano-dex-contracts
-  tag: 34cf32b186a7875f88f29158ada92d5fe77cbf38
+  tag: e4f006ce2d0c709bac3b92dc0cdcc47819a70a73
