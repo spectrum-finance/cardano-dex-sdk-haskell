@@ -54,6 +54,7 @@ common project-config
                         TupleSections
                         TypeFamilies
                         TypeSynonymInstances
+                        TypeOperators
                         ViewPatterns
 
   ghc-options:          -Wall
@@ -82,6 +83,7 @@ library
                      ErgoDex.Types
 
     build-depends:
+        plutarch==1.1.0,
         cardano-tx==0.1.0.0,
         plutus-ledger,
         plutus-tx,
