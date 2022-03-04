@@ -275,4 +275,4 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/ergolabs/cardano-dex-contracts
-  tag: af7d60214a1b4ada6bce1946e7f0c933ec100808
+  tag: 19313284428668778e8566624199cb66f3f8dfe6

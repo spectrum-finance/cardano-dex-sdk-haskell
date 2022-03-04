@@ -1,7 +1,9 @@
-module ErgoDex.Amm.PScripts where
+module ErgoDex.Amm.PScripts
+  ( poolValidator
+  , mkAllowedActions
+  ) where
 
-import           Plutus.V1.Ledger.Api
-import qualified Ledger.Typed.Scripts as S
+import Plutus.V1.Ledger.Api (MintingPolicy, Validator)
 
 import qualified ErgoDex.PContracts.PPool as PP
 import qualified ErgoDex.Contracts.Pool   as P
@@ -49,5 +51,5 @@ poolValidatorT = plam $ \datum redeemer ctx -> unTermCont $ do
     result         = PP.merklizedPoolValidator # allowedActions # actionNft # ctx
   pure $ popaque result
 
-poolValidator :: S.TypedValidator S.Any
-poolValidator = S.unsafeMkTypedValidator $ mkValidator poolValidatorT
+poolValidator :: Validator
+poolValidator = mkValidator poolValidatorT
