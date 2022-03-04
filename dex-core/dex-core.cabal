@@ -82,6 +82,7 @@ library
                      ErgoDex.Amm.PScripts
                      ErgoDex.Amm.Constants
                      ErgoDex.Types
+                     ErgoDex.Amm.Test
 
     build-depends:
         plutarch==1.1.0,
@@ -105,3 +106,18 @@ library
         extra,
         cardano-api,
         text
+
+executable cardano-dex-exe
+  main-is: Main.hs
+  hs-source-dirs: app
+  build-depends:
+      base >= 4.9 && < 5
+    , dex-core
+    , plutarch==1.1.0
+    , rio
+    , plutus-tx
+    , plutus-core
+    , plutus-ledger-api
+    , text
+    , cardano-dex-contracts
+  default-language: Haskell2010

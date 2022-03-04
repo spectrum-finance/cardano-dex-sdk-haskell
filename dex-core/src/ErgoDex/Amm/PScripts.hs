@@ -1,6 +1,9 @@
 module ErgoDex.Amm.PScripts
   ( poolValidator
   , mkAllowedActions
+  , mkSwapPolicy
+  , mkDepositPolicy
+  , mkRedeemPolicy
   ) where
 
 import Plutus.V1.Ledger.Api (MintingPolicy, Validator)
