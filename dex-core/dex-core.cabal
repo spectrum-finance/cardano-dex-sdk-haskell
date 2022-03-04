@@ -79,6 +79,7 @@ library
                      ErgoDex.Amm.PoolActions
                      ErgoDex.Amm.PoolSetup
                      ErgoDex.Amm.Scripts
+                     ErgoDex.Amm.PScripts
                      ErgoDex.Amm.Constants
                      ErgoDex.Types
 

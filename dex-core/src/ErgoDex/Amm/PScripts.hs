@@ -1,71 +1,53 @@
-
-
 module ErgoDex.Amm.PScripts where
 
 import           Plutus.V1.Ledger.Api
+import qualified Ledger.Typed.Scripts as S
+
 import qualified ErgoDex.PContracts.PPool as PP
-import qualified ErgoDex.PContracts.PDeposit as PD
+import qualified ErgoDex.Contracts.Pool   as P
+
 import Plutarch
 import Plutarch.Prelude
-import Plutarch.Builtin (pasInt, pasByteStr)
-import PExtra.API
-import Plutarch.DataRepr
-import Plutarch.Api.V1 (mkMintingPolicy, PMintingPolicy(..), mintingPolicySymbol, mkValidator)
-import Plutarch.Api.V1.Value (PCurrencySymbol(..), PValue(..))
-import Plutarch.Lift
-import Plutarch.Api.V1.Contexts
+import Plutarch.Builtin         (pasInt, pasByteStr, pasList)
+import Plutarch.Api.V1          (mkMintingPolicy, mintingPolicySymbol, mkValidator)
+import Plutarch.Api.V1.Value    (PCurrencySymbol(..))
+import Plutarch.Api.V1.Contexts (PScriptContext)
 
-swapMintingValidator :: Term s (PData :--> PScriptContext :--> POpaque)
-swapMintingValidator = plam $ \d ctx -> unTermCont $ do
-  let
-    intData = pasInt # d
-    bool = swapValidator # pPPoolConfig # intData
-  pure $ popaque bool
+mkMerkleMintingValidator
+  :: Term s (PInteger :--> PScriptContext :--> PBool)
+  -> Term s (PData :--> PScriptContext :--> POpaque)
+mkMerkleMintingValidator validator =
+  plam $ \dt ctx ->
+    let
+      datum     = pasInt # dt
+      result    = validator # datum # ctx
+    in popaque result
 
-swapPolicy :: MintingPolicy
-swapPolicy = mkMintingPolicy swapMintingValidator
+mkSwapPolicy :: P.PoolConfig -> MintingPolicy
+mkSwapPolicy conf = mkMintingPolicy $ mkMerkleMintingValidator $ PP.mkSwapValidator (pconstant conf)
 
-swapCurSymbol :: CurrencySymbol
-swapCurSymbol = mintingPolicySymbol swapPolicy
+mkRedeemPolicy :: P.PoolConfig -> MintingPolicy
+mkRedeemPolicy conf = mkMintingPolicy $ mkMerkleMintingValidator $ PP.mkRedeemValidator (pconstant conf)
 
-redeemMintingValidator :: Term s (PData :--> PScriptContext :--> POpaque)
-redeemMintingValidator = plam $ \d ctx -> unTermCont $ do
-  let
-    intData = pasInt # d
-    bool = redeemValidator # pPPoolConfig # intData
-  pure $ popaque bool
+mkDepositPolicy :: P.PoolConfig -> MintingPolicy
+mkDepositPolicy conf = mkMintingPolicy $ mkMerkleMintingValidator $ PP.mkDepositValidator (pconstant conf)
 
-redeemPolicy :: MintingPolicy
-redeemPolicy = mkMintingPolicy redeemMintingValidator
-
-redeemCurSymbol :: CurrencySymbol
-redeemCurSymbol = mintingPolicySymbol redeemPolicy
-
-depositMintingValidator :: Term s (PData :--> PScriptContext :--> POpaque)
-depositMintingValidator = plam $ \d ctx -> unTermCont $ do
-  let
-    intData = pasInt # d
-    bool = depositValidator # pPPoolConfig # intData
-  pure $ popaque bool
-
-depositPolicy :: MintingPolicy
-depositPolicy = mkMintingPolicy depositMintingValidator
-
-depositCurSymbol :: CurrencySymbol
-depositCurSymbol = mintingPolicySymbol depositPolicy
-
-allowedActions :: Term s (PBuiltinList PCurrencySymbol)
-allowedActions = phoistAcyclic $
-  pcons # pconstant depositCurSymbol #$ pcons # pconstant redeemCurSymbol #$ pcons # pconstant swapCurSymbol # pnil
+mkAllowedActions :: P.PoolConfig -> Term s (PBuiltinList PCurrencySymbol)
+mkAllowedActions conf =
+    phoistAcyclic
+      $ pcons # pconstant swapSymbol #$ pcons # pconstant depositSymbol #$ pcons # pconstant redeemSymbol # pnil
+  where
+    swapSymbol    = mintingPolicySymbol $ mkSwapPolicy conf
+    depositSymbol = mintingPolicySymbol $ mkDepositPolicy conf
+    redeemSymbol  = mintingPolicySymbol $ mkRedeemPolicy conf
 
 poolValidatorT :: Term s (PData :--> PData :--> PScriptContext :--> POpaque)
-poolValidatorT = plam $ \_ red ctx -> unTermCont $ do
+poolValidatorT = plam $ \datum redeemer ctx -> unTermCont $ do
   let
-    actionNft = pcon $ PCurrencySymbol $ pasByteStr # red
-    validator = mkMerklizedPoolValidator allowedActions
-    bool      = validator # pcon PUnit # actionNft # ctx
-  pure $ popaque bool
+    actionNft      = pcon $ PCurrencySymbol $ pasByteStr # redeemer
+    allowedActions = pmap # plam (\d -> pcon $ PCurrencySymbol $ pasByteStr # d) # (pasList # datum)
+    result         = PP.merklizedPoolValidator # allowedActions # actionNft # ctx
+  pure $ popaque result
 
-poolValidator = unsafeMkTypedValidator $ mkValidator poolValidatorT
-
-depositValidator = unsafeMkTypedValidator PD.validator
+poolValidator :: S.TypedValidator S.Any
+poolValidator = S.unsafeMkTypedValidator $ mkValidator poolValidatorT
