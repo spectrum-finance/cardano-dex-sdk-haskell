@@ -122,4 +122,9 @@ executable cardano-dex-exe
     , plutus-ledger-api
     , text
     , cardano-dex-contracts
+    , submit-api
+    , network-api
+    , quickblue
+    , wallet-api
+    , resourcet
   default-language: Haskell2010

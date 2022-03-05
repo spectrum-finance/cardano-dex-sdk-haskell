@@ -4,6 +4,7 @@ import ErgoDex.Amm.PScripts
 import qualified Plutus.V1.Ledger.Interval as Interval
 import qualified Plutus.V1.Ledger.Value as Value
 import PExtra.API
+import qualified Data.Map       as Map1
 import Data.Text (Text)
 import qualified ErgoDex.Amm.PScripts as PScript
 import Plutarch.Evaluate (evaluateScript)
@@ -188,16 +189,21 @@ sym = mintingPolicySymbol $ mkRedeemPolicy  pPoolConfig
 signatories :: [PubKeyHash]
 signatories = [pPubKeyHashReward]
 
+ine::Integer 
+ine = 0
 
+zeroRedeemer :: Redeemer 
+zeroRedeemer = Redeemer . toBuiltinData $ ine
 
 txCandidate :: TxCandidate
 txCandidate = TxCandidate {
   txCandidateInputs = Set.fromList [pPoolTxIn1],
   txCandidateOutputs = [poolOutCandidate],
   txCandidateValueMint = MintValue mint,
-  txCandidateMintInputs = MintInputs (Set.singleton swapPolicy) mempty,
+  txCandidateMintInputs = MintInputs (Set.singleton swapPolicy) (Map1.singleton 0 zeroRedeemer),
   txCandidateChangePolicy = Just $ ReturnTo (Address (PubKeyCredential pPubKeyHashReward) Nothing),
-  txCandidateValidRange   = Interval.always
+  txCandidateValidRange   = Interval.always,
+  txCandidateSigners = []
 }
 
 -- data MintInputs = MintInputs
@@ -239,7 +245,7 @@ pPoolTxIn1 :: FullTxIn
 pPoolTxIn1 =
   FullTxIn
     { fullTxInTxOut = pPoolOut1
-    , fullTxInType = ConsumeScriptAddress PScript.poolValidator allowedActions swapSymbol
+    , fullTxInType = Ledger.ConsumeScriptAddress PScript.poolValidator (mkAllowedActions1 pPoolConfig) (swapDatum1 pPoolConfig)
     }
 
 pPoolOut1 :: FullTxOut
@@ -282,7 +288,7 @@ mint = Value.singleton swapSymbol "6572676f6c6162736c70746f6b656e" 1
 
 allowedActions = mkAllowedActions mkPoolDatum'
 
-poolCred = ScriptCredential $ LV.validatorHash $ LV.unsafeMkTypedValidator $ Validator $ compile PScript.poolValidator
+poolCred = ScriptCredential $ LV.validatorHash $ LV.unsafeMkTypedValidator $ PScript.poolValidator
 
 currencySymbolName' :: CurrencySymbol
 currencySymbolName' = mkCurrencySymbol' "805fe1efcdea11f1e959eff4f422f118aa76dca2d0d797d184e487da"
@@ -322,3 +328,9 @@ mkTxOutRef' hash index = TxOutRef (TxId (BuiltinByteString $ mkByteString hash))
 mkTokenValue' :: CurrencySymbol -> TokenName -> Integer -> Value
 mkTokenValue' cs tn amount =
   Value $ Map.fromList [(cs, Map.singleton tn amount)]
+
+lpAdaTxAmount :: Value
+lpAdaTxAmount = mkAdaValue' 1517208
+
+lpTxRef :: TxOutRef
+lpTxRef = mkTxOutRef' "80f95be831a63d35b6a28b372fb82f608331e66e2b247082f9c5ef44c69bfb49" 1
