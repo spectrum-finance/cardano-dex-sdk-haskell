@@ -57,6 +57,9 @@ import PlutusTx.Builtins.Internal (BuiltinByteString(..))
 import PlutusTx.AssocMap as Map
 import qualified Ledger.Ada as Ada
 import Plutarch.Api.V1          (mkMintingPolicy, mintingPolicySymbol, mkValidator)
+import Plutarch.Prelude
+import PExtra.API
+import Plutarch.Api.V1
 
 cs :: CurrencySymbol
 cs = "805fe1efcdea11f1e959eff4f422f118aa76dca2d0d797d184e487da"
@@ -80,20 +83,7 @@ pPoolConfig = P.PoolConfig (Value.AssetClass (cs, nftTN)) (Value.AssetClass (cs,
 
 
 
-pPoolIn :: TxInInfo
-pPoolIn =
-  TxInInfo
-    { txInInfoOutRef = ref
-    , txInInfoResolved = pPoolOut
-    }
 
-pPoolOut :: TxOut
-pPoolOut =
-  TxOut
-    { txOutAddress   = undefined --Address (ScriptCredential mkPoolValidator) Nothing
-    , txOutValue     = pPoolValueBefore
-    , txOutDatumHash = Just datum1
-    }
 
 pOrderIn :: TxInInfo
 pOrderIn =
@@ -102,13 +92,7 @@ pOrderIn =
     , txInInfoResolved = pOrderOut
     }
 
-pOrderOut :: TxOut
-pOrderOut =
-  TxOut
-    { txOutAddress   = undefined -- Address (ScriptCredential mkPoolValidator) Nothing
-    , txOutValue     = pOrderValue
-    , txOutDatumHash = Just datum1
-    }
+
 
 pRewardOut :: TxOut
 pRewardOut =
@@ -175,7 +159,7 @@ ref :: TxOutRef
 ref = TxOutRef "a0" 0
 
 purpose :: ScriptPurpose
-purpose = Spending ref
+purpose = Minting (mintingPolicySymbol $ mkSwapPolicy pPoolConfig)
 
 --validator :: ValidatorHash
 --validator = "a1"
@@ -184,7 +168,7 @@ datum1 :: DatumHash
 datum1 = "d0"
 
 sym :: CurrencySymbol
-sym = mintingPolicySymbol $ mkRedeemPolicy  pPoolConfig
+sym = mintingPolicySymbol $ mkSwapPolicy pPoolConfig
 
 signatories :: [PubKeyHash]
 signatories = [pPubKeyHashReward]
@@ -194,6 +178,30 @@ ine = 0
 
 zeroRedeemer :: Redeemer 
 zeroRedeemer = Redeemer . toBuiltinData $ ine
+
+eval :: ClosedTerm a -> Either ScriptError (ExBudget, [Text], Program DeBruijn DefaultUni DefaultFun ())
+eval x = fmap (\(a, b, s) -> (a, b, unScript s)) . evaluateScript $ compile x
+
+info :: TxInfo
+info =
+  TxInfo
+    { txInfoInputs = [pPoolIn]
+    , txInfoOutputs = [pOrderOut]
+    , txInfoFee = mempty
+    , txInfoMint = mint
+    , txInfoDCert = []
+    , txInfoWdrl = []
+    , txInfoValidRange = Interval.always
+    , txInfoSignatories = signatories
+    , txInfoData = [(pdh', pd')]
+    , txInfoId = "b0"
+    }
+
+ctx :: Term s PScriptContext
+ctx =
+  pconstant
+    (ScriptContext info purpose)
+
 
 txCandidate :: TxCandidate
 txCandidate = TxCandidate {
@@ -205,22 +213,6 @@ txCandidate = TxCandidate {
   txCandidateValidRange   = Interval.always,
   txCandidateSigners = []
 }
-
--- data MintInputs = MintInputs
---   { mintInputsPolicies  :: Set.Set MintingPolicy
---   , mintInputsRedeemers :: Map.Map Integer Redeemer
---   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
-
--- data TxCandidate = TxCandidate
---   { txCandidateInputs       :: Set.Set FullTxIn
---   , txCandidateOutputs      :: [TxOutCandidate]
---   , txCandidateValueMint    :: MintValue
---   , txCandidateMintInputs   :: MintInputs
---   , txCandidateChangePolicy :: Maybe ChangePolicy
---   , txCandidateValidRange   :: SlotRange
---   , txCandidateSigners      :: [PaymentPubKeyHash]
---   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
-----------------------------------------------------------------------------------------------------------
 
 mkPoolDatum' :: PRS.PoolConfig
 mkPoolDatum' =
@@ -263,6 +255,25 @@ pPoolOut1 =
     , fullTxOutDatum = Just pd'
     }
 
+pPoolIn :: TxInInfo
+pPoolIn =
+  TxInInfo
+    { txInInfoOutRef = lpTxRef
+    , txInInfoResolved = pPoolOut
+    }
+
+pPoolOut :: TxOut
+pPoolOut =
+  TxOut
+    { txOutAddress   = (Address poolCred Nothing)
+    , txOutValue     = (mkTokenValue' currencySymbolName' poolLq' 9223372036854775807)
+        <> (mkTokenValue' currencySymbolName' poolNft' 1)
+        <> (mkTokenValue' currencySymbolName' poolX' 100)
+        <> (mkTokenValue' currencySymbolName' poolY' 100)
+        <> (lpAdaTxAmount)
+    , txOutDatumHash = Just pdh'
+    }
+
 poolOutCandidate =
   TxOutCandidate
     { txOutCandidateAddress = (Address poolCred Nothing)
@@ -274,6 +285,19 @@ poolOutCandidate =
         <> mint
         <> (mkAdaValue' 900000000)
     , txOutCandidateDatum   = Just pd'
+    }
+
+pOrderOut :: TxOut
+pOrderOut =
+  TxOut
+    { txOutAddress   = (Address poolCred Nothing)
+    , txOutValue     = (mkTokenValue' currencySymbolName' poolLq' 9223372036854775807)
+        <> (mkTokenValue' currencySymbolName' poolNft' 1)
+        <> (mkTokenValue' currencySymbolName' poolX' 100)
+        <> (mkTokenValue' currencySymbolName' poolY' 100)
+        <> mint
+        <> (mkAdaValue' 900000000)
+    , txOutDatumHash = Just pdh'
     }
 
 swapPolicy = mkSwapPolicy mkPoolDatum'
@@ -335,3 +359,4 @@ lpAdaTxAmount = mkAdaValue' 1000000000
 
 lpTxRef :: TxOutRef
 lpTxRef = mkTxOutRef' "80f95be831a63d35b6a28b372fb82f608331e66e2b247082f9c5ef44c69bfb49" 1
+
