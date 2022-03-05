@@ -233,7 +233,7 @@ mkPoolDatum' =
     }
 
 pd' :: Datum
-pd' = Datum $ toBuiltinData $ mkPoolDatum'
+pd' = mkAllowedActions1 pPoolConfig
 
 pdh' :: DatumHash
 pdh' = Ledger.datumHash pd'
@@ -245,7 +245,7 @@ pPoolTxIn1 :: FullTxIn
 pPoolTxIn1 =
   FullTxIn
     { fullTxInTxOut = pPoolOut1
-    , fullTxInType = Ledger.ConsumeScriptAddress PScript.poolValidator (mkAllowedActions1 pPoolConfig) (swapDatum1 pPoolConfig)
+    , fullTxInType = Ledger.ConsumeScriptAddress PScript.poolValidator (swapR pPoolConfig) (mkAllowedActions1 pPoolConfig) 
     }
 
 pPoolOut1 :: FullTxOut
@@ -271,7 +271,8 @@ poolOutCandidate =
         <> (mkTokenValue' currencySymbolName' poolNft' 1)
         <> (mkTokenValue' currencySymbolName' poolX' 100)
         <> (mkTokenValue' currencySymbolName' poolY' 100)
-        <> (lpAdaTxAmount)
+        <> mint
+        <> (mkAdaValue' 900000000)
     , txOutCandidateDatum   = Just pd'
     }
 
@@ -330,7 +331,7 @@ mkTokenValue' cs tn amount =
   Value $ Map.fromList [(cs, Map.singleton tn amount)]
 
 lpAdaTxAmount :: Value
-lpAdaTxAmount = mkAdaValue' 1517208
+lpAdaTxAmount = mkAdaValue' 1000000000
 
 lpTxRef :: TxOutRef
 lpTxRef = mkTxOutRef' "80f95be831a63d35b6a28b372fb82f608331e66e2b247082f9c5ef44c69bfb49" 1

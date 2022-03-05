@@ -5,7 +5,7 @@ module ErgoDex.Amm.PScripts
   , mkDepositPolicy
   , mkRedeemPolicy
   , mkAllowedActions1
-  , swapDatum1
+  , swapR
   ) where
 
 import Plutus.V1.Ledger.Api (MintingPolicy, Validator, Redeemer)
@@ -40,20 +40,20 @@ mkRedeemPolicy conf = mkMintingPolicy $ mkMerkleMintingValidator $ PP.mkRedeemVa
 mkDepositPolicy :: P.PoolConfig -> MintingPolicy
 mkDepositPolicy conf = mkMintingPolicy $ mkMerkleMintingValidator $ PP.mkDepositValidator (pconstant conf)
 
-mkAllowedActions1 :: P.PoolConfig -> Redeemer
+mkAllowedActions1 :: P.PoolConfig -> Datum
 mkAllowedActions1 conf =
   let
     swapSymbol    = mintingPolicySymbol $ mkSwapPolicy conf
     depositSymbol = mintingPolicySymbol $ mkDepositPolicy conf
     redeemSymbol  = mintingPolicySymbol $ mkRedeemPolicy conf
     list1 = [swapSymbol, depositSymbol, redeemSymbol]
-  in Redeemer . toBuiltinData $ list1
+  in Datum . toBuiltinData $ list1
 
-swapDatum1 :: P.PoolConfig -> Datum
-swapDatum1 conf =
+swapR :: P.PoolConfig -> Redeemer
+swapR conf =
   let
     swapSymbol    = mintingPolicySymbol $ mkSwapPolicy conf
-  in Datum . toBuiltinData $ swapSymbol
+  in Redeemer . toBuiltinData $ swapSymbol
 
 mkAllowedActions :: P.PoolConfig -> Term s (PBuiltinList PCurrencySymbol)
 mkAllowedActions conf =

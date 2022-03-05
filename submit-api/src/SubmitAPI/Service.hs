@@ -49,7 +49,7 @@ finalizeTx'
   -> f (C.Tx C.AlonzoEra)
 finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   sysenv      <- getSystemEnv
-  collaterals <- selectCollaterals (narrowVault wallet) sysenv conf txc
+  let collaterals = mempty --selectCollaterals (narrowVault wallet) sysenv conf txc
 
   let
     isBalancedTx = amountIn == amountOut
