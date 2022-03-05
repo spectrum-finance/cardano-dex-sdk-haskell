@@ -5,6 +5,7 @@ import qualified Plutus.V1.Ledger.Interval as Interval
 import qualified Plutus.V1.Ledger.Value as Value
 import PExtra.API
 import Data.Text (Text)
+import qualified ErgoDex.Amm.PScripts as PScript
 import Plutarch.Evaluate (evaluateScript)
 import Plutarch (ClosedTerm, compile)
 import Plutus.V1.Ledger.Api 
@@ -169,9 +170,6 @@ pPubKeyHashReward :: PubKeyHash
 pPubKeyHashReward = "d74d26c5029cf290094fce1a0670da7369b9026571dfb977c6fa234f"
 
 -- | Minting a single token
-mint :: Value
-mint = Value.singleton (mintingPolicySymbol $ mkRedeemPolicy  pPoolConfig) "6572676f6c6162736c70746f6b656e" 1
-
 ref :: TxOutRef
 ref = TxOutRef "a0" 0
 
@@ -194,12 +192,12 @@ signatories = [pPubKeyHashReward]
 
 txCandidate :: TxCandidate
 txCandidate = TxCandidate {
-  txCandidateInputs = Set.fromList [pPoolTxIn1, ],
-  txCandidateOutputs = [],
+  txCandidateInputs = Set.fromList [pPoolTxIn1],
+  txCandidateOutputs = [poolOutCandidate],
   txCandidateValueMint = MintValue mint,
-  txCandidateMintInputs = MintInputs (Set.singleton $ mkRedeemPolicy pPoolConfig) mempty,
+  txCandidateMintInputs = MintInputs (Set.singleton swapPolicy) mempty,
   txCandidateChangePolicy = Just $ ReturnTo (Address (PubKeyCredential pPubKeyHashReward) Nothing),
-   txCandidateValidRange   = Interval.always
+  txCandidateValidRange   = Interval.always
 }
 
 -- data MintInputs = MintInputs
@@ -237,158 +235,54 @@ pdh' = Ledger.datumHash pd'
 rd' :: Redeemer
 rd' = Redeemer $ toBuiltinData PR.Swap
 
-mkFullTxInXY :: FullTxIn
-mkFullTxInXY =
-  FullTxIn
-    { fullTxInTxOut = mkFullTxOutXY
-    , fullTxInType = ConsumePublicKeyAddress
-    }
-
-mkFullTxOutXY :: FullTxOut
-mkFullTxOutXY =
-  FullTxOut
-    { fullTxOutRef = xyTxRef
-    , fullTxOutAddress = (Address (PubKeyCredential pPubKeyHashReward) Nothing)
-    , fullTxOutValue =
-           (mkTokenValue' currencySymbolName' poolX' 10)
-        <> (mkTokenValue' currencySymbolName' poolY' 10)
-        <> (xyTxAmount)
-    , fullTxOutDatumHash = Nothing
-    , fullTxOutDatum = Nothing
-    }
-
-
-mkFullTxInAda :: FullTxIn
-mkFullTxInAda =
-  FullTxIn
-    { fullTxInTxOut = mkFullTxOutAda
-    , fullTxInType = ConsumePublicKeyAddress
-    }
-
-mkFullTxInNft :: FullTxIn
-mkFullTxInNft =
-  FullTxIn
-    { fullTxInTxOut = mkFullTxOutNft
-    , fullTxInType = ConsumePublicKeyAddress
-    }
-
-
-mkFullTxOutAda :: FullTxOut
-mkFullTxOutAda =
-  FullTxOut
-    { fullTxOutRef = adaTxRef
-    , fullTxOutAddress = (Address (PubKeyCredential pPubKeyHashReward) Nothing)
-    , fullTxOutValue = adaTxAmount
-    , fullTxOutDatumHash = Nothing
-    , fullTxOutDatum = Nothing
-    }
-
-mkFullTxOutNft :: FullTxOut
-mkFullTxOutNft =
-  FullTxOut
-    { fullTxOutRef = nftTxRef
-    , fullTxOutAddress = (Address (PubKeyCredential pPubKeyHashReward) Nothing)
-    , fullTxOutValue = 
-           (mkTokenValue' currencySymbolName' poolNft' 1)
-        <> (nftAdaTxAmount)
-    , fullTxOutDatumHash = Nothing
-    , fullTxOutDatum = Nothing
-    }
-
-mkFullTxInLp :: FullTxIn
-mkFullTxInLp =
-  FullTxIn
-    { fullTxInTxOut = mkFullTxOutLp
-    , fullTxInType = ConsumePublicKeyAddress
-    }
-
-
-mkFullTxOutLp :: FullTxOut
-mkFullTxOutLp =
-  FullTxOut
-    { fullTxOutRef = lpTxRef
-    , fullTxOutAddress = (Address (PubKeyCredential pPubKeyHashReward) Nothing)
-    , fullTxOutValue = 
-           (mkTokenValue' currencySymbolName' poolLq' 9223372036854775807)
-        <> (lpAdaTxAmount)
-    , fullTxOutDatumHash = Nothing
-    , fullTxOutDatum = Nothing
-    }
-
 pPoolTxIn1 :: FullTxIn
 pPoolTxIn1 =
   FullTxIn
     { fullTxInTxOut = pPoolOut1
-    , fullTxInType = ConsumePublicKeyAddress
+    , fullTxInType = ConsumeScriptAddress PScript.poolValidator allowedActions swapSymbol
     }
 
 pPoolOut1 :: FullTxOut
 pPoolOut1 =
   FullTxOut
     { fullTxOutRef = lpTxRef
-    , fullTxOutAddress = (Address (ScriptCredential mkPoolValidator123) Nothing)
+    , fullTxOutAddress = (Address poolCred Nothing)
     , fullTxOutValue = 
            (mkTokenValue' currencySymbolName' poolLq' 9223372036854775807)
         <> (mkTokenValue' currencySymbolName' poolNft' 1)
         <> (mkTokenValue' currencySymbolName' poolX' 100)
         <> (mkTokenValue' currencySymbolName' poolY' 100)
         <> (lpAdaTxAmount)
-    , fullTxOutDatumHash = Nothing
-    , fullTxOutDatum = Nothing
+    , fullTxOutDatumHash = Just pdh'
+    , fullTxOutDatum = Just pd'
     }
 
-pOrderTxIn1 :: FullTxIn
-pOrderTxIn1 =
-  FullTxIn
-    { fullTxInTxOut = pPoolOut1
-    , fullTxInType = ConsumePublicKeyAddress
-    }
-
-pOrderOut1 :: FullTxOut
-pOrderOut1 =
-  FullTxOut
-    { fullTxOutRef = lpTxRef
-    , fullTxOutAddress = (Address (ScriptCredential mkPoolValidator123) Nothing)
-    , fullTxOutValue = 
-           (mkTokenValue' currencySymbolName' poolLq' 10000000)
+poolOutCandidate =
+  TxOutCandidate
+    { txOutCandidateAddress = (Address poolCred Nothing)
+    , txOutCandidateValue   =
+           (mkTokenValue' currencySymbolName' poolLq' 9223372036854775807)
         <> (mkTokenValue' currencySymbolName' poolNft' 1)
         <> (mkTokenValue' currencySymbolName' poolX' 100)
         <> (mkTokenValue' currencySymbolName' poolY' 100)
         <> (lpAdaTxAmount)
-    , fullTxOutDatumHash = Nothing
-    , fullTxOutDatum = Nothing
+    , txOutCandidateDatum   = Just pd'
     }
 
-adaTxRef :: TxOutRef
-adaTxRef = mkTxOutRef' "5e71d8b27a9b1359a435026af299f06b607a61e7e1a88f082e03f2ff0ad1e267" 0
+swapPolicy = mkSwapPolicy mkPoolDatum'
+depositPolicy = mkDepositPolicy mkPoolDatum'
+redeemPolicy = mkRedeemPolicy mkPoolDatum'
 
-adaTxAmount :: Value
-adaTxAmount = mkAdaValue' 6913159
+swapSymbol = mintingPolicySymbol swapPolicy
+redeemSymbol = mintingPolicySymbol redeemPolicy
+depositSymbol = mintingPolicySymbol depositPolicy
 
-nftTxRef :: TxOutRef
-nftTxRef = mkTxOutRef' "5e71d8b27a9b1359a435026af299f06b607a61e7e1a88f082e03f2ff0ad1e267" 1
+mint :: Value
+mint = Value.singleton swapSymbol "6572676f6c6162736c70746f6b656e" 1
 
-nftAdaTxAmount :: Value
-nftAdaTxAmount = mkAdaValue' 1517208
+allowedActions = mkAllowedActions mkPoolDatum'
 
-lpTxRef :: TxOutRef
-lpTxRef = mkTxOutRef' "80f95be831a63d35b6a28b372fb82f608331e66e2b247082f9c5ef44c69bfb49" 1
-
-lpAdaTxAmount :: Value
-lpAdaTxAmount = mkAdaValue' 1517208
-
-xyTxRef :: TxOutRef
-xyTxRef = mkTxOutRef' "bcdff96396996cfdc4a6a77a0b973b3d755d84eba806e0bd0f99218a87a1a841" 1
-
-xyTxAmount :: Value
-xyTxAmount = mkAdaValue' 1517228
-
-addr :: Text
-addr = "2f69da3ca1ab89a2fbfd9d7cdae9616957b5bf34403001fb73be9291"
-
-pkHash :: PubKeyHash
-pkHash = PubKeyHash $ BuiltinByteString $ mkByteString addr
-
+poolCred = ScriptCredential $ LV.validatorHash $ LV.unsafeMkTypedValidator $ Validator $ compile PScript.poolValidator
 
 currencySymbolName' :: CurrencySymbol
 currencySymbolName' = mkCurrencySymbol' "805fe1efcdea11f1e959eff4f422f118aa76dca2d0d797d184e487da"
@@ -428,5 +322,3 @@ mkTxOutRef' hash index = TxOutRef (TxId (BuiltinByteString $ mkByteString hash))
 mkTokenValue' :: CurrencySymbol -> TokenName -> Integer -> Value
 mkTokenValue' cs tn amount =
   Value $ Map.fromList [(cs, Map.singleton tn amount)]
-
-mkPoolValidator123 = LV.validatorHash $ LV.unsafeMkTypedValidator $ Validator $ compile PP.poolValidator
