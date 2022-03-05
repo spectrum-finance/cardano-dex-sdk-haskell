@@ -11,7 +11,7 @@ import ErgoDex.PContracts.PPool
 main :: IO ()
 main = do
     --void $ print $ printTerm (pMkSwapValidator)
-    _ <- print $ eval (merklizedPoolValidator # datum # redeemer # ctx)
+    -- _ <- print $ eval (merklizedPoolValidator # datum # redeemer # ctx)
     -- _ <- print $ eval (poolValidator # pPPoolConfig # pPPoolDepositRedeemer # ctx)
     -- _ <- print $ eval (poolValidator # pPPoolConfig # pPPoolRedeemRedeemer # ctx)
     pure $ ()

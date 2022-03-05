@@ -105,7 +105,9 @@ library
         plutus-core,
         extra,
         cardano-api,
-        text
+        text,
+        base16-bytestring,
+        rio
 
 executable cardano-dex-exe
   main-is: Main.hs
