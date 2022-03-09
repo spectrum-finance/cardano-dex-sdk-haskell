@@ -26,8 +26,8 @@ import           ErgoDex.Contracts.Types
 import           ErgoDex.Amm.PScripts
 import           CardanoTx.Models
 
-data OrderExecErr =
-    PriceTooHigh
+data OrderExecErr
+  = PriceTooHigh
   | PoolMismatch PoolId PoolId
   deriving (Show)
 
@@ -64,9 +64,9 @@ runSwap' executorPkh stakePkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..
     rewardAddr = pubKeyHashAddress (PaymentPubKeyHash swapRewardPkh) stakePkh
     rewardOut  =
         TxOutCandidate
-          { txOutCandidateAddress  = rewardAddr
-          , txOutCandidateValue    = rewardValue
-          , txOutCandidateDatum    = Nothing
+          { txOutCandidateAddress = rewardAddr
+          , txOutCandidateValue   = rewardValue
+          , txOutCandidateDatum   = Nothing
           }
       where
         initValue     = fullTxOutValue swapOut
@@ -160,9 +160,9 @@ runRedeem' executorPkh stakePkh (Confirmed redeemOut Redeem{..}) (poolOut, pool@
     rewardAddr = pubKeyHashAddress (PaymentPubKeyHash redeemRewardPkh) stakePkh
     rewardOut  =
         TxOutCandidate
-          { txOutCandidateAddress   = rewardAddr
-          , txOutCandidateValue     = rewardValue
-          , txOutCandidateDatum     = Nothing
+          { txOutCandidateAddress = rewardAddr
+          , txOutCandidateValue   = rewardValue
+          , txOutCandidateDatum   = Nothing
           }
       where
         (outX, outY)  = sharesAmount pool redeemLqIn
