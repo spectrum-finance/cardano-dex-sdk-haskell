@@ -13,7 +13,6 @@ import           Control.Exception.Base
 import           Ledger          (Redeemer(..), StakePubKeyHash, PaymentPubKeyHash(..), pubKeyHashAddress)
 import qualified Ledger.Interval as Interval
 import qualified Ledger.Ada      as Ada
-import           Ledger.Scripts  (unitRedeemer)
 import           Ledger.Value    (assetClassValue)
 import           PlutusTx        (toBuiltinData)
 
@@ -21,9 +20,10 @@ import           ErgoDex.Types
 import           ErgoDex.State
 import           ErgoDex.Amm.Orders
 import           ErgoDex.Amm.Pool
-import qualified ErgoDex.Contracts.Pool as P
+import qualified ErgoDex.Contracts.Pool        as P
+import qualified ErgoDex.Contracts.Proxy.Order as O
 import           ErgoDex.Contracts.Types
-import           ErgoDex.Amm.Scripts
+import           ErgoDex.Amm.PScripts
 import           CardanoTx.Models
 
 data OrderExecErr =
@@ -49,8 +49,8 @@ mkPoolActions executorPkh stakePkh = PoolActions
 runSwap' :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> Confirmed Swap -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
 runSwap' executorPkh stakePkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
   let
-    poolIn  = mkScriptTxIn poolOut poolScript (Redeemer $ toBuiltinData P.Swap)
-    orderIn = mkScriptTxIn swapOut swapScript unitRedeemer
+    poolIn  = mkScriptTxIn poolOut poolValidator (Redeemer $ toBuiltinData $ P.PoolRedeemer P.Swap 0)
+    orderIn = mkScriptTxIn swapOut swapValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer 0 1 1)
     inputs  = [poolIn, orderIn]
 
     pp@(Predicted nextPoolOut _) = applySwap pool (AssetAmount swapBase swapBaseIn)
@@ -94,8 +94,8 @@ runDeposit' :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> Confirmed Deposit -
 runDeposit' executorPkh stakePkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{..}) = do
   when (depositPoolId /= poolId) (Left $ PoolMismatch depositPoolId poolId)
   let
-    poolIn  = mkScriptTxIn poolOut poolScript (Redeemer $ toBuiltinData P.Deposit)
-    orderIn = mkScriptTxIn depositOut depositScript unitRedeemer
+    poolIn  = mkScriptTxIn poolOut poolValidator (Redeemer $ toBuiltinData $ P.PoolRedeemer P.Deposit 0)
+    orderIn = mkScriptTxIn depositOut depositValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer 0 1 1)
     inputs  = [poolIn, orderIn]
 
     (inX :: Amount X, inY :: Amount Y) =
@@ -146,11 +146,11 @@ runDeposit' executorPkh stakePkh (Confirmed depositOut Deposit{..}) (poolOut, po
   Right (txCandidate, pp)
 
 runRedeem' :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> Confirmed Redeem -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runRedeem' executorPkh stakePkh (Confirmed redeemIn Redeem{..}) (poolOut, pool@Pool{..}) = do
+runRedeem' executorPkh stakePkh (Confirmed redeemOut Redeem{..}) (poolOut, pool@Pool{..}) = do
   when (redeemPoolId /= poolId) (Left $ PoolMismatch redeemPoolId poolId)
   let
-    poolIn  = mkScriptTxIn poolOut poolScript (Redeemer $ toBuiltinData P.Redeem)
-    orderIn = mkScriptTxIn redeemIn redeemScript unitRedeemer
+    poolIn  = mkScriptTxIn poolOut poolValidator (Redeemer $ toBuiltinData $ P.PoolRedeemer P.Deposit 0)
+    orderIn = mkScriptTxIn redeemOut redeemValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer 0 1 1)
     inputs  = [poolIn, orderIn]
 
     pp@(Predicted nextPoolOut _) = applyRedeem pool redeemLqIn
@@ -166,7 +166,7 @@ runRedeem' executorPkh stakePkh (Confirmed redeemIn Redeem{..}) (poolOut, pool@P
           }
       where
         (outX, outY)  = sharesAmount pool redeemLqIn
-        initValue     = fullTxOutValue redeemIn
+        initValue     = fullTxOutValue redeemOut
         exFee         = Ada.lovelaceValueOf $ negate $ unAmount $ unExFee redeemExFee
         residualValue = initValue <> burnLqValue <> exFee -- Remove LQ input and ExFee
 

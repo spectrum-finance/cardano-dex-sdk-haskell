@@ -1,55 +1,49 @@
 module ErgoDex.Amm.PScripts
   ( poolValidator
-  , mkAllowedActions
+  , swapValidator
+  , depositValidator
+  , redeemValidator
+  , validatorAddress
   ) where
 
-import Plutus.V1.Ledger.Api (MintingPolicy, Validator)
+import Plutus.V1.Ledger.Api (Validator, Address)
 
-import qualified ErgoDex.PContracts.PPool as PP
-import qualified ErgoDex.Contracts.Pool   as P
+import qualified ErgoDex.PContracts.PPool    as PP
+import qualified ErgoDex.PContracts.PSwap    as PS
+import qualified ErgoDex.PContracts.PDeposit as PD
+import qualified ErgoDex.PContracts.PRedeem  as PR
 
 import Plutarch
 import Plutarch.Prelude
-import Plutarch.Builtin         (pasInt, pasByteStr, pasList)
-import Plutarch.Api.V1          (mkMintingPolicy, mintingPolicySymbol, mkValidator)
-import Plutarch.Api.V1.Value    (PCurrencySymbol(..))
+import Plutarch.Api.V1          (mkValidator)
 import Plutarch.Api.V1.Contexts (PScriptContext)
+import Plutarch.Unsafe          (punsafeCoerce)
 
-mkMerkleMintingValidator
-  :: Term s (PInteger :--> PScriptContext :--> PBool)
-  -> Term s (PData :--> PScriptContext :--> POpaque)
-mkMerkleMintingValidator validator =
-  plam $ \dt ctx ->
-    let
-      datum     = pasInt # dt
-      result    = validator # datum # ctx
-    in popaque result
+import Ledger.Address (scriptHashAddress)
+import Ledger.Scripts (validatorHash)
 
-mkSwapPolicy :: P.PoolConfig -> MintingPolicy
-mkSwapPolicy conf = mkMintingPolicy $ mkMerkleMintingValidator $ PP.mkSwapValidator (pconstant conf)
-
-mkRedeemPolicy :: P.PoolConfig -> MintingPolicy
-mkRedeemPolicy conf = mkMintingPolicy $ mkMerkleMintingValidator $ PP.mkRedeemValidator (pconstant conf)
-
-mkDepositPolicy :: P.PoolConfig -> MintingPolicy
-mkDepositPolicy conf = mkMintingPolicy $ mkMerkleMintingValidator $ PP.mkDepositValidator (pconstant conf)
-
-mkAllowedActions :: P.PoolConfig -> Term s (PBuiltinList PCurrencySymbol)
-mkAllowedActions conf =
-    phoistAcyclic
-      $ pcons # pconstant swapSymbol #$ pcons # pconstant depositSymbol #$ pcons # pconstant redeemSymbol # pnil
-  where
-    swapSymbol    = mintingPolicySymbol $ mkSwapPolicy conf
-    depositSymbol = mintingPolicySymbol $ mkDepositPolicy conf
-    redeemSymbol  = mintingPolicySymbol $ mkRedeemPolicy conf
-
-poolValidatorT :: Term s (PData :--> PData :--> PScriptContext :--> POpaque)
-poolValidatorT = plam $ \datum redeemer ctx -> unTermCont $ do
+wrapValidator
+  :: (PIsData dt, PIsData rdmr)
+  => Term s (dt :--> rdmr :--> PScriptContext :--> PBool)
+  -> Term s (PData :--> PData :--> PScriptContext :--> POpaque)
+wrapValidator validator = plam $ \datum redeemer ctx ->
   let
-    actionNft      = pcon $ PCurrencySymbol $ pasByteStr # redeemer
-    allowedActions = pmap # plam (\d -> pcon $ PCurrencySymbol $ pasByteStr # d) # (pasList # datum)
-    result         = PP.merklizedPoolValidator # allowedActions # actionNft # ctx
-  pure $ popaque result
+    dt     = pfromData $ punsafeCoerce datum
+    rdmr   = pfromData $ punsafeCoerce redeemer
+    result = validator # dt # rdmr # ctx
+  in popaque result
 
 poolValidator :: Validator
-poolValidator = mkValidator poolValidatorT
+poolValidator = mkValidator $ wrapValidator PP.poolValidatorT
+
+swapValidator :: Validator
+swapValidator = mkValidator $ wrapValidator PS.swapValidatorT
+
+depositValidator :: Validator
+depositValidator = mkValidator $ wrapValidator PD.depositValidatorT
+
+redeemValidator :: Validator
+redeemValidator = mkValidator $ wrapValidator PR.redeemValidatorT
+
+validatorAddress :: Validator -> Address
+validatorAddress = scriptHashAddress . validatorHash
