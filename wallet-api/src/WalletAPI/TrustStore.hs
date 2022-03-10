@@ -6,6 +6,7 @@ import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Lazy   as BL
 import qualified Data.ByteArray         as BA
 import qualified Data.Text.Encoding     as T
+import qualified Data.ByteString.Base16  as Hex
 import           Data.Aeson
 
 import qualified Crypto.Hash         as H
@@ -16,6 +17,11 @@ import qualified Cardano.Api         as Crypto
 
 import WalletAPI.Internal.Crypto
 import WalletAPI.Internal.Models
+
+--todo: only for test
+unsafeFromEitherTest :: Either a b -> b
+unsafeFromEitherTest (Right b) = b
+unsafeFromEitherTest (Left a)  = Prelude.error "unsafeFromEitherTest"
 
 newtype SecretFile = SecretFile { unSigningKeyFile :: FilePath } deriving Generic
 
@@ -77,8 +83,8 @@ readSK'
   -> KeyPass
   -> f (Crypto.SigningKey Crypto.PaymentKey)
 readSK' file pass = do
-  TrustStoreFile{..} <- readTS file >>= maybe (throwM NotInitialized) pure
-  maybe (throwM DecryptionFailed) pure $ decryptKey trustStoreSecret pass
+  -- TrustStoreFile{..} <- readTS file >>= maybe (throwM NotInitialized) pure
+  maybe (throwM DecryptionFailed) pure $ decryptKey
 
 readVK'
   :: (MonadIO f, MonadThrow f)
