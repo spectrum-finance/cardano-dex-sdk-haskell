@@ -127,7 +127,12 @@ buildTxOuts
 buildTxOuts network =
     mapM translate
   where
-    translate sdkOut = absorbError $ Interop.toCardanoTxOut network undefined $ toPlutus sdkOut
+    translate sdkOut =
+     let
+       maybeDatum = Sdk.txOutCandidateDatum sdkOut
+       maybeHash = fmap P.datumHash maybeDatum
+       res = RIO.fromMaybe mempty (maybeHash >>= (\hash -> fmap (\datum -> Map.singleton hash datum) maybeDatum))
+     in absorbError $ Interop.toCardanoTxOut network undefined $ toPlutus sdkOut
 
 buildInputsUTxO
   :: (MonadThrow f, MonadIO f)
@@ -139,8 +144,11 @@ buildInputsUTxO network inputs =
   where
     translate Sdk.FullTxIn{fullTxInTxOut=out@Sdk.FullTxOut{..}} = do
       txIn  <- Interop.toCardanoTxIn fullTxOutRef
-      txOut <- Interop.toCardanoTxOut network undefined $ toPlutus out
-
+      let --todo: check
+        maybeHash = fullTxOutDatumHash
+        maybeDatum = fullTxOutDatum
+        res = RIO.fromMaybe mempty (maybeHash >>= (\hash -> fmap (\datum -> Map.singleton hash datum) maybeDatum ))
+      txOut <- Interop.toCardanoTxOut network res $ toPlutus out
       pure (txIn, toCtxUTxOTxOut txOut)
 
 buildMintRedeemers :: Sdk.MintInputs -> P.Redeemers
