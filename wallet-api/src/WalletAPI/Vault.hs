@@ -14,12 +14,13 @@ import qualified WalletAPI.Utxos     as U
 import           Explorer.Service
 
 data Vault f = Vault
-  { getSigningKey :: PubKeyHash -> f (Maybe ShelleyWitnessSigningKey)
-  , selectUtxos   :: Value      -> f (Maybe (Set.Set FullTxOut))
+  { getSigningKey       :: PubKeyHash -> f (Maybe ShelleyWitnessSigningKey)
+  , selectUtxos         :: Value      -> f (Maybe (Set.Set FullTxOut))
+  , selectUxtosByFilter :: (FullTxOut -> Bool) -> f (Maybe (Set.Set FullTxOut))
   }
 
 narrowVault :: Vault f -> U.WalletOutputs f
-narrowVault = U.WalletOutputs . selectUtxos
+narrowVault Vault{..} = U.WalletOutputs selectUtxos selectUxtosByFilter
 
 mkVault :: MonadIO f => Explorer f -> TrustStore f -> KeyPass -> f (Vault f)
 mkVault explorer tstore pass = do
@@ -27,11 +28,16 @@ mkVault explorer tstore pass = do
   pure $ Vault
     { getSigningKey = getSigningKey' tstore pass
     , selectUtxos   = selectUtxos' explorer ustore tstore
+    , selectUxtosByFilter = selectUxtosByFilter' explorer ustore tstore
     }
 
 getSigningKey' :: Functor f => TrustStore f -> KeyPass -> PubKeyHash -> f (Maybe ShelleyWitnessSigningKey)
 getSigningKey' TrustStore{readSK} pass _ = readSK pass <&> WitnessPaymentKey <&> Just
 
-selectUtxos' :: Monad f => Explorer f -> UtxoStore f -> TrustStore f -> Value -> f (Maybe (Set.Set FullTxOut))
+selectUtxos' :: MonadIO f => Explorer f -> UtxoStore f -> TrustStore f -> Value -> f (Maybe (Set.Set FullTxOut))
 selectUtxos' explorer ustore TrustStore{readVK} requiredValue =
   readVK <&> Crypto.verificationKeyHash >>= (\pkh -> U.selectUtxos'' explorer ustore pkh requiredValue)
+
+selectUxtosByFilter' :: MonadIO f => Explorer f -> UtxoStore f -> TrustStore f -> (FullTxOut -> Bool) -> f (Maybe (Set.Set FullTxOut))
+selectUxtosByFilter' explorer ustore TrustStore{readVK} predicate =
+  readVK <&> Crypto.verificationKeyHash >>= (\pkh -> U.selectUxtosByFilter'' explorer ustore pkh predicate)

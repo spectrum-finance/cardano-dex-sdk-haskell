@@ -50,7 +50,7 @@ finalizeTx'
 finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   sysenv      <- getSystemEnv
   collaterals <- selectCollaterals (narrowVault wallet) sysenv conf txc
-
+  _ <- liftIO $ print ("collaterals:" ++ (show collaterals))
   let
     isBalancedTx = amountIn == amountOut
       where
@@ -92,12 +92,11 @@ selectCollaterals WalletOutputs{selectUtxos, selectUxtosByFilter} SystemEnv{..} 
                 collateralPercent' = naturalToInteger collateralPercent
             pure $ P.Lovelace $ collateralPercent' * fee' `div` 100
 
-        collateral <- estimateCollateral' knownCollaterals
-        utxosM      <- (selectUxtosByFilter containsOnlyAda) :: f (Maybe (Set.Set Sdk.FullTxOut)) -- only for test
+        collateral  <- estimateCollateral' knownCollaterals
+        utxosM      <- selectUxtosByFilter containsOnlyAda -- only for test
         utxos       <- case utxosM of
           Nothing -> throwM FailedToSatisfyCollateral
           Just a  -> pure a
-
         let collaterals = Set.fromList $ Set.elems utxos <&> Sdk.FullCollateralTxIn
 
         collateral' <- estimateCollateral' collaterals
