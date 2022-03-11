@@ -1,30 +1,4 @@
-{-# LANGUAGE AllowAmbiguousTypes        #-}
-{-# LANGUAGE DataKinds                  #-}
-{-# LANGUAGE EmptyDataDecls             #-}
-{-# LANGUAGE DeriveAnyClass             #-}
-{-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE DerivingStrategies         #-}
-{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE KindSignatures             #-}
-{-# LANGUAGE MonoLocalBinds             #-}
-{-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE PartialTypeSignatures      #-}
-{-# LANGUAGE RecordWildCards            #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE TemplateHaskell            #-}
-{-# LANGUAGE TypeApplications           #-}
-{-# LANGUAGE TypeFamilies               #-}
-{-# LANGUAGE TypeOperators              #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
-{-# LANGUAGE ViewPatterns               #-}
-{-# LANGUAGE NamedFieldPuns             #-}
-{-# OPTIONS_GHC -Wno-simplifiable-class-constraints #-}
-{-# OPTIONS_GHC -fno-strictness #-}
-{-# OPTIONS_GHC -fno-specialise #-}
-{-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
 
 module Models.Generator
   ( genTxOutRef
@@ -49,7 +23,6 @@ module Models.Generator
   , genTxCandidate
   ) where
 
-
 import Models.Utils (genByteString, unsafeFromEither)
 
 import qualified ErgoDex.Contracts.Pool as P
@@ -70,14 +43,6 @@ import qualified Ledger.Interval as Interval
 
 import qualified Data.Set as Set
 import GHC.Generics
-
-data PoolRedeemer = PoolRedeemer
-  { action :: P.PoolAction
-  , selfIx :: Integer
-  }
- deriving (Show, Generic)
-PlutusTx.makeIsDataIndexed ''PoolRedeemer [('PoolRedeemer, 0)]
-PlutusTx.makeLift ''PoolRedeemer
 
 genTxOutRef :: Integer -> TxOutRef
 genTxOutRef index = TxOutRef (TxId (BuiltinByteString genByteString)) index
@@ -110,10 +75,10 @@ genDatum = Datum . toBuiltinData
 genDatumHash :: Datum -> DatumHash
 genDatumHash datum = Ledger.datumHash datum
 
-genPoolRedeemer :: Integer -> P.PoolAction -> PoolRedeemer
-genPoolRedeemer ix action = PoolRedeemer action ix
+genPoolRedeemer :: Integer -> P.PoolAction -> P.PoolRedeemer
+genPoolRedeemer ix action = P.PoolRedeemer action ix
 
-genRedeemer :: PoolRedeemer -> Redeemer
+genRedeemer :: P.PoolRedeemer -> Redeemer
 genRedeemer = Redeemer . toBuiltinData
 
 genMaxLq :: Integer
