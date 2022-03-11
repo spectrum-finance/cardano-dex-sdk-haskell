@@ -31,7 +31,7 @@ getUnspentOutputs' conf minIndex limit =
 
 getUnspentOutputsByPCred' :: MonadIO f => ExplorerConfig -> PaymentCred -> Paging -> f (Items FullTxOut)
 getUnspentOutputsByPCred' conf pcred Paging{..} =
-  mkGetRequest conf $ "/outputs/unspent/byPaymentCred/" ++ T.unpack (unPaymentCred pcred) ++  "/?offset=" ++ show offset ++ "&limit=" ++ show limit
+  mkGetRequest conf $ "/outputs/unspent/byAddr/" ++ T.unpack (unPaymentCred pcred) ++  "/?offset=" ++ show offset ++ "&limit=" ++ show limit
 
 getSystemEnv' :: MonadIO f => ExplorerConfig -> f SystemEnv
 getSystemEnv' conf = mkGetRequest conf "/networkParams"
