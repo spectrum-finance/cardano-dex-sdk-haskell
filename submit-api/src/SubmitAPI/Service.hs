@@ -39,6 +39,10 @@ mkSubmitService network wallet conf = Transactions
   , submitTx   = Network.submitTx network
   }
 
+--wallet3 only for test
+pPubKeyHashReward :: P.PubKeyHash
+pPubKeyHashReward = "d74d26c5029cf290094fce1a0670da7369b9026571dfb977c6fa234f"
+
 finalizeTx'
   :: MonadThrow f
   => MonadIO f
@@ -65,8 +69,8 @@ finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCan
   let
     requiredSigners = Set.elems txCandidateInputs >>= getPkh
       where
-        getPkh Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{fullTxOutAddress=P.Address (P.PubKeyCredential pkh) _}} = [pkh]
-        getPkh _                                                                                                = []
+        -- getPkh Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{fullTxOutAddress=P.Address (P.PubKeyCredential pkh) _}} = [pkh] || only for test
+        getPkh _                                                                                                = [pPubKeyHashReward]
   signers <- mapM (\pkh -> getSigningKey pkh >>= maybe (throwM $ SignerNotFound pkh) pure) requiredSigners
   pure $ signTx txb signers
 
