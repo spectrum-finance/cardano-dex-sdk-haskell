@@ -78,7 +78,7 @@ selectCollaterals
   -> TxAssemblyConfig
   -> Sdk.TxCandidate
   -> f (Set.Set Sdk.FullCollateralTxIn)
-selectCollaterals WalletOutputs{selectUtxos} SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
+selectCollaterals WalletOutputs{selectUtxos, selectUxtosByFilter} SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   let isScriptIn Sdk.FullTxIn{fullTxInType=P.ConsumeScriptAddress {}} = True
       isScriptIn _                                                    = False
 
@@ -93,7 +93,10 @@ selectCollaterals WalletOutputs{selectUtxos} SystemEnv{..} TxAssemblyConfig{..} 
             pure $ P.Lovelace $ collateralPercent' * fee' `div` 100
 
         collateral <- estimateCollateral' knownCollaterals
-        utxos      <- selectUtxos (P.toValue collateral) >>= maybe (throwM FailedToSatisfyCollateral) pure
+        utxosM      <- (selectUxtosByFilter containsOnlyAda) :: f (Maybe (Set.Set Sdk.FullTxOut)) -- only for test
+        utxos       <- case utxosM of
+          Nothing -> throwM FailedToSatisfyCollateral
+          Just a  -> pure a
 
         let collaterals = Set.fromList $ Set.elems utxos <&> Sdk.FullCollateralTxIn
 
