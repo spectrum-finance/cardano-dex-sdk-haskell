@@ -62,6 +62,7 @@ finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCan
           foldr (\ txIn acc -> Sdk.fullTxOutValue (Sdk.fullTxInTxOut txIn) <> acc) mempty (Set.elems txCandidateInputs)
         amountOut =
           foldr (\ txOut acc -> Sdk.txOutCandidateValue txOut <> acc) mempty txCandidateOutputs
+  _ <- liftIO $ print ("isBalancedTx:" ++ (show isBalancedTx))
   (C.BalancedTxBody txb _ _) <- case txCandidateChangePolicy of
     Just (Sdk.ReturnTo changeAddr) -> buildBalancedTx sysenv (Sdk.ChangeAddress changeAddr) collaterals txc
     _ | isBalancedTx               -> buildBalancedTx sysenv dummyAddr collaterals txc
