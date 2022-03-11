@@ -96,7 +96,7 @@ selectCollaterals WalletOutputs{selectUtxos, selectUxtosByFilter} SystemEnv{..} 
         utxosM      <- selectUxtosByFilter containsOnlyAda -- only for test
         utxos       <- case utxosM of
           Nothing -> throwM FailedToSatisfyCollateral
-          Just a  -> pure a
+          Just a  -> pure . Set.singleton . head $ Set.elems a
         let collaterals = Set.fromList $ Set.elems utxos <&> Sdk.FullCollateralTxIn
 
         collateral' <- estimateCollateral' collaterals
