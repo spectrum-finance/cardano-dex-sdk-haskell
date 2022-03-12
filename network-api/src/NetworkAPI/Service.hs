@@ -24,7 +24,9 @@ submitTx' :: (MonadIO f) => NodeConfig -> C.Tx C.AlonzoEra -> f ()
 submitTx' NodeConfig{..} tx = do
   liftIO . print $ "Going to submit tx to cardano node"
   let
+    res = serialiseToCBOR tx
     serialisedTx = Lazy.fromStrict $ serialiseToCBOR tx
+    deser        = deserialiseFromCBOR AsAlonzoTx res
     request = defaultRequest
       & setRequestPath (pack "api/submit/tx")
       & setRequestHost (pack host)
@@ -32,5 +34,6 @@ submitTx' NodeConfig{..} tx = do
       & setRequestHeader "Content-Type" ["application/cbor"]
       & setRequestMethod (pack "POST")
       & setRequestBodyLBS serialisedTx
+  liftIO . print $ ("DeserTx: " ++ (show deser))
   response <- liftIO (httpJSON request :: IO (Response String))
-  liftIO $ print $ "Response aftre tx submit is: " ++ getResponseBody response
+  liftIO $ print $ "Response after tx submit is: " ++ getResponseBody response
