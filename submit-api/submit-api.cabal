@@ -126,5 +126,6 @@ test-suite submit-api-test
     , plutus-ledger-api
     , plutus-ledger
     , containers==0.6.2.1
+    , random-strings
     , dex-core
     , cardano-tx

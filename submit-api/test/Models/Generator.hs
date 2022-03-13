@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE RecordWildCards          #-}
 
 module Models.Generator
   ( genTxOutRef
@@ -8,24 +9,27 @@ module Models.Generator
   , genValue
   , genAdaValue
   , genPoolConfig
+  , genDepositConfig
   , genDatum
   , genDatumHash
   , genPoolRedeemer
   , genRedeemer
   , genMaxLq
-  , genPoolValue
+  -- , genPoolValue
   , genTxInType
   , genScriptCredential
   , genFullTxOut
   , genTxIn
-  , getTxOutCandidate
+  , genTxOutCandidate
   , pPubKeyHashReward
   , genTxCandidate
   ) where
 
-import Models.Utils (genByteString, unsafeFromEither)
+import Models.Utils
 
 import qualified ErgoDex.Contracts.Pool as P
+import qualified ErgoDex.Contracts.Proxy.Deposit  as Deposit
+import qualified ErgoDex.Contracts.Proxy.Order as Order
 import ErgoDex.Amm.Scripts ()
 import qualified ErgoDex.Amm.PScripts as PScript
 import CardanoTx.Models
@@ -42,16 +46,14 @@ import qualified PlutusTx
 import qualified Ledger.Interval as Interval
 
 import qualified Data.Set as Set
+import qualified Data.ByteString         as BS
 import GHC.Generics
 
-genTxOutRef :: Integer -> TxOutRef
-genTxOutRef index = TxOutRef (TxId (BuiltinByteString genByteString)) index
+genTokenName :: BS.ByteString -> TokenName
+genTokenName = TokenName . BuiltinByteString
 
-genTokenName :: TokenName
-genTokenName = TokenName . BuiltinByteString $ genByteString
-
-genCurrencySymbol :: CurrencySymbol
-genCurrencySymbol = CurrencySymbol . BuiltinByteString $ genByteString
+genCurrencySymbol :: BS.ByteString -> CurrencySymbol
+genCurrencySymbol = CurrencySymbol . BuiltinByteString
 
 genAssetClass :: CurrencySymbol -> TokenName -> AssetClass
 genAssetClass cs tn = AssetClass (cs, tn)
@@ -69,8 +71,14 @@ genValues [] acc = acc
 genPoolConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> P.PoolConfig
 genPoolConfig nft x y lq fee = P.PoolConfig nft x y lq fee
 
+genDepositConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> PubKeyHash -> Integer -> Deposit.DepositConfig
+genDepositConfig nft x y lq fee pkh cFee = Deposit.DepositConfig nft x y lq fee pkh cFee
+
 genDatum :: P.PoolConfig -> Datum
 genDatum = Datum . toBuiltinData
+
+genOrderDatum :: Deposit.DepositConfig -> Datum
+genOrderDatum = Datum . toBuiltinData
 
 genDatumHash :: Datum -> DatumHash
 genDatumHash datum = Ledger.datumHash datum
@@ -78,29 +86,17 @@ genDatumHash datum = Ledger.datumHash datum
 genPoolRedeemer :: Integer -> P.PoolAction -> P.PoolRedeemer
 genPoolRedeemer ix action = P.PoolRedeemer action ix
 
+genDepositRedeemer :: Integer -> Integer -> Integer -> Order.OrderRedeemer
+genDepositRedeemer a b c = Order.OrderRedeemer a b c
+
+genDepositRedeemerR :: Order.OrderRedeemer -> Redeemer
+genDepositRedeemerR = Redeemer . toBuiltinData
+
 genRedeemer :: P.PoolRedeemer -> Redeemer
 genRedeemer = Redeemer . toBuiltinData
 
 genMaxLq :: Integer
 genMaxLq = 0x7fffffffffffffff
-
-genPoolValue :: Value
-genPoolValue =
-  let
-    cs = genCurrencySymbol
-
-    nft = genAssetClass cs genTokenName
-    x   = genAssetClass cs genTokenName
-    y   = genAssetClass cs genTokenName
-    lq  = genAssetClass cs genTokenName
-
-    nftV = genValue nft 1
-    xV   = genValue x 100
-    yV   = genValue y 100
-    lqV  = genValue lq genMaxLq
-    adaV = genAdaValue 100000
-
-  in genValues [nftV, xV, yV, lqV, adaV] mempty
 
 genTxInType :: Datum -> Redeemer -> Ledger.TxInType
 genTxInType datum redeemer = Ledger.ConsumeScriptAddress PScript.poolValidator redeemer datum 
@@ -125,51 +121,66 @@ genFullTxOut ref value datum =
 genTxCandidate :: TxCandidate
 genTxCandidate =
   let
-    cs = genCurrencySymbol
-
-    nft = genAssetClass cs genTokenName
-    x   = genAssetClass cs genTokenName
-    y   = genAssetClass cs genTokenName
-    lq  = genAssetClass cs genTokenName
+    nft = genAssetClass (genCurrencySymbol genCS) (genTokenName genNft)
+    x   = genAssetClass (genCurrencySymbol genCS) (genTokenName genX)
+    y   = genAssetClass (genCurrencySymbol genCS) (genTokenName genY)
+    lq  = genAssetClass (genCurrencySymbol genCS) (genTokenName genLQ)
 
     nftV = genValue nft 1
-    xV   = genValue x 100
-    yV   = genValue y 100
-    lqV  = genValue lq genMaxLq
+    xV   = genValue x 10
+    yV   = genValue y 10
+    lqV  = genValue lq (genMaxLq - 10)
     adaV = genAdaValue 100000
 
     values = genValues [nftV, xV, yV, lqV, adaV] mempty
 
     poolCfg = genPoolConfig nft x y lq 100
 
-    poolRedeemer = genPoolRedeemer 0 P.Swap
+    poolRedeemer = genPoolRedeemer 0 P.Deposit
 
     datum = genDatum poolCfg
 
     redeemer = genRedeemer poolRedeemer
 
-    ref = genTxOutRef 0
+    ref = genTxOutRef
 
     txOut = genFullTxOut ref values datum
 
     txIn = genTxIn txOut datum redeemer
 
-    xVSwap = genValue x (-10)
-    yVSwap = genValue y 10
-    lqVSwap = genValue lq (-100)
+    xVOrder = genValue x 10
+    yVOrder = genValue y 10
 
-    swapValues = genValues [xVSwap, yVSwap, lqVSwap] values
+    orderAdaV = genAdaValue 100000
 
-    txOutCandidate = getTxOutCandidate swapValues datum
-  in 
+    orderValues = genValues [xVOrder, yVOrder, orderAdaV] mempty
+
+    orderConfig = genDepositConfig nft x y lq 100 pPubKeyHashReward 100
+
+    orderDatum = genOrderDatum orderConfig
+
+    orderRedeemer = genDepositRedeemerR $ genDepositRedeemer 0 1 1
+
+    orderTxOut = genFullTxOut ref orderValues orderDatum
+
+    orderTxIn = genTxIn orderTxOut orderDatum orderRedeemer
+
+
+    resultPoolValue = genValues [xVOrder, yVOrder, (genValue lq (-10))] values
+    txOutCandidate = genTxOutCandidate resultPoolValue datum
+
+    resultRewardValue = genValues [genValue lq 10, genAdaValue 99800] mempty
+    txOutCandidateReward = genTxOutCandidate resultRewardValue orderDatum
+
+  in
     TxCandidate 
-      { txCandidateInputs = Set.fromList [txIn],
-        txCandidateOutputs = [txOutCandidate],
-        txCandidateValueMint = mempty,
-        txCandidateMintInputs = mempty,
+      { txCandidateInputs       = Set.fromList [txIn, orderTxIn],
+        txCandidateOutputs      = [txOutCandidate, txOutCandidateReward],
+        txCandidateValueMint    = mempty,
+        txCandidateMintInputs   = mempty,
         txCandidateChangePolicy = Just $ ReturnTo (Address (PubKeyCredential pPubKeyHashReward) Nothing),
         txCandidateValidRange   = Interval.always,
-        txCandidateSigners = []
+        txCandidateSigners      = []
       } 
 
 genTxIn :: FullTxOut -> Datum -> Redeemer -> FullTxIn
@@ -182,8 +193,8 @@ genTxIn txOut datum redeemer =
       , fullTxInType  = txInType
       }
 
-getTxOutCandidate :: Value -> Datum -> TxOutCandidate
-getTxOutCandidate value datum =
+genTxOutCandidate :: Value -> Datum -> TxOutCandidate
+genTxOutCandidate value datum =
   let
     address = Address genScriptCredential Nothing
   in
