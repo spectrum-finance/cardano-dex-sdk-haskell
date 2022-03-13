@@ -13,6 +13,7 @@ module Models.Generator
   , genDepositConfig
   , genDatum
   , genDatumHash
+  , genOrderDatum
   , genPoolRedeemer
   , genRedeemer
   , genMaxLq
