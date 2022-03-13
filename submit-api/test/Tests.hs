@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeOperators          #-}
+{-# LANGUAGE OverloadedStrings          #-}
 module Tests where
 
 import Plutarch.Api.V1
@@ -9,6 +10,7 @@ import Plutarch
 
 import qualified ErgoDex.Contracts.Pool as Pool
 import qualified ErgoDex.PContracts.PPool as PPool
+import qualified ErgoDex.PContracts.PDeposit as PDeposit
 
 import Models.PGenerator
 import Models.Generator
@@ -23,12 +25,10 @@ runSuccessDeposite = phoistAcyclic $ unTermCont $ do
     yTn   = genTokenName genY
     lqTn  = genTokenName genLQ
 
-
     pnft = pgenAssetClass nftTn cs
     px   = pgenAssetClass xTn cs
     py   = pgenAssetClass yTn cs
     plq  = pgenAssetClass lqTn cs
-
 
     nft = genAssetClass cs nftTn
     x   = genAssetClass cs xTn
@@ -41,7 +41,7 @@ runSuccessDeposite = phoistAcyclic $ unTermCont $ do
     poolDH      = genDatumHash poolDatum
 
     orderConfig  = genDepositConfig nft x y lq 100 pubKeyHashReward 100
-    -- pOrderConfig = pconstant orderConfig
+    pOrderConfig = pgenDepositConfig # pnft # px # py # plq # 100 # pconstant pubKeyHashReward # 100
     orderDatum   = genOrderDatum orderConfig
     orderDH      = genDatumHash orderDatum
 
@@ -64,8 +64,11 @@ runSuccessDeposite = phoistAcyclic $ unTermCont $ do
     cxt     = pgenContext txInfo purpose
 
     poolRedeemer = pgenPoolRedeemer # pcon PPool.Deposit # 0
+    orderRedeem  = pgenOrderRedeem # 0 # 1 # 1
 
     runPool = PPool.poolValidatorT # ppoolConfig # poolRedeemer # cxt
+    runDeposit = PDeposit.depositValidatorT # pOrderConfig # orderRedeem # cxt
 
-    res = pif (runPool) (pcon PUnit) perror
+--   res <- tlet $ pif (runPool) (pcon PUnit) (ptraceError "incorrect pool")
+  res <- tlet $ pif (runDeposit) (pcon PUnit) (ptraceError "incorrect deposit")
   return res
