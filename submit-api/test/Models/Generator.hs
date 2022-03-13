@@ -7,6 +7,7 @@ module Models.Generator
   , genCurrencySymbol
   , genAssetClass
   , genValue
+  , genValues
   , genAdaValue
   , genPoolConfig
   , genDepositConfig
@@ -21,7 +22,7 @@ module Models.Generator
   , genFullTxOut
   , genTxIn
   , genTxOutCandidate
-  , pPubKeyHashReward
+  , pubKeyHashReward
   , genTxCandidate
   ) where
 
@@ -155,7 +156,7 @@ genTxCandidate =
 
     orderValues = genValues [xVOrder, yVOrder, orderAdaV] mempty
 
-    orderConfig = genDepositConfig nft x y lq 100 pPubKeyHashReward 100
+    orderConfig = genDepositConfig nft x y lq 100 pubKeyHashReward 100
 
     orderDatum = genOrderDatum orderConfig
 
@@ -164,7 +165,6 @@ genTxCandidate =
     orderTxOut = genFullTxOut ref orderValues orderDatum
 
     orderTxIn = genTxIn orderTxOut orderDatum orderRedeemer
-
 
     resultPoolValue = genValues [xVOrder, yVOrder, (genValue lq (-10))] values
     txOutCandidate = genTxOutCandidate resultPoolValue datum
@@ -178,7 +178,7 @@ genTxCandidate =
         txCandidateOutputs      = [txOutCandidate, txOutCandidateReward],
         txCandidateValueMint    = mempty,
         txCandidateMintInputs   = mempty,
-        txCandidateChangePolicy = Just $ ReturnTo (Address (PubKeyCredential pPubKeyHashReward) Nothing),
+        txCandidateChangePolicy = Just $ ReturnTo (Address (PubKeyCredential pubKeyHashReward) Nothing),
         txCandidateValidRange   = Interval.always,
         txCandidateSigners      = []
       } 
@@ -204,5 +204,5 @@ genTxOutCandidate value datum =
         , txOutCandidateDatum   = Just datum
         }
 
-pPubKeyHashReward :: PubKeyHash
-pPubKeyHashReward = "d74d26c5029cf290094fce1a0670da7369b9026571dfb977c6fa234f"
+pubKeyHashReward :: PubKeyHash
+pubKeyHashReward = "d74d26c5029cf290094fce1a0670da7369b9026571dfb977c6fa234f"

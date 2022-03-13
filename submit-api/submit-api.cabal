@@ -113,6 +113,8 @@ test-suite submit-api-test
   other-modules:
     Models.Generator
     Models.Utils
+    Models.PGenerator
+    Tests
   build-depends:
     , base  == 4.14.1.0
     , HUnit == 1.6.2.0
@@ -127,5 +129,6 @@ test-suite submit-api-test
     , plutus-ledger
     , containers==0.6.2.1
     , random-strings
+    , plutarch
     , dex-core
     , cardano-tx
