@@ -23,7 +23,7 @@ import           ErgoDex.Amm.Pool
 import qualified ErgoDex.Contracts.Pool        as P
 import qualified ErgoDex.Contracts.Proxy.Order as O
 import           ErgoDex.Contracts.Types
-import           ErgoDex.Amm.PScripts
+import           ErgoDex.PValidators
 import           CardanoTx.Models
 
 data OrderExecErr

@@ -20,7 +20,7 @@ import           ErgoDex.Contracts.Types
 import qualified ErgoDex.Contracts.Proxy.Order as W
 import           ErgoDex.Contracts.Pool
 import           ErgoDex.Amm.Constants         (minSafeOutputAmount)
-import           ErgoDex.Amm.PScripts
+import           ErgoDex.PValidators
 
 newtype PoolId = PoolId { unPoolId :: Coin Nft }
   deriving (Show, Eq, Generic)
