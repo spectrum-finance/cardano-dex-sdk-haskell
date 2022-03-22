@@ -28,13 +28,13 @@ data Transactions f = Transactions
   , submitTx   :: C.Tx C.AlonzoEra -> f ()
   }
 
-mkSubmitService
+mkTransactions
   :: (MonadThrow f, MonadIO f)
   => Network f
   -> Vault f
   -> TxAssemblyConfig
   -> Transactions f
-mkSubmitService network wallet conf = Transactions
+mkTransactions network wallet conf = Transactions
   { finalizeTx = finalizeTx' network wallet conf
   , submitTx   = Network.submitTx network
   }
@@ -47,7 +47,7 @@ finalizeTx'
   -> TxAssemblyConfig
   -> Sdk.TxCandidate
   -> f (C.Tx C.AlonzoEra)
-finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
+finalizeTx' Network{..} wallet@Vault{..} conf txc@Sdk.TxCandidate{..} = do
   sysenv      <- getSystemEnv
   collaterals <- selectCollaterals (narrowVault wallet) sysenv conf txc
 
@@ -63,11 +63,12 @@ finalizeTx' Network{..} wallet@Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCan
     _ | isBalancedTx               -> buildBalancedTx sysenv dummyAddr collaterals txc
 
   let
-    requiredSigners = Set.elems txCandidateInputs >>= getPkh
+    allInputs   = (Set.elems txCandidateInputs <&> Sdk.fullTxInTxOut) ++ (Set.elems collaterals <&> Sdk.fullCollateralTxInTxOut)
+    signatories = allInputs >>= getPkh
       where
-        getPkh Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{fullTxOutAddress=P.Address (P.PubKeyCredential pkh) _}} = [pkh]
-        getPkh _                                                                                                = []
-  signers <- mapM (\pkh -> getSigningKey pkh >>= maybe (throwM $ SignerNotFound pkh) pure) requiredSigners
+        getPkh Sdk.FullTxOut{fullTxOutAddress=P.Address (P.PubKeyCredential pkh) _} = [pkh]
+        getPkh _                                                                    = []
+  signers <- mapM (\pkh -> getSigningKey pkh >>= maybe (throwM $ SignerNotFound pkh) pure) signatories
   pure $ signTx txb signers
 
 selectCollaterals
