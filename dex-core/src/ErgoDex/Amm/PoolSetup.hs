@@ -6,7 +6,7 @@ import           Data.Functor
 import           Data.Either.Combinators (mapLeft)
 import qualified Data.Set                as Set
 
-import           Ledger          (PubKeyHash(..), Address, pubKeyHashAddress)
+import           Ledger          (Address, StakePubKeyHash, PaymentPubKeyHash, pubKeyHashAddress)
 import qualified Ledger.Interval as Interval
 import           Ledger.Value    (AssetClass)
 
@@ -28,7 +28,7 @@ data SetupExecError =
   deriving Show
 
 data PoolSetup = PoolSetup
-  { poolDeploy :: PubKeyHash -> P.PoolConfig -> [FullTxOut] -> Either SetupExecError TxCandidate
+  { poolDeploy :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> P.PoolConfig -> [FullTxOut] -> Either SetupExecError TxCandidate
   }
 
 mkPoolSetup :: Address -> PoolSetup
@@ -36,8 +36,14 @@ mkPoolSetup changeAddr = PoolSetup
   { poolDeploy = poolDeploy' changeAddr
   }
 
-poolDeploy' :: Address -> PubKeyHash -> P.PoolConfig -> [FullTxOut] -> Either SetupExecError TxCandidate
-poolDeploy' changeAddr rewardPkh pp@P.PoolConfig{..} utxosIn = do
+poolDeploy'
+  :: Address
+  -> PaymentPubKeyHash
+  -> Maybe StakePubKeyHash
+  -> P.PoolConfig
+  -> [FullTxOut]
+  -> Either SetupExecError TxCandidate
+poolDeploy' changeAddr rewardPkh stakePkh pp@P.PoolConfig{..} utxosIn = do
   inNft <- overallAmountOf utxosIn poolNft
   inLq  <- overallAmountOf utxosIn poolLq
   inX   <- overallAmountOf utxosIn poolX
@@ -52,7 +58,7 @@ poolDeploy' changeAddr rewardPkh pp@P.PoolConfig{..} utxosIn = do
   let
     mintLqValue  = coinAmountValue (poolCoinLq nextPool) unlockedLq
     rewardOutput = TxOutCandidate
-      { txOutCandidateAddress = pubKeyHashAddress rewardPkh
+      { txOutCandidateAddress = pubKeyHashAddress rewardPkh stakePkh
       , txOutCandidateValue   = mintLqValue <> minSafeOutputValue
       , txOutCandidateDatum   = Nothing
       }
@@ -73,6 +79,7 @@ poolDeploy' changeAddr rewardPkh pp@P.PoolConfig{..} utxosIn = do
     , txCandidateMintInputs   = mempty
     , txCandidateChangePolicy = Just $ ReturnTo changeAddr
     , txCandidateValidRange   = Interval.always
+    , txCandidateSigners      = mempty
     }
 
 overallAmountOf :: [FullTxOut] -> Coin a -> Either SetupExecError (AssetAmount a)

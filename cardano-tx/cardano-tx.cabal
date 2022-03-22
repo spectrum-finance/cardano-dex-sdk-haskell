@@ -80,6 +80,8 @@ library
     build-depends:
         mtl==2.2.2,
         plutus-chain-index==0.1.0.0,
+        plutus-chain-index-core==0.1.0.0,
+        plutus-ledger-constraints==0.1.0.0,
         plutus-ledger,
         plutus-tx,
         plutus-ledger-api,

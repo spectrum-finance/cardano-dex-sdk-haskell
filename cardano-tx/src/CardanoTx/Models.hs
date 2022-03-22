@@ -8,6 +8,7 @@ import qualified Data.Map       as Map
 import           Ledger
 import           Plutus.V1.Ledger.Credential (Credential (..))
 import qualified Ledger                      as P
+import qualified Ledger.Constraints.OffChain as P
 import           GHC.Generics                (Generic)
 
 import CardanoTx.ToPlutus
@@ -56,6 +57,11 @@ data FullTxIn = FullTxIn
   { fullTxInTxOut :: FullTxOut
   , fullTxInType  :: TxInType
   } deriving (Show, Eq, Ord, Generic, FromJSON, ToJSON)
+
+toScriptOutput :: FullTxIn -> Maybe P.ScriptOutput
+toScriptOutput FullTxIn{fullTxInTxOut=FullTxOut{fullTxOutValue}, fullTxInType=ConsumeScriptAddress v _ d} =
+  Just $ P.ScriptOutput (validatorHash v) fullTxOutValue (datumHash d)
+toScriptOutput _ = Nothing
 
 mkPkhTxIn :: FullTxOut -> FullTxIn
 mkPkhTxIn fout = FullTxIn fout ConsumePublicKeyAddress
@@ -109,4 +115,5 @@ data TxCandidate = TxCandidate
   , txCandidateMintInputs   :: MintInputs
   , txCandidateChangePolicy :: Maybe ChangePolicy
   , txCandidateValidRange   :: SlotRange
+  , txCandidateSigners      :: [PaymentPubKeyHash]
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)

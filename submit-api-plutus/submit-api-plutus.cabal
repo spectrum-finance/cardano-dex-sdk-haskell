@@ -1,5 +1,5 @@
 cabal-version:      2.4
-name:               submit-api
+name:               submit-api-plutus
 version:            0.1.0.0
 
 author:             ErgoLabs
@@ -71,7 +71,6 @@ library
     hs-source-dirs: src
     
     exposed-modules: SubmitAPI.Service
-                     SubmitAPI.Config
                      SubmitAPI.Internal.Transaction
 
     build-depends:

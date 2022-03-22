@@ -9,11 +9,11 @@ import           Data.ByteString.Lazy      (toStrict)
 import           Data.Text.Prettyprint.Doc (Pretty(..))
 import qualified Data.Set                  as Set
 
-import           Cardano.Api          hiding (TxBodyError)
-import           Cardano.Api.Shelley  (ProtocolParameters(..))
-import qualified Ledger               as P
-import qualified Ledger.Tx.CardanoAPI as Interop
-import qualified Ledger.Ada           as Ada
+import           Cardano.Api                 hiding (TxBodyError)
+import           Cardano.Api.Shelley         (ProtocolParameters(..))
+import qualified Ledger                      as P
+import qualified Ledger.Tx.CardanoAPI        as Interop
+import qualified Ledger.Ada                  as Ada
 
 import qualified CardanoTx.Models   as Sdk
 import           CardanoTx.ToPlutus
@@ -77,6 +77,7 @@ buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
         valueMint = Sdk.unMintValue txCandidateValueMint
         policies  = Sdk.mintInputsPolicies txCandidateMintInputs
     in absorbError $ Interop.toCardanoMintValue redeemers valueMint policies
+  wits <- absorbError $ traverse Interop.toCardanoPaymentKeyHash txCandidateSigners
   pure $ TxBodyContent
     { txIns             = txIns
     , txInsCollateral   = txInsCollateral
@@ -85,11 +86,11 @@ buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
     , txValidityRange   = txValidityRange
     , txMintValue       = txMintValue
     , txProtocolParams  = BuildTxWith $ Just protocolParams
-    , txScriptValidity  = TxScriptValidityNone
+    , txExtraKeyWits    = TxExtraKeyWitnesses ExtraKeyWitnessesInAlonzoEra wits
     -- unused:
+    , txScriptValidity = TxScriptValidityNone
     , txMetadata       = TxMetadataNone
     , txAuxScripts     = TxAuxScriptsNone
-    , txExtraKeyWits   = TxExtraKeyWitnessesNone
     , txWithdrawals    = TxWithdrawalsNone
     , txCertificates   = TxCertificatesNone
     , txUpdateProposal = TxUpdateProposalNone
@@ -126,7 +127,7 @@ buildTxOuts
 buildTxOuts network =
     mapM translate
   where
-    translate sdkOut = absorbError $ Interop.toCardanoTxOut network $ toPlutus sdkOut
+    translate sdkOut = absorbError $ Interop.toCardanoTxOut network mempty $ toPlutus sdkOut
 
 buildInputsUTxO
   :: (MonadThrow f, MonadIO f)
@@ -138,8 +139,8 @@ buildInputsUTxO network inputs =
   where
     translate Sdk.FullTxIn{fullTxInTxOut=out@Sdk.FullTxOut{..}} = do
       txIn  <- Interop.toCardanoTxIn fullTxOutRef
-      txOut <- Interop.toCardanoTxOut network $ toPlutus out
-
+      let dhMap = RIO.fromMaybe mempty (fullTxOutDatumHash >>= (\hash -> fmap (\datum -> Map.singleton hash datum) fullTxOutDatum))
+      txOut <- Interop.toCardanoTxOut network dhMap $ toPlutus out
       pure (txIn, toCtxUTxOTxOut txOut)
 
 buildMintRedeemers :: Sdk.MintInputs -> P.Redeemers
@@ -201,7 +202,6 @@ adaptInteropError err =
       Interop.MissingMintingPolicy               -> MissingMintingPolicy
       Interop.MissingMintingPolicyRedeemer       -> MissingMintingPolicyRedeemer
       Interop.ScriptPurposeNotSupported t        -> ScriptPurposeNotSupported t
-      Interop.PublicKeyInputsNotSupported        -> PublicKeyInputsNotSupported
       Interop.Tag _ e                            -> adaptInteropError e
   where renderedErr = T.pack $ show $ pretty err
 

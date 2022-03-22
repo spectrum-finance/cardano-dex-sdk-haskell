@@ -5,25 +5,23 @@ import           RIO
 import qualified Data.Set              as Set
 import qualified Data.ByteString.Char8 as B8
 import           GHC.Natural           (naturalToInteger)
-import qualified PlutusTx.AssocMap as Map
-import qualified CardanoTx.Models            as Sdk
+
+import qualified PlutusTx.AssocMap           as Map
 import qualified Cardano.Api                 as C
 import qualified Ledger                      as P
 import qualified PlutusTx.Builtins.Internal  as P
 import qualified Ledger.Ada                  as P
 import qualified Plutus.V1.Ledger.Credential as P
-import           Plutus.V1.Ledger.Api (Value(..))
+import           Plutus.V1.Ledger.Api        (Value(..))
+
+import qualified CardanoTx.Models               as Sdk
 import           SubmitAPI.Config
 import           SubmitAPI.Internal.Transaction
-import           SubmitAPI.ViaPAB.Transaction as ViaPAB
-import           NetworkAPI.Service           hiding (submitTx)
-import qualified NetworkAPI.Service           as Network
+import           NetworkAPI.Service             hiding (submitTx)
+import qualified NetworkAPI.Service             as Network
 import           NetworkAPI.Env
 import           WalletAPI.Utxos
 import           WalletAPI.Vault
-import           Plutus.Contract.Wallet
-import           Control.Monad.Freer as Eff
-import qualified Ledger.Tx.CardanoAPI as Interop
 
 data Transactions f = Transactions
   { finalizeTx :: Sdk.TxCandidate  -> f (C.Tx C.AlonzoEra)
@@ -41,33 +39,9 @@ mkSubmitService network wallet conf = Transactions
   , submitTx   = Network.submitTx network
   }
 
-finalizeTxViaPAB
+finalizeTx'
   :: MonadThrow f
   => MonadIO f
-  => WalletOutputs f
-  -> Network f
-  -> TxAssemblyConfig
-  -> Sdk.TxCandidate
-  -> f (C.Tx C.AlonzoEra)
-finalizeTxViaPAB wallet Network{getSystemEnv} conf txc = do
-    sysenv@SystemEnv{..} <- getSystemEnv
-    collaterals          <- selectCollaterals wallet sysenv conf txc
-    
-    let utx = ViaPAB.mkUnbalancedTx collaterals txc
-        handled = handleTx utx
-
-    runned <- Eff.runM handled
-    let eitherTx = unsafeFromEither runned
-        txBody = unsafeFromEither $ Interop.toCardanoTxBody [] (Just pparams) network eitherTx
-        res = C.makeSignedTransaction [] txBody
-    return res
-
-unsafeFromEither :: Either b a -> a
-unsafeFromEither (Left _)    = undefined
-unsafeFromEither (Right value) = value
-
-finalizeTx'
-  :: (MonadThrow f, MonadIO f)
   => Network f
   -> Vault f
   -> TxAssemblyConfig
@@ -144,7 +118,6 @@ containsOnlyAda Sdk.FullTxOut{..} =
                                 _             -> False
   in currencySymbolCondition && tokenNameConditione
 
-
 dummyAddr :: Sdk.ChangeAddress
 dummyAddr =
-  Sdk.ChangeAddress $ P.pubKeyHashAddress $ P.PubKeyHash $ P.BuiltinByteString (B8.pack $ show (0 :: Word64))
+  Sdk.ChangeAddress $ P.pubKeyHashAddress (P.PaymentPubKeyHash $ P.PubKeyHash $ P.BuiltinByteString (B8.pack $ show (0 :: Word64))) Nothing

@@ -1,13 +1,11 @@
 module ErgoDex.Amm.Pool where
 
 import Data.Bifunctor
-import Data.Functor
 import Data.Aeson     (FromJSON, ToJSON)
 import GHC.Generics   (Generic)
 
 import Ledger
 import Ledger.Value                    (assetClassValue, assetClassValueOf)
-import Ledger.Typed.Scripts.Validators
 import PlutusTx.IsData.Class
 import PlutusTx.Sqrt
 import PlutusTx.Numeric                (AdditiveMonoid(zero))
@@ -21,8 +19,8 @@ import qualified ErgoDex.Contracts.Typed       as S
 import           ErgoDex.Contracts.Types
 import qualified ErgoDex.Contracts.Proxy.Order as W
 import           ErgoDex.Contracts.Pool
-import           ErgoDex.Contracts.OffChain
 import           ErgoDex.Amm.Constants         (minSafeOutputAmount)
+import           ErgoDex.PValidators
 
 newtype PoolId = PoolId { unPoolId :: Coin Nft }
   deriving (Show, Eq, Generic)
@@ -75,7 +73,7 @@ instance FromLedger Pool where
 instance ToLedger Pool where
   toLedger Pool{..} =
       TxOutCandidate
-        { txOutCandidateAddress  = validatorAddress poolInstance
+        { txOutCandidateAddress  = validatorAddress poolValidator
         , txOutCandidateValue    = poolValue
         , txOutCandidateDatum    = Just $ Datum $ toBuiltinData poolConf
         }
