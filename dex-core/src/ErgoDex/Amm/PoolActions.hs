@@ -50,7 +50,7 @@ runSwap' :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> Confirmed Swap -> (Ful
 runSwap' executorPkh stakePkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
   let
     poolIn  = mkScriptTxIn poolOut poolValidator (Redeemer $ toBuiltinData $ P.PoolRedeemer P.Swap 0)
-    orderIn = mkScriptTxIn swapOut swapValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer 0 1 1)
+    orderIn = mkScriptTxIn swapOut swapValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer 0 1 1 O.Apply)
     inputs  = [poolIn, orderIn]
 
     pp@(Predicted nextPoolOut _) = applySwap pool (AssetAmount swapBase swapBaseIn)
@@ -95,10 +95,10 @@ runDeposit' executorPkh stakePkh (Confirmed depositOut Deposit{..}) (poolOut, po
   when (depositPoolId /= poolId) (Left $ PoolMismatch depositPoolId poolId)
   let
     poolIn  = mkScriptTxIn poolOut poolValidator (Redeemer $ toBuiltinData $ P.PoolRedeemer P.Deposit 0)
-    orderIn = mkScriptTxIn depositOut depositValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer 0 1 1)
+    orderIn = mkScriptTxIn depositOut depositValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer 0 1 1 O.Apply)
     inputs  = [poolIn, orderIn]
 
-    (inX :: Amount X, inY :: Amount Y) =
+    (inX, inY) =
         bimap entryAmount entryAmount $
           if assetEntryClass (fst depositPair) == unCoin poolCoinX
           then depositPair
@@ -150,7 +150,7 @@ runRedeem' executorPkh stakePkh (Confirmed redeemOut Redeem{..}) (poolOut, pool@
   when (redeemPoolId /= poolId) (Left $ PoolMismatch redeemPoolId poolId)
   let
     poolIn  = mkScriptTxIn poolOut poolValidator (Redeemer $ toBuiltinData $ P.PoolRedeemer P.Deposit 0)
-    orderIn = mkScriptTxIn redeemOut redeemValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer 0 1 1)
+    orderIn = mkScriptTxIn redeemOut redeemValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer 0 1 1 O.Apply)
     inputs  = [poolIn, orderIn]
 
     pp@(Predicted nextPoolOut _) = applyRedeem pool redeemLqIn
