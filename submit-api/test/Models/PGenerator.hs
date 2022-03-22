@@ -81,6 +81,14 @@ pgenPoolOut dh v vh =
     , txOutDatumHash = Just dh
     }
 
+pgenOrderOut :: DatumHash -> Value -> PubKeyHash -> TxOut
+pgenOrderOut dh v pkh =
+  TxOut
+    { txOutAddress   = Address (PubKeyCredential pkh) Nothing
+    , txOutValue     = v
+    , txOutDatumHash = Just dh
+    }
+
 pgenTxInfo :: TxInInfo -> TxInInfo -> TxOut -> TxOut -> TxInfo
 pgenTxInfo pIn oIn pOut oOut =
   TxInfo

@@ -7,5 +7,5 @@ import Eval
 
 main :: IO ()
 main = do
-  let pool = eval runSuccessDeposite
+  let pool = eval runFailureDepositePoolAndPoolValueAreDifferent
   print pool

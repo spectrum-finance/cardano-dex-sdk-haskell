@@ -1,5 +1,6 @@
 module Models.Utils
   ( genNft
+  , genNftWrong
   , genX
   , genY
   , genLQ
@@ -23,6 +24,9 @@ import Plutus.V1.Ledger.Api
 data BSGenerator = BSGenerator
   { genByteString :: BS.ByteString
   }
+
+genNftWrong :: BS.ByteString
+genNftWrong = mkByteString $ T.pack "4e46545f546f6b656e5f6e65775f706f6f6c0a4e4e4e"
 
 genNft :: BS.ByteString
 genNft = mkByteString $ T.pack "4e46545f546f6b656e5f6e65775f706f6f6c0a"
