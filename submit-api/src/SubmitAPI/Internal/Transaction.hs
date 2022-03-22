@@ -128,8 +128,7 @@ buildTxOuts network =
     mapM translate
   where
     translate sdkOut@Sdk.TxOutCandidate{..} = do
-      let dhMap = RIO.fromMaybe mempty (fmap (\datum -> Map.singleton (P.datumHash datum) datum) txOutCandidateDatum)
-      absorbError $ Interop.toCardanoTxOut network dhMap $ toPlutus sdkOut
+      absorbError $ Interop.toCardanoTxOut network mempty $ toPlutus sdkOut
 
 buildInputsUTxO
   :: (MonadThrow f, MonadIO f)
