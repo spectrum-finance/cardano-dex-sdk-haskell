@@ -127,8 +127,7 @@ buildTxOuts
 buildTxOuts network =
     mapM translate
   where
-    translate sdkOut@Sdk.TxOutCandidate{..} = do
-      absorbError $ Interop.toCardanoTxOut network mempty $ toPlutus sdkOut
+    translate sdkOut = absorbError $ Interop.toCardanoTxOut network mempty $ toPlutus sdkOut
 
 buildInputsUTxO
   :: (MonadThrow f, MonadIO f)
