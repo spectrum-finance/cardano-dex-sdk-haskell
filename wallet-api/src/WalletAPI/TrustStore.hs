@@ -86,12 +86,12 @@ mkTrustStoreFromCardano
   -> FilePath
   -> KeyPass
   -> f (TrustStore f krole)
-mkTrustStoreFromCardano krole sourceFile targetFile pass = do
-  sk <- absorbEnvelopeError =<< liftIO (Crypto.readFileTextEnvelope (Crypto.AsSigningKey krole) targetFile)
+mkTrustStoreFromCardano krole targetFile srcFile pass = do
+  sk <- absorbEnvelopeError =<< liftIO (Crypto.readFileTextEnvelope (Crypto.AsSigningKey krole) srcFile)
   let vkEncoded = EncodedVK $ Crypto.serialiseToRawBytes $ Crypto.getVerificationKey sk
   envelope <- encryptKey sk pass
-  writeTS sourceFile $ TrustStoreFile envelope vkEncoded
-  pure $ mkTrustStore krole sourceFile
+  writeTS targetFile $ TrustStoreFile envelope vkEncoded
+  pure $ mkTrustStore krole targetFile
 
 init'
   :: (MonadIO f, MonadThrow f, MonadRandom f)
