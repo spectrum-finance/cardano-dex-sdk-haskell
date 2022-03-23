@@ -15,7 +15,7 @@ import           Crypto.Random.Types
 import qualified Cardano.Api         as Crypto
 
 import WalletAPI.Internal.Crypto
-import WalletAPI.Internal.Models
+import WalletAPI.Internal.Models ( SecretEnvelope(..), TrustStoreFile(..) )
 
 newtype SecretFile = SecretFile { unSigningKeyFile :: FilePath } deriving Generic
 
@@ -60,13 +60,13 @@ init'
   -> KeyPass
   -> f ()
 init' file pass = do
-  sk       <- liftIO $ Crypto.generateSigningKey Crypto.AsPaymentKey
+  sk <- liftIO $ Crypto.generateSigningKey Crypto.AsPaymentKey
   let vkEncoded = EncodedVK $ Crypto.serialiseToRawBytes $ Crypto.getVerificationKey sk
   envelope <- encryptKey sk pass
   writeTS file $ TrustStoreFile envelope vkEncoded
 
 isInitialized'
-  :: (MonadIO f, MonadThrow f)
+  :: MonadIO f
   => SecretFile
   -> f Bool
 isInitialized' file = readTS file <&> isJust
@@ -93,7 +93,7 @@ decryptKey :: SecretEnvelope -> KeyPass -> Maybe (Crypto.SigningKey Crypto.Payme
 decryptKey SecretEnvelope{secretCiphertext=Ciphertext text, secretSalt=salt, secretIv=EncodedIV rawIV} pass = do
   iv <- makeIV rawIV
   let encryptionKey = mkEncryptionKey pass salt
-  rawSK <- either (\_ -> Nothing) Just $ decrypt encryptionKey iv text
+  rawSK <- either (const Nothing) Just $ decrypt encryptionKey iv text
 
   Crypto.deserialiseFromRawBytes asSK rawSK
     where asSK = Crypto.AsSigningKey Crypto.AsPaymentKey
