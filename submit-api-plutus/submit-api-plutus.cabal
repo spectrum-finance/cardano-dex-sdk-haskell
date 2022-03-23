@@ -86,7 +86,7 @@ library
         plutus-contract==0.1.0.0,
         prettyprinter==1.7.0,
         cardano-slotting==0.1.0.0,
-        cardano-api==1.32.1,
+        cardano-api,
         mtl==2.2.2,
         plutus-ledger,
         bytestring,

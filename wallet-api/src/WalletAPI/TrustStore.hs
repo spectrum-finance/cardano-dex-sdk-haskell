@@ -60,9 +60,9 @@ init'
   -> KeyPass
   -> f ()
 init' file pass = do
-  sk       <- liftIO $ Crypto.generateSigningKey Crypto.AsPaymentKey
+  sk            <- liftIO $ Crypto.generateSigningKey Crypto.AsPaymentKey
   let vkEncoded = EncodedVK $ Crypto.serialiseToRawBytes $ Crypto.getVerificationKey sk
-  envelope <- encryptKey sk pass
+  envelope      <- encryptKey sk pass
   writeTS file $ TrustStoreFile envelope vkEncoded
 
 isInitialized'
