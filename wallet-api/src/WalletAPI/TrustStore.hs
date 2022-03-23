@@ -54,10 +54,10 @@ data TsImportError
   deriving (Show, Exception)
 
 data TrustStore f krole = TrustStore
-  { init              :: KeyPass -> f ()
-  , readSK            :: KeyPass -> f (Crypto.SigningKey krole)
-  , readVK            :: f (Crypto.VerificationKey krole)
-  , isInitialized     :: f Bool
+  { init          :: KeyPass -> f ()
+  , readSK        :: KeyPass -> f (Crypto.SigningKey krole)
+  , readVK        :: f (Crypto.VerificationKey krole)
+  , isInitialized :: f Bool
   }
 
 mkTrustStore
