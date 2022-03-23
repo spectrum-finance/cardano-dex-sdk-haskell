@@ -159,14 +159,14 @@ encryptKey
 encryptKey sk pass = do
   let saltLen = 16
   salt <- genRandomSalt saltLen
-  iv   <- genRandomIV (undefined :: AES256) >>= maybe (throwM InitializationError) pure
+  iv   <- genRandomIV @_ @AES256 >>= maybe (throwM InitializationError) pure
 
   let
     iv'           = EncodedIV $ BS.pack $ BA.unpack iv
     encryptionKey = mkEncryptionKey pass salt
     rawSk         = Crypto.serialiseToRawBytes sk
 
-  ciphertext <- either (\_ -> throwM InitializationError) pure $ encrypt encryptionKey iv rawSk <&> Ciphertext
+  ciphertext <- either (const $ throwM InitializationError) pure $ encrypt encryptionKey iv rawSk <&> Ciphertext
   pure $ SecretEnvelope ciphertext salt iv'
 
 mkEncryptionKey :: KeyPass -> Salt -> Key AES256 ByteString
