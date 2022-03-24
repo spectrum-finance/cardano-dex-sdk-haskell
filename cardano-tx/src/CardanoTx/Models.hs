@@ -11,7 +11,7 @@ import qualified Ledger                      as P
 import qualified Ledger.Constraints.OffChain as P
 import           GHC.Generics                (Generic)
 
-import CardanoTx.ToPlutus
+import CardanoTx.ToPlutus (ToPlutus(..))
 
 newtype ChangeAddress = ChangeAddress { getAddress :: Address }
   deriving (Eq, Generic)
@@ -29,9 +29,9 @@ newtype MintValue = MintValue { unMintValue :: Value }
 
 -- TX output template
 data TxOutCandidate = TxOutCandidate
-  { txOutCandidateAddress  :: Address
-  , txOutCandidateValue    :: Value
-  , txOutCandidateDatum    :: Maybe Datum
+  { txOutCandidateAddress :: Address
+  , txOutCandidateValue   :: Value
+  , txOutCandidateDatum   :: Maybe Datum
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 instance ToPlutus TxOutCandidate P.TxOut where

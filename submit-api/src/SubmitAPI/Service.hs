@@ -1,18 +1,15 @@
 module SubmitAPI.Service where
 
-import qualified RIO.List as L
 import           RIO
 import qualified Data.Set              as Set
 import qualified Data.ByteString.Char8 as B8
 import           GHC.Natural           (naturalToInteger)
 
-import qualified PlutusTx.AssocMap           as Map
 import qualified Cardano.Api                 as C
 import qualified Ledger                      as P
 import qualified PlutusTx.Builtins.Internal  as P
 import qualified Ledger.Ada                  as P
 import qualified Plutus.V1.Ledger.Credential as P
-import           Plutus.V1.Ledger.Api        (Value(..))
 
 import qualified CardanoTx.Models               as Sdk
 import           SubmitAPI.Config
@@ -23,9 +20,9 @@ import           NetworkAPI.Env
 import           WalletAPI.Utxos
 import           WalletAPI.Vault
 
-data Transactions f = Transactions
-  { finalizeTx :: Sdk.TxCandidate  -> f (C.Tx C.AlonzoEra)
-  , submitTx   :: C.Tx C.AlonzoEra -> f ()
+data Transactions f era = Transactions
+  { finalizeTx :: Sdk.TxCandidate  -> f (C.Tx era)
+  , submitTx   :: C.Tx era -> f ()
   }
 
 mkTransactions
@@ -34,7 +31,7 @@ mkTransactions
   -> WalletOutputs f
   -> Vault f
   -> TxAssemblyConfig
-  -> Transactions f
+  -> Transactions f C.AlonzoEra
 mkTransactions network utxos wallet conf = Transactions
   { finalizeTx = finalizeTx' network utxos wallet conf
   , submitTx   = Network.submitTx network
