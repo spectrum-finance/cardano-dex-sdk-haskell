@@ -101,7 +101,6 @@ instance FromJSON FullTxOut where
     data'        <- o .:? "data"
     return FullTxOut{..}
 
-
 instance ToCardanoTx FullTxOut Tx.FullTxOut where
   toCardanoTx FullTxOut{..} = Tx.FullTxOut
     { fullTxOutRef       = toCardanoTx ref

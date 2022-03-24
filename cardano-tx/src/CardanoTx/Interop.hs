@@ -15,11 +15,11 @@ extractCardanoTxId = Interop.fromCardanoTxId . C.getTxId . C.getTxBody
 
 extractCardanoTxOutputAt :: Int -> C.Tx era -> Maybe FullTxOut
 extractCardanoTxOutputAt ix tx = do
-    P.TxOut{..} <- getOutputAt ix tx >>= toCardanoTxOutput
-    let
-      txId = extractCardanoTxId tx
-      ref  = P.TxOutRef txId (toInteger ix)
-    pure $ FullTxOut ref txOutAddress txOutValue txOutDatumHash Nothing
+  P.TxOut{..} <- getOutputAt ix tx >>= toCardanoTxOutput
+  let
+    txId = extractCardanoTxId tx
+    ref  = P.TxOutRef txId (toInteger ix)
+  pure $ FullTxOut ref txOutAddress txOutValue txOutDatumHash Nothing
 
 getOutputAt :: Int -> C.Tx era -> Maybe (C.TxOut C.CtxTx era)
 getOutputAt ix tx =

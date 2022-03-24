@@ -3,12 +3,10 @@ module Explorer.Types where
 import Data.Aeson   (FromJSON, ToJSON)
 import Data.Text    hiding (words, head)
 import Data.String  (IsString(..))
-import Text.Read (readMaybe)
 import GHC.Generics
 
 import qualified Ledger as P
 import           Explorer.Class
-import qualified CardanoTx.Models  as Core
 import qualified CardanoTx.Address as Core
 
 -- Bech32 encoded and rendered address

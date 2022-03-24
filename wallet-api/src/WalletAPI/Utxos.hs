@@ -1,9 +1,13 @@
-module WalletAPI.Utxos where
+module WalletAPI.Utxos
+  ( WalletOutputs(..)
+  , mkWalletOutputs
+  , mkWalletOutputs'
+  ) where
 
 import           RIO
-import qualified Data.Set                   as Set
-import           Data.ByteArray.Encoding    (Base(..), convertToBase)
-import qualified Data.Text.Encoding         as T
+import qualified Data.Set                as Set
+import           Data.ByteArray.Encoding (Base(..), convertToBase)
+import qualified Data.Text.Encoding      as T
 
 
 import           Ledger
@@ -12,6 +16,7 @@ import           Cardano.Api            hiding (Value)
 
 import           CardanoTx.Models
 import           WalletAPI.UtxoStore
+import           WalletAPI.Vault
 
 import           Explorer.Service
 import qualified Explorer.Types       as Explorer
@@ -32,6 +37,10 @@ mkWalletOutputs explorer pkh = do
     { selectUtxos       = selectUtxos'' explorer ustore pkh True
     , selectUtxosStrict = selectUtxos'' explorer ustore pkh False
     }
+
+mkWalletOutputs' :: MonadIO f => Explorer f -> Vault f -> f (WalletOutputs f)
+mkWalletOutputs' explorer Vault{..} =
+  getPaymentKeyHash >>= mkWalletOutputs explorer
 
 selectUtxos'' :: Monad f => Explorer f -> UtxoStore f -> Hash PaymentKey -> Bool -> Value -> f (Maybe (Set.Set FullTxOut))
 selectUtxos'' explorer@Explorer{..} ustore@UtxoStore{..} pkh strict requiredValue = do
