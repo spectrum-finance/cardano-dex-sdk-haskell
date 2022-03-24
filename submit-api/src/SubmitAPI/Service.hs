@@ -31,11 +31,12 @@ data Transactions f = Transactions
 mkTransactions
   :: (MonadThrow f, MonadIO f)
   => Network f
+  -> WalletOutputs f
   -> Vault f
   -> TxAssemblyConfig
   -> Transactions f
-mkTransactions network wallet conf = Transactions
-  { finalizeTx = finalizeTx' network wallet conf
+mkTransactions network utxos wallet conf = Transactions
+  { finalizeTx = finalizeTx' network utxos wallet conf
   , submitTx   = Network.submitTx network
   }
 
@@ -43,13 +44,14 @@ finalizeTx'
   :: MonadThrow f
   => MonadIO f
   => Network f
+  -> WalletOutputs f
   -> Vault f
   -> TxAssemblyConfig
   -> Sdk.TxCandidate
   -> f (C.Tx C.AlonzoEra)
-finalizeTx' Network{..} wallet@Vault{..} conf txc@Sdk.TxCandidate{..} = do
+finalizeTx' Network{..} utxos Vault{..} conf txc@Sdk.TxCandidate{..} = do
   sysenv      <- getSystemEnv
-  collaterals <- selectCollaterals (narrowVault wallet) sysenv conf txc
+  collaterals <- selectCollaterals utxos sysenv conf txc
 
   let
     isBalancedTx = amountIn == amountOut
@@ -79,7 +81,7 @@ selectCollaterals
   -> TxAssemblyConfig
   -> Sdk.TxCandidate
   -> f (Set.Set Sdk.FullCollateralTxIn)
-selectCollaterals WalletOutputs{selectUtxos} SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
+selectCollaterals WalletOutputs{selectUtxosStrict} SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   let isScriptIn Sdk.FullTxIn{fullTxInType=P.ConsumeScriptAddress {}} = True
       isScriptIn _                                                    = False
 
@@ -94,7 +96,7 @@ selectCollaterals WalletOutputs{selectUtxos} SystemEnv{..} TxAssemblyConfig{..} 
             pure $ P.Lovelace $ collateralPercent' * fee' `div` 100
 
         collateral <- estimateCollateral' knownCollaterals
-        utxos      <- selectUtxos (P.toValue collateral) >>= maybe (throwM FailedToSatisfyCollateral) pure
+        utxos      <- selectUtxosStrict (P.toValue collateral) >>= maybe (throwM FailedToSatisfyCollateral) pure
 
         let collaterals = Set.fromList $ Set.elems utxos <&> Sdk.FullCollateralTxIn
 
@@ -109,16 +111,9 @@ selectCollaterals WalletOutputs{selectUtxos} SystemEnv{..} TxAssemblyConfig{..} 
     (_, Cover) -> collectCollaterals mempty  
     _          -> throwM CollateralNotAllowed
 
-containsOnlyAda :: Sdk.FullTxOut -> Bool
-containsOnlyAda Sdk.FullTxOut{..} = 
-  let
-    checkedValue            = Map.toList $ getValue fullTxOutValue
-    currencySymbolCondition = L.length checkedValue == 1
-    tokenNameConditione     = case L.headMaybe checkedValue of
-                                Just (_, tns) -> L.length (Map.toList tns) == 1
-                                _             -> False
-  in currencySymbolCondition && tokenNameConditione
-
 dummyAddr :: Sdk.ChangeAddress
 dummyAddr =
-  Sdk.ChangeAddress $ P.pubKeyHashAddress (P.PaymentPubKeyHash $ P.PubKeyHash $ P.BuiltinByteString (B8.pack $ show (0 :: Word64))) Nothing
+  Sdk.ChangeAddress
+    $ P.pubKeyHashAddress
+      (P.PaymentPubKeyHash $ P.PubKeyHash $ P.BuiltinByteString (B8.pack $ show (0 :: Word64)))
+      Nothing

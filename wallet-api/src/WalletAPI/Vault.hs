@@ -1,37 +1,27 @@
 module WalletAPI.Vault where
 
-import           RIO
-import qualified Data.Set                   as Set
+import RIO
 
-import           Ledger
-import           Cardano.Api            hiding (Value)
-import qualified Cardano.Api            as Crypto
+import           Ledger      ( PubKeyHash )
+import           Cardano.Api ( Hash, PaymentKey, ShelleyWitnessSigningKey(WitnessPaymentKey) )
+import qualified Cardano.Api as Crypto
 
-import           CardanoTx.Models
-import           WalletAPI.TrustStore
-import           WalletAPI.UtxoStore
-import qualified WalletAPI.Utxos     as U
-import           Explorer.Service
+import WalletAPI.TrustStore ( TrustStore(TrustStore, readSK, readVK), KeyPass )
 
 data Vault f = Vault
-  { getSigningKey :: PubKeyHash -> f (Maybe ShelleyWitnessSigningKey)
-  , selectUtxos   :: Value      -> f (Maybe (Set.Set FullTxOut))
+  { getSigningKey     :: PubKeyHash -> f (Maybe ShelleyWitnessSigningKey)
+  , getPaymentKeyHash :: f (Hash PaymentKey)
   }
 
-narrowVault :: Vault f -> U.WalletOutputs f
-narrowVault = U.WalletOutputs . selectUtxos
-
-mkVault :: MonadIO f => Explorer f -> TrustStore f -> KeyPass -> f (Vault f)
-mkVault explorer tstore pass = do
-  ustore <- mkUtxoStore
-  pure $ Vault
-    { getSigningKey = getSigningKey' tstore pass
-    , selectUtxos   = selectUtxos' explorer ustore tstore
+mkVault :: Functor f => TrustStore f Crypto.PaymentKey -> KeyPass -> Vault f
+mkVault tstore pass = do
+  Vault
+    { getSigningKey     = getSigningKey' tstore pass
+    , getPaymentKeyHash = getPaymentKeyHash' tstore
     }
 
-getSigningKey' :: Functor f => TrustStore f -> KeyPass -> PubKeyHash -> f (Maybe ShelleyWitnessSigningKey)
+getSigningKey' :: Functor f => TrustStore f Crypto.PaymentKey -> KeyPass -> PubKeyHash -> f (Maybe ShelleyWitnessSigningKey)
 getSigningKey' TrustStore{readSK} pass _ = readSK pass <&> WitnessPaymentKey <&> Just
 
-selectUtxos' :: Monad f => Explorer f -> UtxoStore f -> TrustStore f -> Value -> f (Maybe (Set.Set FullTxOut))
-selectUtxos' explorer ustore TrustStore{readVK} requiredValue =
-  readVK <&> Crypto.verificationKeyHash >>= (\pkh -> U.selectUtxos'' explorer ustore pkh requiredValue)
+getPaymentKeyHash' :: Functor f => TrustStore f Crypto.PaymentKey -> f (Hash PaymentKey)
+getPaymentKeyHash' TrustStore{readVK} = readVK <&> Crypto.verificationKeyHash
