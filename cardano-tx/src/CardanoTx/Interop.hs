@@ -1,5 +1,6 @@
 module CardanoTx.Interop
-  ( extractCardanoTxOutputAt
+  ( extractCardanoTxId
+  , extractCardanoTxOutputAt
   , getOutputAt
   ) where
 
@@ -9,11 +10,14 @@ import qualified Ledger               as P
 
 import CardanoTx.Models (FullTxOut(FullTxOut))
 
+extractCardanoTxId :: C.Tx era -> P.TxId
+extractCardanoTxId = Interop.fromCardanoTxId . C.getTxId . C.getTxBody
+
 extractCardanoTxOutputAt :: Int -> C.Tx era -> Maybe FullTxOut
 extractCardanoTxOutputAt ix tx = do
     P.TxOut{..} <- getOutputAt ix tx >>= toCardanoTxOutput
     let
-      txId = Interop.fromCardanoTxId $ C.getTxId $ C.getTxBody tx
+      txId = extractCardanoTxId tx
       ref  = P.TxOutRef txId (toInteger ix)
     pure $ FullTxOut ref txOutAddress txOutValue txOutDatumHash Nothing
 

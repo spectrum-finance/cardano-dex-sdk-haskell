@@ -21,7 +21,7 @@ import           WalletAPI.Utxos
 import           WalletAPI.Vault
 
 data Transactions f era = Transactions
-  { finalizeTx :: Sdk.TxCandidate  -> f (C.Tx era)
+  { finalizeTx :: Sdk.TxCandidate -> f (C.Tx era)
   , submitTx   :: C.Tx era -> f ()
   }
 

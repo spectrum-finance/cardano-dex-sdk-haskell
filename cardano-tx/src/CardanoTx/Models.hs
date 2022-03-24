@@ -47,6 +47,11 @@ data FullTxOut = FullTxOut
   , fullTxOutDatum     :: Maybe Datum
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
+mkFullTxOut :: TxOutRef -> TxOutCandidate -> FullTxOut
+mkFullTxOut ref TxOutCandidate{..} =
+    FullTxOut ref txOutCandidateAddress txOutCandidateValue dh txOutCandidateDatum
+  where dh = txOutCandidateDatum <&> datumHash
+
 instance ToPlutus FullTxOut P.TxOut where
   toPlutus FullTxOut{..} = P.TxOut fullTxOutAddress fullTxOutValue fullTxOutDatumHash
 
