@@ -10,7 +10,7 @@ import           Data.Tuple
 import qualified Data.Set               as Set
 import           Control.Exception.Base
 
-import           Ledger          (Redeemer(..), StakePubKeyHash, PaymentPubKeyHash(..), pubKeyHashAddress)
+import           Ledger          (Redeemer(..), PaymentPubKeyHash(..), pubKeyHashAddress)
 import qualified Ledger.Interval as Interval
 import qualified Ledger.Ada      as Ada
 import           Ledger.Value    (assetClassValue)
@@ -39,15 +39,15 @@ data PoolActions = PoolActions
   , runRedeem  :: Confirmed Redeem  -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
   }
 
-mkPoolActions :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> PoolActions
-mkPoolActions executorPkh stakePkh = PoolActions
-  { runSwap    = runSwap' executorPkh stakePkh
-  , runDeposit = runDeposit' executorPkh stakePkh
-  , runRedeem  = runRedeem' executorPkh stakePkh
+mkPoolActions :: PaymentPubKeyHash -> PoolActions
+mkPoolActions executorPkh = PoolActions
+  { runSwap    = runSwap' executorPkh
+  , runDeposit = runDeposit' executorPkh
+  , runRedeem  = runRedeem' executorPkh
   }
 
-runSwap' :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> Confirmed Swap -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runSwap' executorPkh stakePkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
+runSwap' :: PaymentPubKeyHash -> Confirmed Swap -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
   let
     poolIn  = mkScriptTxIn poolOut poolValidator (Redeemer $ toBuiltinData $ P.PoolRedeemer P.Swap 0)
     orderIn = mkScriptTxIn swapOut swapValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer 0 1 1 O.Apply)
@@ -61,7 +61,7 @@ runSwap' executorPkh stakePkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..
   when (getAmount quoteOutput < swapMinQuoteOut) (Left PriceTooHigh)
 
   let
-    rewardAddr = pubKeyHashAddress (PaymentPubKeyHash swapRewardPkh) stakePkh
+    rewardAddr = pubKeyHashAddress (PaymentPubKeyHash swapRewardPkh) Nothing
     rewardOut  =
         TxOutCandidate
           { txOutCandidateAddress = rewardAddr
@@ -83,15 +83,15 @@ runSwap' executorPkh stakePkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..
       , txCandidateOutputs      = [nextPoolOut, rewardOut]
       , txCandidateValueMint    = mempty
       , txCandidateMintInputs   = mempty
-      , txCandidateChangePolicy = Just $ ReturnTo $ pubKeyHashAddress executorPkh stakePkh
+      , txCandidateChangePolicy = Just $ ReturnTo $ pubKeyHashAddress executorPkh Nothing
       , txCandidateValidRange   = Interval.always
       , txCandidateSigners      = mempty
       }
 
   Right (txCandidate, pp)
 
-runDeposit' :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> Confirmed Deposit -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runDeposit' executorPkh stakePkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{..}) = do
+runDeposit' :: PaymentPubKeyHash -> Confirmed Deposit -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{..}) = do
   when (depositPoolId /= poolId) (Left $ PoolMismatch depositPoolId poolId)
   let
     poolIn  = mkScriptTxIn poolOut poolValidator (Redeemer $ toBuiltinData $ P.PoolRedeemer P.Deposit 0)
@@ -117,7 +117,7 @@ runDeposit' executorPkh stakePkh (Confirmed depositOut Deposit{..}) (poolOut, po
     mintLqValue = assetAmountValue lqOutput
       where lqOutput = liquidityAmount pool (netInX, netInY)
 
-    rewardAddr = pubKeyHashAddress (PaymentPubKeyHash depositRewardPkh) stakePkh
+    rewardAddr = pubKeyHashAddress (PaymentPubKeyHash depositRewardPkh) Nothing
     rewardOut  =
         TxOutCandidate
           { txOutCandidateAddress = rewardAddr
@@ -138,15 +138,15 @@ runDeposit' executorPkh stakePkh (Confirmed depositOut Deposit{..}) (poolOut, po
       , txCandidateOutputs      = [nextPoolOut, rewardOut]
       , txCandidateValueMint    = mempty
       , txCandidateMintInputs   = mempty
-      , txCandidateChangePolicy = Just $ ReturnTo $ pubKeyHashAddress executorPkh stakePkh
+      , txCandidateChangePolicy = Just $ ReturnTo $ pubKeyHashAddress executorPkh Nothing
       , txCandidateValidRange   = Interval.always
       , txCandidateSigners      = mempty
       }
 
   Right (txCandidate, pp)
 
-runRedeem' :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> Confirmed Redeem -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runRedeem' executorPkh stakePkh (Confirmed redeemOut Redeem{..}) (poolOut, pool@Pool{..}) = do
+runRedeem' :: PaymentPubKeyHash -> Confirmed Redeem -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (poolOut, pool@Pool{..}) = do
   when (redeemPoolId /= poolId) (Left $ PoolMismatch redeemPoolId poolId)
   let
     poolIn  = mkScriptTxIn poolOut poolValidator (Redeemer $ toBuiltinData $ P.PoolRedeemer P.Deposit 0)
@@ -157,7 +157,7 @@ runRedeem' executorPkh stakePkh (Confirmed redeemOut Redeem{..}) (poolOut, pool@
 
     burnLqValue = assetClassValue (unCoin redeemLq) (negate $ unAmount redeemLqIn)
 
-    rewardAddr = pubKeyHashAddress (PaymentPubKeyHash redeemRewardPkh) stakePkh
+    rewardAddr = pubKeyHashAddress (PaymentPubKeyHash redeemRewardPkh) Nothing
     rewardOut  =
         TxOutCandidate
           { txOutCandidateAddress = rewardAddr
@@ -177,7 +177,7 @@ runRedeem' executorPkh stakePkh (Confirmed redeemOut Redeem{..}) (poolOut, pool@
       , txCandidateOutputs      = [nextPoolOut, rewardOut]
       , txCandidateValueMint    = mempty
       , txCandidateMintInputs   = mempty
-      , txCandidateChangePolicy = Just $ ReturnTo $ pubKeyHashAddress executorPkh stakePkh
+      , txCandidateChangePolicy = Just $ ReturnTo $ pubKeyHashAddress executorPkh Nothing
       , txCandidateValidRange   = Interval.always
       , txCandidateSigners      = mempty
       }
