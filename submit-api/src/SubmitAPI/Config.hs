@@ -45,10 +45,10 @@ unwrapChangeAddress (DefaultChangeAddress (ChangeAddress addr)) = addr
 instance D.FromDhall DefaultChangeAddress where
   autoWith _ = D.Decoder{..}
     where
-    extract (TextLit (Chunks [] t)) =
-      maybe (D.extractError "Invalid Alonzo Address") (pure . DefaultChangeAddress . ChangeAddress) (do
-        caddr <- C.deserialiseAddress (C.AsAddress C.AsShelleyAddr) t 
-        either (const Nothing) pure (Interop.fromCardanoAddress (C.AddressInEra (C.ShelleyAddressInEra C.ShelleyBasedEraAlonzo) caddr)))
-    extract  expr = D.typeError expected expr
+      extract (TextLit (Chunks [] t)) =
+        maybe (D.extractError "Invalid Alonzo Address") (pure . DefaultChangeAddress . ChangeAddress) (do
+          caddr <- C.deserialiseAddress (C.AsAddress C.AsShelleyAddr) t 
+          either (const Nothing) pure (Interop.fromCardanoAddress (C.AddressInEra (C.ShelleyAddressInEra C.ShelleyBasedEraAlonzo) caddr)))
+      extract  expr = D.typeError expected expr
 
-    expected = pure Text
+      expected = pure Text
