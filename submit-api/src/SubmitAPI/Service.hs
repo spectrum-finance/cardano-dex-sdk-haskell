@@ -1,13 +1,11 @@
 module SubmitAPI.Service where
 
 import           RIO
-import qualified Data.Set              as Set
-import qualified Data.ByteString.Char8 as B8
-import           GHC.Natural           (naturalToInteger)
+import qualified Data.Set    as Set
+import           GHC.Natural (naturalToInteger)
 
 import qualified Cardano.Api                 as C
 import qualified Ledger                      as P
-import qualified PlutusTx.Builtins.Internal  as P
 import qualified Ledger.Ada                  as P
 import qualified Plutus.V1.Ledger.Credential as P
 
@@ -46,21 +44,11 @@ finalizeTx'
   -> TxAssemblyConfig
   -> Sdk.TxCandidate
   -> f (C.Tx C.AlonzoEra)
-finalizeTx' Network{..} utxos Vault{..} conf txc@Sdk.TxCandidate{..} = do
+finalizeTx' Network{..} utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   sysenv      <- getSystemEnv
   collaterals <- selectCollaterals utxos sysenv conf txc
 
-  let
-    isBalancedTx = amountIn == amountOut
-      where
-        amountIn =
-          foldr (\ txIn acc -> Sdk.fullTxOutValue (Sdk.fullTxInTxOut txIn) <> acc) mempty (Set.elems txCandidateInputs)
-        amountOut =
-          foldr (\ txOut acc -> Sdk.txOutCandidateValue txOut <> acc) mempty txCandidateOutputs
-  (C.BalancedTxBody txb _ _) <- case txCandidateChangePolicy of
-    Just (Sdk.ReturnTo changeAddr) -> buildBalancedTx sysenv (Sdk.ChangeAddress changeAddr) collaterals txc
-    _ | isBalancedTx               -> buildBalancedTx sysenv dummyAddr collaterals txc
-
+  (C.BalancedTxBody txb _ _) <- buildBalancedTx sysenv (getChangeAddr deafultChangeAddr) collaterals txc
   let
     allInputs   = (Set.elems txCandidateInputs <&> Sdk.fullTxInTxOut) ++ (Set.elems collaterals <&> Sdk.fullCollateralTxInTxOut)
     signatories = allInputs >>= getPkh
@@ -107,10 +95,3 @@ selectCollaterals WalletOutputs{selectUtxosStrict} SystemEnv{..} TxAssemblyConfi
     ([], _)    -> pure mempty
     (_, Cover) -> collectCollaterals mempty  
     _          -> throwM CollateralNotAllowed
-
-dummyAddr :: Sdk.ChangeAddress
-dummyAddr =
-  Sdk.ChangeAddress
-    $ P.pubKeyHashAddress
-      (P.PaymentPubKeyHash $ P.PubKeyHash $ P.BuiltinByteString (B8.pack $ show (0 :: Word64)))
-      Nothing
