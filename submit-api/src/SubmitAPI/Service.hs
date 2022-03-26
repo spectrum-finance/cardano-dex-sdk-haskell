@@ -5,6 +5,7 @@ import qualified Data.Set    as Set
 import           GHC.Natural (naturalToInteger)
 
 import qualified Cardano.Api                 as C
+import qualified Cardano.Api.Shelley         as C
 import qualified Ledger                      as P
 import qualified Ledger.Ada                  as P
 import qualified Plutus.V1.Ledger.Credential as P
@@ -76,9 +77,9 @@ selectCollaterals WalletOutputs{selectUtxosStrict} SystemEnv{..} TxAssemblyConfi
         let
           estimateCollateral' collaterals = do
             fee <- estimateTxFee pparams network collaterals txc
-            let (C.Quantity fee')  = C.lovelaceToQuantity fee
-                collateralPercent' = naturalToInteger collateralPercent
-            pure $ P.Lovelace $ collateralPercent' * fee' `div` 100
+            let (C.Quantity fee') = C.lovelaceToQuantity fee
+                collateralPercent = naturalToInteger $ fromMaybe 0 (C.protocolParamCollateralPercent pparams)
+            pure $ P.Lovelace $ collateralPercent * fee' `div` 100
 
         collateral <- estimateCollateral' knownCollaterals
         utxos      <- selectUtxosStrict (P.toValue collateral) >>= maybe (throwM FailedToSatisfyCollateral) pure
