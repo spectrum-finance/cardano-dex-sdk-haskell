@@ -15,7 +15,6 @@ import           Explorer.Class
 import qualified CardanoTx.Models       as Tx
 import           CardanoTx.Value
 
-
 import qualified Cardano.Api as Api
 import           Cardano.Api.Shelley   (ProtocolParameters(..), PoolId)
 import qualified Ouroboros.Consensus.HardFork.History as History
@@ -31,7 +30,6 @@ data SystemEnv = SystemEnv
   , sysstart'          :: SystemStart
   , pools'             :: Set.Set PoolId
   , eraHistory'        :: Api.EraHistory Api.CardanoMode
-  , collateralPercent' :: Int
   } deriving (Show, Generic)
 
 instance Show (Api.EraHistory Api.CardanoMode) where
@@ -39,17 +37,15 @@ instance Show (Api.EraHistory Api.CardanoMode) where
 
 instance FromJSON SystemEnv where
   parseJSON = withObject "SystemEnv" $ \o -> do
-    pparams'           <- o .: "pparams"
-    sysstart'          <- o .: "sysstart"
-    collateralPercent' <- o .: "collateralPercent"
+    pparams'  <- o .: "pparams"
+    sysstart' <- o .: "sysstart"
     return
       SystemEnv
-        { pparams' = pparams'
-        , network'           = Api.Testnet $ Api.NetworkMagic 1097911063
-        , sysstart'          = sysstart'
-        , pools'             = Set.empty
-        , eraHistory'        = dummyEraHistory
-        , collateralPercent' = collateralPercent'
+        { pparams'    = pparams'
+        , network'    = Api.Testnet $ Api.NetworkMagic 1097911063
+        , sysstart'   = sysstart'
+        , pools'      = Set.empty
+        , eraHistory' = dummyEraHistory
         }
 
 dummyEraHistory :: Api.EraHistory Api.CardanoMode
