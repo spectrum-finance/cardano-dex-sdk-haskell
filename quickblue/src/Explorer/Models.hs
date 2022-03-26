@@ -3,6 +3,7 @@
 module Explorer.Models where
 
 import           Data.Aeson.Types
+import qualified Data.Set          as Set
 import           Data.String       (IsString(..))
 import qualified Data.Text         as T
 import           GHC.Generics
@@ -14,7 +15,6 @@ import           Explorer.Class
 import qualified CardanoTx.Models       as Tx
 import           CardanoTx.Value
 
-import qualified Data.Set        as Set
 
 import qualified Cardano.Api as Api
 import           Cardano.Api.Shelley   (ProtocolParameters(..), PoolId)

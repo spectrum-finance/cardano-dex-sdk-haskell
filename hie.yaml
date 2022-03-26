@@ -5,7 +5,7 @@ cradle:
     - path: "./dex-core/src"
       component: "dex-core:lib:dex-core"
     - path: "./dex-core/test"
-      component: "dex-core:lib:dex-core-tests"
+      component: "dex-core:test:dex-core-tests"
     - path: "./quickblue/src"
       component: "quickblue:lib:quickblue"
     - path: "./network-api/src"

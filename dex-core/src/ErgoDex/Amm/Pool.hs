@@ -21,6 +21,8 @@ import qualified ErgoDex.Contracts.Proxy.Order as W
 import           ErgoDex.Contracts.Pool
 import           ErgoDex.Amm.Constants         (minSafeOutputAmount)
 import           ErgoDex.PValidators
+import Data.Functor ((<&>))
+import Control.Monad (when)
 
 newtype PoolId = PoolId { unPoolId :: Coin Nft }
   deriving (Show, Eq, Generic)
@@ -94,12 +96,17 @@ instance ToLedger Pool where
         , poolFeeNum = poolFeeNum' poolFee
         }
 
-data PoolInitError = InvalidLiquidity Integer
+data PoolInitError
+  = InvalidLiquidity Integer
+  | InsufficientInitialLiqudity (Amount Liquidity)
+  deriving (Show, Eq)
 
 initPool :: S.PoolConfig -> Amount Liquidity -> (Amount X, Amount Y) -> Either PoolInitError (Predicted Pool, Amount Liquidity)
 initPool S.PoolConfig{..} burnLq (inX, inY) = do
-  unlockedLq <- fmap getAmount (initialLiquidityAmount poolLq (inX, inY))
+  unlockedLq <- initialLiquidityAmount poolLq (inX, inY) <&> getAmount
+  when (unlockedLq <= burnLq) (Left $ InsufficientInitialLiqudity unlockedLq)
   let
+    releasedLq    = unlockedLq - burnLq
     outCollateral =
       if isAda poolX || isAda poolY
         then zero
@@ -108,7 +115,7 @@ initPool S.PoolConfig{..} burnLq (inX, inY) = do
       { poolId        = PoolId poolNft
       , poolReservesX = inX
       , poolReservesY = inY
-      , poolLiquidity = unlockedLq - burnLq
+      , poolLiquidity = releasedLq
       , poolCoinX     = poolX
       , poolCoinY     = poolY
       , poolCoinLq    = poolLq
@@ -116,7 +123,7 @@ initPool S.PoolConfig{..} burnLq (inX, inY) = do
       , outCollateral = outCollateral
       }
     poolOut = toLedger pool
-  Right (Predicted poolOut pool, unlockedLq)
+  pure (Predicted poolOut pool, releasedLq)
 
 applyDeposit :: Pool -> (Amount X, Amount Y) -> Predicted Pool
 applyDeposit p@Pool{..} (inX, inY) =
