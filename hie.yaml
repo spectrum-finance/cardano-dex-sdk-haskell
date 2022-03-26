@@ -4,6 +4,8 @@ cradle:
       component: "cardano-tx:lib:cardano-tx"
     - path: "./dex-core/src"
       component: "dex-core:lib:dex-core"
+    - path: "./dex-core/test"
+      component: "dex-core:lib:dex-core-tests"
     - path: "./quickblue/src"
       component: "quickblue:lib:quickblue"
     - path: "./network-api/src"

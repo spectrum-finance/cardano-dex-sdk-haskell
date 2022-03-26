@@ -31,19 +31,23 @@ data PoolSetup = PoolSetup
   { poolDeploy :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> P.PoolConfig -> [FullTxOut] -> Either SetupExecError TxCandidate
   }
 
+burnLqInitial :: Amount Liquidity
+burnLqInitial = Amount 1000 -- todo: aggregate protocol constants
+
 mkPoolSetup :: Address -> PoolSetup
 mkPoolSetup changeAddr = PoolSetup
-  { poolDeploy = poolDeploy' changeAddr
+  { poolDeploy = poolDeploy' burnLqInitial changeAddr
   }
 
 poolDeploy'
-  :: Address
+  :: Amount Liquidity 
+  -> Address
   -> PaymentPubKeyHash
   -> Maybe StakePubKeyHash
   -> P.PoolConfig
   -> [FullTxOut]
   -> Either SetupExecError TxCandidate
-poolDeploy' changeAddr rewardPkh stakePkh pp@P.PoolConfig{..} utxosIn = do
+poolDeploy' burnLq changeAddr rewardPkh stakePkh pp@P.PoolConfig{..} utxosIn = do
   inNft <- overallAmountOf utxosIn poolNft
   inLq  <- overallAmountOf utxosIn poolLq
   inX   <- overallAmountOf utxosIn poolX
@@ -53,7 +57,7 @@ poolDeploy' changeAddr rewardPkh stakePkh pp@P.PoolConfig{..} utxosIn = do
   unless (getAmount inLq == maxLqCapAmount) (Left InvalidLiquidity) -- make sure valid amount of LQ tokens is provided
 
   (Predicted poolOutput nextPool, unlockedLq) <-
-    mapLeft (const InvalidLiquidity) (initPool pp (getAmount inX, getAmount inY))
+    mapLeft (const InvalidLiquidity) (initPool pp burnLq (getAmount inX, getAmount inY))
 
   let
     mintLqValue  = coinAmountValue (poolCoinLq nextPool) unlockedLq

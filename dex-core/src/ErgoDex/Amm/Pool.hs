@@ -73,9 +73,9 @@ instance FromLedger Pool where
 instance ToLedger Pool where
   toLedger Pool{..} =
       TxOutCandidate
-        { txOutCandidateAddress  = validatorAddress poolValidator
-        , txOutCandidateValue    = poolValue
-        , txOutCandidateDatum    = Just $ Datum $ toBuiltinData poolConf
+        { txOutCandidateAddress = validatorAddress poolValidator
+        , txOutCandidateValue   = poolValue
+        , txOutCandidateDatum   = Just $ Datum $ toBuiltinData poolConf
         }
     where
       nft            = unPoolId poolId
@@ -96,8 +96,8 @@ instance ToLedger Pool where
 
 data PoolInitError = InvalidLiquidity Integer
 
-initPool :: S.PoolConfig -> (Amount X, Amount Y) -> Either PoolInitError (Predicted Pool, Amount Liquidity)
-initPool S.PoolConfig{..} (inX, inY) = do
+initPool :: S.PoolConfig -> Amount Liquidity -> (Amount X, Amount Y) -> Either PoolInitError (Predicted Pool, Amount Liquidity)
+initPool S.PoolConfig{..} burnLq (inX, inY) = do
   unlockedLq <- fmap getAmount (initialLiquidityAmount poolLq (inX, inY))
   let
     outCollateral =
@@ -108,7 +108,7 @@ initPool S.PoolConfig{..} (inX, inY) = do
       { poolId        = PoolId poolNft
       , poolReservesX = inX
       , poolReservesY = inY
-      , poolLiquidity = unlockedLq
+      , poolLiquidity = unlockedLq - burnLq
       , poolCoinX     = poolX
       , poolCoinY     = poolY
       , poolCoinLq    = poolLq
