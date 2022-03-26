@@ -4,7 +4,6 @@ import           Control.Monad           (unless)
 import           Data.Functor
 
 import           Data.Either.Combinators (mapLeft)
-import qualified Data.Set                as Set
 
 import           Ledger          (Address, StakePubKeyHash, PaymentPubKeyHash, pubKeyHashAddress)
 import qualified Ledger.Interval as Interval
@@ -77,7 +76,7 @@ poolDeploy' burnLq changeAddr rewardPkh stakePkh pp@P.PoolConfig{..} utxosIn = d
   unless (overallAdaIn >= overallAdaOut) (Left InsufficientInputs)
 
   Right $ TxCandidate
-    { txCandidateInputs       = Set.fromList inputs
+    { txCandidateInputs       = inputs
     , txCandidateOutputs      = [poolOutput, rewardOutput]
     , txCandidateValueMint    = mempty -- todo: mint NFT and LQ right there?
     , txCandidateMintInputs   = mempty

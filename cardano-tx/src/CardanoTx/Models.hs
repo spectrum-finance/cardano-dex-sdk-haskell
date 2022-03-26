@@ -114,7 +114,7 @@ mkMintInputs xs = MintInputs mps rs
 
 -- TX template without collaterals, fees, change etc.
 data TxCandidate = TxCandidate
-  { txCandidateInputs       :: Set.Set FullTxIn
+  { txCandidateInputs       :: [FullTxIn]
   , txCandidateOutputs      :: [TxOutCandidate]
   , txCandidateValueMint    :: MintValue
   , txCandidateMintInputs   :: MintInputs
