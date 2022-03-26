@@ -38,7 +38,7 @@ buildBalancedTx SystemEnv{..} defaultChangeAddr collateral txc@Sdk.TxCandidate{.
   let eraInMode    = AlonzoEraInCardanoMode
       witOverrides = Nothing
   txBody     <- buildTxBodyContent pparams network collateral txc
-  inputsMap  <- buildInputsUTxO network (Set.elems txCandidateInputs)
+  inputsMap  <- buildInputsUTxO network txCandidateInputs
   changeAddr <- absorbError $ case txCandidateChangePolicy of
     Just (Sdk.ReturnTo addr) -> Interop.toCardanoAddress network addr
     _                        -> Interop.toCardanoAddress network $ Sdk.getAddress defaultChangeAddr
@@ -67,7 +67,7 @@ buildTxBodyContent
   -> Sdk.TxCandidate
   -> f (TxBodyContent BuildTx AlonzoEra)
 buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
-  txIns           <- buildTxIns $ Set.elems txCandidateInputs
+  txIns           <- buildTxIns txCandidateInputs
   txInsCollateral <- buildTxCollateral $ Set.elems collateral
   txOuts          <- buildTxOuts network txCandidateOutputs
   txFee           <- absorbError $ Interop.toCardanoFee dummyFee
@@ -139,7 +139,7 @@ buildInputsUTxO network inputs =
   where
     translate Sdk.FullTxIn{fullTxInTxOut=out@Sdk.FullTxOut{..}} = do
       txIn  <- Interop.toCardanoTxIn fullTxOutRef
-      let dhMap = RIO.fromMaybe mempty (fullTxOutDatumHash >>= (\hash -> fmap (\datum -> Map.singleton hash datum) fullTxOutDatum))
+      let dhMap = RIO.fromMaybe mempty (fullTxOutDatumHash >>= (\hash -> fmap (Map.singleton hash) fullTxOutDatum))
       txOut <- Interop.toCardanoTxOut network dhMap $ toPlutus out
       pure (txIn, toCtxUTxOTxOut txOut)
 
@@ -184,7 +184,7 @@ data TxAssemblyError
 
 absorbError :: (MonadThrow f, MonadIO f) => Either Interop.ToCardanoError a -> f a
 absorbError (Left err) = do
-  liftIO . print $ "The err has occurred: " ++ show err 
+  liftIO . print $ "The err has occurred: " ++ show err
   throwM $ adaptInteropError err
 absorbError (Right vl) = pure vl
 
