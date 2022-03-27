@@ -112,12 +112,16 @@ test-suite submit-api-tests
   main-is: Main.hs
   hs-source-dirs: test
   other-modules:
+    Gen.CardanoTx
     Spec.Network
+    Spec.Transaction
   build-depends:
     , base== 4.14.1.0
     , HUnit== 1.6.2.0
+    , hedgehog
     , tasty
     , tasty-hunit
+    , tasty-hedgehog
     , aeson
     , text==1.2.4.1
     , base16-bytestring==1.0.1.0

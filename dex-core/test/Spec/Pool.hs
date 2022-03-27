@@ -22,9 +22,9 @@ import qualified ErgoDex.Contracts.Typed as S
 import           ErgoDex.Contracts.Types
 import           ErgoDex.Types
 import           ErgoDex.State
-import           ErgoDex.Amm.PoolSetup (burnLqInitial)
-import ErgoDex.Class (ToLedger(toLedger))
-import ErgoDex.Amm.Constants (minSafeOutputAmount)
+import           ErgoDex.Amm.PoolSetup   (burnLqInitial)
+import           ErgoDex.Class           (ToLedger(toLedger))
+import           ErgoDex.Amm.Constants   (minSafeOutputAmount)
 
 mkTokenName :: BS.ByteString -> TokenName
 mkTokenName = TokenName . BuiltinByteString
