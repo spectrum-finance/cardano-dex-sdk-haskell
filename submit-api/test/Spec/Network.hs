@@ -37,7 +37,7 @@ mkMockNetwork = Network
 staticSystemEnv :: SystemEnv
 staticSystemEnv = SystemEnv
   { pparams    = staticProtocolParams
-  , network    = Testnet undefined
+  , network    = Mainnet
   , sysstart   = undefined
   , pools      = mempty
   , eraHistory = staticEraHistory

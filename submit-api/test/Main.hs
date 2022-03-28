@@ -5,7 +5,13 @@ import qualified Data.Text.Encoding as E
 import Test.Tasty
 import Test.Tasty.HUnit
 
-main :: IO ()
-main = defaultMain tests
+import Spec.Transaction
+import System.Exit (exitFailure)
+import Control.Monad (unless)
 
-tests = testGroup "Tests" []
+main :: IO ()
+main = do
+  res <- sequence
+    [ buildBalancedTxTests
+    ]
+  unless (and res) exitFailure

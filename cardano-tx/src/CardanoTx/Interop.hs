@@ -1,5 +1,7 @@
 module CardanoTx.Interop
   ( extractCardanoTxId
+  , extractCardanoInputs
+  , extractCardanoTxBodyInputs
   , extractCardanoTxOutputAt
   , getOutputAt
   ) where
@@ -9,9 +11,18 @@ import qualified Ledger.Tx.CardanoAPI as Interop
 import qualified Ledger               as P
 
 import CardanoTx.Models (FullTxOut(FullTxOut))
+import Data.Functor ((<&>))
 
 extractCardanoTxId :: C.Tx era -> P.TxId
 extractCardanoTxId = Interop.fromCardanoTxId . C.getTxId . C.getTxBody
+
+extractCardanoInputs :: C.Tx era -> [P.TxOutRef]
+extractCardanoInputs = extractCardanoTxBodyInputs . C.getTxBody
+
+extractCardanoTxBodyInputs :: C.TxBody era -> [P.TxOutRef]
+extractCardanoTxBodyInputs txb =
+  case txb of
+    C.TxBody bodyc -> C.txIns bodyc <&> (Interop.fromCardanoTxIn . fst)
 
 extractCardanoTxOutputAt :: Int -> C.Tx era -> Maybe FullTxOut
 extractCardanoTxOutputAt ix tx = do

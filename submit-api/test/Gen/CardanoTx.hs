@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Gen.CardanoTx where
 
 import           Data.Functor    ((<&>))
@@ -18,8 +20,7 @@ import qualified Ledger.Interval            as Interval
 import qualified PlutusTx
 
 import qualified CardanoTx.Models as Sdk
-import Ouroboros.Consensus.Storage.ChainDB.Impl (Internal(Internal))
-import qualified Plutus.V1.Ledger.Api as Internal
+import Plutus.V1.Ledger.Ada (adaValueOf)
 
 mkTokenName :: BS.ByteString -> P.TokenName
 mkTokenName = P.TokenName . P.BuiltinByteString
@@ -37,7 +38,7 @@ mkAdaValue :: Integer -> P.Value
 mkAdaValue = mkValue (P.AssetClass (Ada.adaSymbol, Ada.adaToken))
 
 genAdaValue :: MonadGen f => f P.Value
-genAdaValue = integral (Range.constant 1 10000000) <&> mkAdaValue
+genAdaValue = integral (Range.constant (10^8) (10^12)) <&> mkAdaValue
 
 genBuiltinByteString :: MonadGen f => Int -> f P.BuiltinByteString
 genBuiltinByteString s = bytes (Range.singleton s) <&> P.BuiltinByteString
@@ -52,10 +53,16 @@ genTxOutRef = do
   pure $ P.TxOutRef txId ix
 
 genPkh :: MonadGen f => f P.PubKeyHash
-genPkh = genBuiltinByteString 32 <&> P.PubKeyHash
+genPkh = genBuiltinByteString 28 <&> P.PubKeyHash
 
 genPkhAddress :: MonadGen f => f P.Address
 genPkhAddress = genPkh <&> (\pkh -> P.pubKeyHashAddress (P.PaymentPubKeyHash pkh) Nothing)
+
+stablePkh :: P.PubKeyHash
+stablePkh = "d74d26c5029cf290094fce1a0670da7369b9026571dfb977c6fa234f"
+
+stableAddress :: P.Address
+stableAddress = P.pubKeyHashAddress (P.PaymentPubKeyHash stablePkh) Nothing
 
 data DummyDatum = DummyDatum Integer Bool
 instance P.ToData DummyDatum where
@@ -80,6 +87,9 @@ genFullTxOutExact value = do
 genFullTxIn :: MonadGen f => f Sdk.FullTxIn
 genFullTxIn = genFullTxOut <&> (`Sdk.FullTxIn` P.ConsumePublicKeyAddress)
 
+genFullTxInExact :: MonadGen f => P.Value -> f Sdk.FullTxIn
+genFullTxInExact value = genFullTxOutExact value <&> (`Sdk.FullTxIn` P.ConsumePublicKeyAddress)
+
 genTxOutCandidate :: MonadGen f => f Sdk.TxOutCandidate
 genTxOutCandidate = do
   value <- genAdaValue
@@ -94,4 +104,12 @@ genPlainTxCandidate :: MonadGen f => f Sdk.TxCandidate
 genPlainTxCandidate = do
   inputs  <- Gen.list (Range.constant 1 10) genFullTxIn
   outputs <- Gen.list (Range.constant 1 10) genTxOutCandidate
-  pure $ Sdk.TxCandidate inputs outputs mempty mempty Nothing Internal.always mempty
+  let
+    adaIn  = Prelude.foldl (\ acc i -> acc + (Ada.getLovelace $ Ada.fromValue $ Sdk.fullTxOutValue $ Sdk.fullTxInTxOut i)) 0 inputs
+    adaOut = Prelude.foldl (\ acc i -> acc + (Ada.getLovelace $ Ada.fromValue $ Sdk.txOutCandidateValue i)) 0 outputs
+    txFee  = 10^10
+    delta  = adaOut + txFee - adaIn
+  extraIn <- if delta > 0
+    then genFullTxInExact (Ada.lovelaceValueOf delta) <&> pure
+    else pure []
+  pure $ Sdk.TxCandidate (inputs ++ extraIn) outputs mempty mempty Nothing Interval.always mempty
