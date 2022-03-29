@@ -10,10 +10,10 @@ import System.Exit (exitFailure)
 import Control.Monad (unless)
 
 main :: IO ()
-main = do
-  res <- sequence
-    [ buildTxBodyTests
-    , buildTxBodyContentTests
-    , buildBalancedTxTests
-    ]
-  unless (and res) exitFailure
+main = defaultMain tests
+
+tests = testGroup "Submit API Tests"
+  [ buildTxBodyTests
+  , buildTxBodyContentTests 
+  , buildBalancedTxTests 
+  ]

@@ -9,8 +9,10 @@ import qualified Data.List       as List
 import           Data.Set        as Set
 
 import Hedgehog
-import Hedgehog.Gen as Gen
-import Hedgehog.Range as Range
+import Hedgehog.Gen        as Gen
+import Hedgehog.Range      as Range
+import Test.Tasty          (testGroup)
+import Test.Tasty.Hedgehog as HH
 
 import Gen.CardanoTx
 import Spec.Network
@@ -42,10 +44,9 @@ outputsOrderPreservedBuildTxBody = property $ do
     balancedOutputs  = Interop.extractCardanoTxBodyOutputs txb
   balancedOutputs === candidateOutputs
 
-buildTxBodyTests :: IO Bool
-buildTxBodyTests = checkParallel $ Group "BuildTxBody"
-  [ ("inputs_order_preserved", inputsOrderPreservedBuildTxBody)
-  , ("outputs_order_preserved", outputsOrderPreservedBuildTxBody)
+buildTxBodyTests = testGroup "BuildTxBody"
+  [ HH.testProperty "inputs order preserved" inputsOrderPreservedBuildTxBody
+  , HH.testProperty "outputs order preserved" outputsOrderPreservedBuildTxBody
   ]
 
 inputsOrderPreservedContent :: Property
@@ -66,10 +67,9 @@ outputsOrderPreservedContent = property $ do
     balancedOutputs  = Interop.extractCardanoTxContentOutputs ctx
   balancedOutputs === candidateOutputs
 
-buildTxBodyContentTests :: IO Bool
-buildTxBodyContentTests = checkParallel $ Group "BuildTxBodyContent"
-  [ ("inputs_order_preserved", inputsOrderPreservedContent)
-  , ("outputs_order_preserved", outputsOrderPreservedContent)
+buildTxBodyContentTests = testGroup "BuildTxBodyContent"
+  [ HH.testProperty "inputs order preserved" inputsOrderPreservedContent
+  , HH.testProperty "outputs order preserved" outputsOrderPreservedContent
   ]
 
 inputsOrderPreservedBalancing :: Property
@@ -90,8 +90,7 @@ outputsOrderPreservedBalancing = property $ do
     balancedOutputs  = Interop.extractCardanoTxBodyOutputs txb
   List.init balancedOutputs === candidateOutputs
 
-buildBalancedTxTests :: IO Bool
-buildBalancedTxTests = checkParallel $ Group "BuildBalancedTx"
-  [ ("inputs_order_preserved", inputsOrderPreservedBalancing)
-  , ("outputs_order_preserved", outputsOrderPreservedBalancing)
+buildBalancedTxTests = testGroup "BuildBalancedTx"
+  [ HH.testProperty "inputs order preserved" inputsOrderPreservedBalancing
+  , HH.testProperty "outputs order preserved" outputsOrderPreservedBalancing
   ]
