@@ -1,66 +1,16 @@
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE EmptyCase #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
-
-{-# OPTIONS_GHC -Wno-unticked-promoted-constructors #-}
-
 module SubmitAPI.Internal.Balancing where
 
-import           Prelude
+import Prelude
 
-import qualified Data.Array as Array
-import           Data.Bifunctor (bimap, first)
-import qualified Data.ByteString as BS
-import           Data.Map (Map)
-import qualified Data.Map as Map
-import           Data.Maybe (fromMaybe)
-import           Data.Sequence.Strict (StrictSeq (..))
-import           Data.Set (Set)
-import qualified Data.Set as Set
-import qualified Data.Text as Text
-import           GHC.Records (HasField (..))
-import           Numeric.Natural
+import           Data.Bifunctor (first)
+import           Data.Map       (Map)
+import qualified Data.Map       as Map
+import           Data.Maybe     (fromMaybe)
+import           Data.Set       (Set)
 
-import           Control.Monad.Trans.Except
-import qualified Prettyprinter as PP
-import qualified Prettyprinter.Render.String as PP
-
-import qualified Cardano.Binary as CBOR
-import           Cardano.Slotting.EpochInfo (EpochInfo, hoistEpochInfo)
-
-import qualified Cardano.Chain.Common as Byron
-
-import qualified Cardano.Ledger.Alonzo.Rules.Utxo as Alonzo
-import qualified Cardano.Ledger.Coin as Ledger
-import qualified Cardano.Ledger.Core as Ledger
-import qualified Cardano.Ledger.Crypto as Ledger
-import           Cardano.Api
-import           Cardano.Api.Shelley  (ProtocolParameters(..), PoolId)
-import           Cardano.Slotting.Time (SystemStart)
-import qualified Cardano.Ledger.Era as Ledger.Era (Crypto)
-import qualified Cardano.Ledger.Keys as Ledger
-import qualified Cardano.Ledger.Shelley.API as Ledger (CLI, DCert, TxIn, Wdrl)
-import qualified Cardano.Ledger.Shelley.API.Wallet as Ledger (evaluateTransactionBalance,
-                   evaluateTransactionFee)
-
-import           Cardano.Ledger.Shelley.PParams (PParams' (..))
-
-import qualified Cardano.Ledger.Mary.Value as Mary
-
-import qualified Cardano.Ledger.Alonzo as Alonzo
-import qualified Cardano.Ledger.Alonzo.Language as Alonzo
-import           Cardano.Ledger.Alonzo.PParams (PParams' (..))
-import qualified Cardano.Ledger.Alonzo.Scripts as Alonzo
-import qualified Cardano.Ledger.Alonzo.Tools as Alonzo
-import qualified Cardano.Ledger.Alonzo.TxWitness as Alonzo
-
-import qualified Plutus.V1.Ledger.Api as Plutus
+import Cardano.Api
+import Cardano.Api.Shelley   (ProtocolParameters(..), PoolId)
+import Cardano.Slotting.Time (SystemStart)
 
 makeTransactionBodyAutoBalance
   :: forall era mode.

@@ -88,7 +88,7 @@ outputsOrderPreservedBalancing = property $ do
   let
     candidateOutputs = zip [0..] $ txCandidateOutputs txc
     balancedOutputs  = Interop.extractCardanoTxBodyOutputs txb
-  ((List.init balancedOutputs) === candidateOutputs)
+  List.init balancedOutputs === candidateOutputs
 
 buildBalancedTxTests :: IO Bool
 buildBalancedTxTests = checkParallel $ Group "BuildBalancedTx"
