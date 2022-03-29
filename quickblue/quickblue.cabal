@@ -92,4 +92,4 @@ library
         ouroboros-consensus,
         rio,
         cardano-crypto-class,
-        common
+        ergo-hs-common

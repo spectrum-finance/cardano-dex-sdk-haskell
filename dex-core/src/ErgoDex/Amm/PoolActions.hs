@@ -9,7 +9,6 @@ import           Control.Monad          (when)
 import qualified Data.Set               as Set
 import           Data.Bifunctor
 import           Data.Tuple
-import           Common.Data.List.Combinators
 
 import           Ledger          (Redeemer(..), PaymentPubKeyHash(..), pubKeyHashAddress)
 import qualified Ledger.Interval as Interval
@@ -47,13 +46,23 @@ mkPoolActions executorPkh = PoolActions
   , runRedeem  = runRedeem' executorPkh
   }
 
+newtype PoolIn  = PoolIn FullTxOut
+newtype OrderIn = OrderIn FullTxOut
+
+mkOrderInputs :: PoolIn -> OrderIn -> Set.Set FullTxIn
+mkOrderInputs (PoolIn poolOut) (OrderIn orderOut) =
+    Set.fromList [poolIn, orderIn]
+  where
+    preInputs = Set.fromList [poolOut, orderOut]
+    poolIx    = toInteger $ Set.findIndex poolOut preInputs
+    orderIx   = toInteger $ Set.findIndex orderOut preInputs
+    poolIn    = mkScriptTxIn poolOut poolValidator (Redeemer $ toBuiltinData $ P.PoolRedeemer P.Swap 0)
+    orderIn   = mkScriptTxIn orderOut swapValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer poolIx orderIx 1 O.Apply)
+
 runSwap' :: PaymentPubKeyHash -> Confirmed Swap -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
 runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
   let
-    preInputs = Set.fromList [poolOut, swapOut]
-    poolIn  = mkScriptTxIn poolOut poolValidator (Redeemer $ toBuiltinData $ P.PoolRedeemer P.Swap 0)
-    orderIn = mkScriptTxIn swapOut swapValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer 0 1 1 O.Apply)
-    inputs  = Set.fromList [poolIn, orderIn]
+    inputs = mkOrderInputs (PoolIn poolOut) (OrderIn swapOut)
 
     pp@(Predicted nextPoolOut _) = applySwap pool (AssetAmount swapBase swapBaseIn)
 
@@ -96,9 +105,7 @@ runDeposit' :: PaymentPubKeyHash -> Confirmed Deposit -> (FullTxOut, Pool) -> Ei
 runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{..}) = do
   when (depositPoolId /= poolId) (Left $ PoolMismatch depositPoolId poolId)
   let
-    poolIn  = mkScriptTxIn poolOut poolValidator (Redeemer $ toBuiltinData $ P.PoolRedeemer P.Deposit 0)
-    orderIn = mkScriptTxIn depositOut depositValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer 0 1 1 O.Apply)
-    inputs  = Set.fromList [poolIn, orderIn]
+    inputs = mkOrderInputs (PoolIn poolOut) (OrderIn depositOut)
 
     (inX, inY) =
         bimap entryAmount entryAmount $
@@ -151,9 +158,7 @@ runRedeem' :: PaymentPubKeyHash -> Confirmed Redeem -> (FullTxOut, Pool) -> Eith
 runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (poolOut, pool@Pool{..}) = do
   when (redeemPoolId /= poolId) (Left $ PoolMismatch redeemPoolId poolId)
   let
-    poolIn  = mkScriptTxIn poolOut poolValidator (Redeemer $ toBuiltinData $ P.PoolRedeemer P.Deposit 0)
-    orderIn = mkScriptTxIn redeemOut redeemValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer 0 1 1 O.Apply)
-    inputs  = Set.fromList [poolIn, orderIn]
+    inputs = mkOrderInputs (PoolIn poolOut) (OrderIn redeemOut)
 
     pp@(Predicted nextPoolOut _) = applyRedeem pool redeemLqIn
 

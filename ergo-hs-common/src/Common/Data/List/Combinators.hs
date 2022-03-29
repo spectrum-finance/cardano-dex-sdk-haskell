@@ -1,5 +1,5 @@
 module Common.Data.List.Combinators
-  (indexOf
+  ( indexOf
   ) where
 
 indexOf :: (Eq a, Integral s) => a -> [a] -> s

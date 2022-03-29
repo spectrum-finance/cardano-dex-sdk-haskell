@@ -1,5 +1,7 @@
 cradle:
   cabal:
+    - path: "./ergo-hs-common/src"
+      component: "ergo-hs-common:lib:ergo-hs-common"
     - path: "./cardano-tx/src"
       component: "cardano-tx:lib:cardano-tx"
     - path: "./dex-core/src"
