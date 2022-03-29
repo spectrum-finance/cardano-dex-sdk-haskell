@@ -42,5 +42,5 @@ collectOutputsData :: [Sdk.TxOutCandidate] -> Map.Map P.DatumHash P.Datum
 collectOutputsData outputs =
     Map.fromList $ outputs >>= tryGetDatum
   where
-    tryGetDatum Sdk.TxOutCandidate{txOutCandidateDatum=Just d} = pure (P.datumHash d, d)
-    tryGetDatum _                                              = mempty
+    tryGetDatum Sdk.TxOutCandidate{txOutCandidateDatum=Sdk.KnownDatum d} = pure (P.datumHash d, d)
+    tryGetDatum _                                                        = mempty

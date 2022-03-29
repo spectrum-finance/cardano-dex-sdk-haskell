@@ -32,7 +32,17 @@ inputsOrderPreserved = property $ do
     balancedInputs  = Interop.extractCardanoTxBodyInputs txb
   balancedInputs === candidateInputs
 
+outputsOrderPreserved :: Property
+outputsOrderPreserved = property $ do
+  txc <- forAll genPlainTxCandidate
+  (C.BalancedTxBody txb _ _) <- buildBalancedTx staticSystemEnv (ChangeAddress stableAddress) mempty txc
+  let
+    candidateOutputs = zip [0..] $ txCandidateOutputs txc
+    balancedOutputs  = Interop.extractCardanoTxBodyOutputs txb
+  balancedOutputs === candidateOutputs
+
 buildBalancedTxTests :: IO Bool
 buildBalancedTxTests = checkParallel $ Group "BuildBalancedTx"
   [ ("inputs_order_preserved", inputsOrderPreserved)
+  , ("outputs_order_preserved", outputsOrderPreserved)
   ]

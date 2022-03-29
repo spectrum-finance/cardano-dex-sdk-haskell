@@ -49,7 +49,7 @@ feeDen :: Integer
 feeDen = 1000
 
 instance FromLedger Pool where
-  parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
+  parseFromLedger fout@FullTxOut{fullTxOutDatum=(KnownDatum (Datum d)), ..} =
     case fromBuiltinData d of
       (Just PoolConfig{..}) ->
           Just $ OnChain fout Pool
@@ -77,7 +77,7 @@ instance ToLedger Pool where
       TxOutCandidate
         { txOutCandidateAddress = validatorAddress poolValidator
         , txOutCandidateValue   = poolValue
-        , txOutCandidateDatum   = Just $ Datum $ toBuiltinData poolConf
+        , txOutCandidateDatum   = KnownDatum $ Datum $ toBuiltinData poolConf
         }
     where
       nft            = unPoolId poolId

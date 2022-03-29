@@ -98,13 +98,18 @@ instance FromJSON FullTxOut where
     return FullTxOut{..}
 
 instance ToCardanoTx FullTxOut Tx.FullTxOut where
-  toCardanoTx FullTxOut{..} = Tx.FullTxOut
-    { fullTxOutRef       = toCardanoTx ref
-    , fullTxOutAddress   = toCardanoTx addr
-    , fullTxOutValue     = foldr (\a acc -> unionVal acc (toCardanoTx a)) mempty value
-    , fullTxOutDatumHash = dataHash
-    , fullTxOutDatum     = data'
-    }
+  toCardanoTx FullTxOut{..} =
+    Tx.FullTxOut
+      { fullTxOutRef       = toCardanoTx ref
+      , fullTxOutAddress   = toCardanoTx addr
+      , fullTxOutValue     = foldr (\a acc -> unionVal acc (toCardanoTx a)) mempty value
+      , fullTxOutDatum     = outDatum
+      }
+    where
+      outDatum = case (data', dataHash) of
+        (Just d, _)  -> Tx.KnownDatum d
+        (_, Just dh) -> Tx.KnownDatumHash dh
+        _            -> Tx.UnitDatum
 
 data OutAsset = OutAsset
   { policy      :: PolicyId

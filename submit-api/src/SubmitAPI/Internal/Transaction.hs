@@ -18,6 +18,7 @@ import qualified Ledger.Ada                  as Ada
 import qualified CardanoTx.Models   as Sdk
 import           CardanoTx.ToPlutus
 import           NetworkAPI.Env
+import Ledger.Scripts (datumHash)
 
 signTx
   :: TxBody AlonzoEra
@@ -139,7 +140,7 @@ buildInputsUTxO network inputs =
   where
     translate Sdk.FullTxIn{fullTxInTxOut=out@Sdk.FullTxOut{..}} = do
       txIn  <- Interop.toCardanoTxIn fullTxOutRef
-      let dhMap = RIO.fromMaybe mempty (fullTxOutDatumHash >>= (\hash -> fmap (Map.singleton hash) fullTxOutDatum))
+      let dhMap = maybe mempty (\d -> Map.singleton (datumHash d) d) (Sdk.outDatum fullTxOutDatum)
       txOut <- Interop.toCardanoTxOut network dhMap $ toPlutus out
       pure (txIn, toCtxUTxOTxOut txOut)
 
@@ -152,9 +153,9 @@ collectInputsData inputs = do
   pure $ Map.fromList $ rawData >>= maybe mempty pure
 
 extractInputDatum :: MonadThrow f => Sdk.FullTxIn -> f (Maybe (P.DatumHash, P.Datum))
-extractInputDatum Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{fullTxOutDatumHash=Just dh, fullTxOutDatum=Just d}} =
-  pure $ Just (dh, d)
-extractInputDatum Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{fullTxOutDatumHash=Just dh}} =
+extractInputDatum Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{fullTxOutDatum=Sdk.KnownDatum d}} =
+  pure $ Just (datumHash d, d)
+extractInputDatum Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{fullTxOutDatum=Sdk.KnownDatumHash dh}} =
   throwM $ UnresolvedData dh
 extractInputDatum _ = pure Nothing
 

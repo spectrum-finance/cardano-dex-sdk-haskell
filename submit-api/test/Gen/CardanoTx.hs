@@ -5,6 +5,7 @@ module Gen.CardanoTx where
 import           Data.Functor    ((<&>))
 import qualified Data.ByteString as BS
 import           Data.Map        as Map
+import           Data.Set        as Set
 
 import Hedgehog
 import Hedgehog.Gen as Gen
@@ -21,6 +22,7 @@ import qualified PlutusTx
 
 import qualified CardanoTx.Models as Sdk
 import Plutus.V1.Ledger.Ada (adaValueOf)
+import CardanoTx.Models (OutDatum(UnitDatum))
 
 mkTokenName :: BS.ByteString -> P.TokenName
 mkTokenName = P.TokenName . P.BuiltinByteString
@@ -82,7 +84,7 @@ genFullTxOutExact :: MonadGen f => P.Value -> f Sdk.FullTxOut
 genFullTxOutExact value = do
   ref   <- genTxOutRef
   addr  <- genPkhAddress
-  pure $ Sdk.FullTxOut ref addr value Nothing Nothing
+  pure $ Sdk.FullTxOut ref addr value UnitDatum
 
 genFullTxIn :: MonadGen f => f Sdk.FullTxIn
 genFullTxIn = genFullTxOut <&> (`Sdk.FullTxIn` P.ConsumePublicKeyAddress)
@@ -98,12 +100,12 @@ genTxOutCandidate = do
 genTxOutCandidateExact :: MonadGen f => P.Value -> f Sdk.TxOutCandidate
 genTxOutCandidateExact value = do
   addr <- genPkhAddress
-  pure $ Sdk.TxOutCandidate addr value Nothing
+  pure $ Sdk.TxOutCandidate addr value UnitDatum
 
 genPlainTxCandidate :: MonadGen f => f Sdk.TxCandidate
 genPlainTxCandidate = do
-  inputs  <- Gen.list (Range.constant 1 10) genFullTxIn
-  outputs <- Gen.list (Range.constant 1 10) genTxOutCandidate
+  inputs  <- Gen.set (Range.constant 3 10) genFullTxIn <&> Set.elems
+  outputs <- Gen.set (Range.constant 3 10) genTxOutCandidate <&> Set.elems
   let
     adaIn  = Prelude.foldl (\ acc i -> acc + (Ada.getLovelace $ Ada.fromValue $ Sdk.fullTxOutValue $ Sdk.fullTxInTxOut i)) 0 inputs
     adaOut = Prelude.foldl (\ acc i -> acc + (Ada.getLovelace $ Ada.fromValue $ Sdk.txOutCandidateValue i)) 0 outputs
