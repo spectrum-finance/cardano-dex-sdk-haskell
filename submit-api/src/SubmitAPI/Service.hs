@@ -51,7 +51,7 @@ finalizeTx' Network{..} utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCand
 
   (C.BalancedTxBody txb _ _) <- buildBalancedTx sysenv (getChangeAddr deafultChangeAddr) collaterals txc
   let
-    allInputs   = (txCandidateInputs <&> Sdk.fullTxInTxOut) ++ (Set.elems collaterals <&> Sdk.fullCollateralTxInTxOut)
+    allInputs   = (Set.elems txCandidateInputs <&> Sdk.fullTxInTxOut) ++ (Set.elems collaterals <&> Sdk.fullCollateralTxInTxOut)
     signatories = allInputs >>= getPkh
       where
         getPkh Sdk.FullTxOut{fullTxOutAddress=P.Address (P.PubKeyCredential pkh) _} = [pkh]
@@ -71,7 +71,7 @@ selectCollaterals WalletOutputs{selectUtxosStrict} SystemEnv{..} TxAssemblyConfi
   let isScriptIn Sdk.FullTxIn{fullTxInType=P.ConsumeScriptAddress {}} = True
       isScriptIn _                                                    = False
 
-      scriptInputs = filter isScriptIn txCandidateInputs
+      scriptInputs = filter isScriptIn (Set.elems txCandidateInputs)
 
       collectCollaterals knownCollaterals = do
         let

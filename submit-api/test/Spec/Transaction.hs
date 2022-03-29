@@ -5,6 +5,7 @@ module Spec.Transaction where
 import           Data.Functor    ((<&>))
 import qualified Data.ByteString as BS
 import           Data.Map        as Map
+import           Data.Set        as Set
 
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -28,7 +29,7 @@ inputsOrderPreservedBuildTxBody = property $ do
   ctx <- buildTxBodyContent staticProtocolParams (network staticSystemEnv) mempty txc
   let
     Right txb       = C.makeTransactionBody ctx
-    candidateInputs = txCandidateInputs txc <&> (fullTxOutRef . fullTxInTxOut)
+    candidateInputs = Set.elems (txCandidateInputs txc) <&> (fullTxOutRef . fullTxInTxOut)
     balancedInputs  = Interop.extractCardanoTxBodyInputs txb
   balancedInputs === candidateInputs
 
@@ -53,7 +54,7 @@ inputsOrderPreservedContent = property $ do
   txc <- forAll genPlainTxCandidate
   ctx <- buildTxBodyContent staticProtocolParams (network staticSystemEnv) mempty txc
   let
-    candidateInputs = txCandidateInputs txc <&> (fullTxOutRef . fullTxInTxOut)
+    candidateInputs = Set.elems (txCandidateInputs txc) <&> (fullTxOutRef . fullTxInTxOut)
     balancedInputs  = Interop.extractCardanoTxContentInputs ctx
   balancedInputs === candidateInputs
 
@@ -77,7 +78,7 @@ inputsOrderPreservedBalancing = property $ do
   txc <- forAll genPlainTxCandidate
   (C.BalancedTxBody txb _ _) <- buildBalancedTx staticSystemEnv (ChangeAddress stableAddress) mempty txc
   let
-    candidateInputs = txCandidateInputs txc <&> (fullTxOutRef . fullTxInTxOut)
+    candidateInputs = Set.elems (txCandidateInputs txc) <&> (fullTxOutRef . fullTxInTxOut)
     balancedInputs  = Interop.extractCardanoTxBodyInputs txb
   balancedInputs === candidateInputs
 

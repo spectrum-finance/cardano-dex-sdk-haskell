@@ -21,12 +21,12 @@ mkUnbalancedTx collateral tx@Sdk.TxCandidate{..} =
       }
   where
     inputsIndex =
-      Map.fromList $ txCandidateInputs <&> (\i@Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{..}} -> (fullTxOutRef, i))
+      Map.fromList $ Set.elems txCandidateInputs <&> (\i@Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{..}} -> (fullTxOutRef, i))
 
 mkPlutusTx :: Set.Set Sdk.FullCollateralTxIn -> Sdk.TxCandidate -> P.Tx
 mkPlutusTx collateral Sdk.TxCandidate{..} =
   P.Tx
-    { txInputs      = Set.fromList $ txCandidateInputs <&> toPlutus
+    { txInputs      = Set.fromList $ Set.elems txCandidateInputs <&> toPlutus
     , txCollateral  = Set.fromList $ Set.elems collateral <&> toPlutus
     , txOutputs     = txCandidateOutputs <&> toPlutus
     , txMint        = Sdk.unMintValue txCandidateValueMint

@@ -4,10 +4,11 @@ module ErgoDex.Amm.PoolActions
   , mkPoolActions
   ) where
 
+import           Control.Exception.Base
 import           Control.Monad          (when)
+import qualified Data.Set               as Set
 import           Data.Bifunctor
 import           Data.Tuple
-import           Control.Exception.Base
 
 import           Ledger          (Redeemer(..), PaymentPubKeyHash(..), pubKeyHashAddress)
 import qualified Ledger.Interval as Interval
@@ -50,6 +51,7 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
   let
     poolIn  = mkScriptTxIn poolOut poolValidator (Redeemer $ toBuiltinData $ P.PoolRedeemer P.Swap 0)
     orderIn = mkScriptTxIn swapOut swapValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer 0 1 1 O.Apply)
+    inputs  = Set.fromList [poolIn, orderIn]
 
     pp@(Predicted nextPoolOut _) = applySwap pool (AssetAmount swapBase swapBaseIn)
 
@@ -77,7 +79,7 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
         rewardValue = assetAmountValue quoteOutput <> residualValue
 
     txCandidate = TxCandidate
-      { txCandidateInputs       = [poolIn, orderIn]
+      { txCandidateInputs       = inputs
       , txCandidateOutputs      = [nextPoolOut, rewardOut]
       , txCandidateValueMint    = mempty
       , txCandidateMintInputs   = mempty
@@ -94,6 +96,7 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{.
   let
     poolIn  = mkScriptTxIn poolOut poolValidator (Redeemer $ toBuiltinData $ P.PoolRedeemer P.Deposit 0)
     orderIn = mkScriptTxIn depositOut depositValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer 0 1 1 O.Apply)
+    inputs  = Set.fromList [poolIn, orderIn]
 
     (inX, inY) =
         bimap entryAmount entryAmount $
@@ -131,7 +134,7 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{.
         rewardValue = residualValue <> mintLqValue
 
     txCandidate = TxCandidate
-      { txCandidateInputs       = [poolIn, orderIn]
+      { txCandidateInputs       = inputs
       , txCandidateOutputs      = [nextPoolOut, rewardOut]
       , txCandidateValueMint    = mempty
       , txCandidateMintInputs   = mempty
@@ -148,6 +151,7 @@ runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (poolOut, pool@Pool{..})
   let
     poolIn  = mkScriptTxIn poolOut poolValidator (Redeemer $ toBuiltinData $ P.PoolRedeemer P.Deposit 0)
     orderIn = mkScriptTxIn redeemOut redeemValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer 0 1 1 O.Apply)
+    inputs  = Set.fromList [poolIn, orderIn]
 
     pp@(Predicted nextPoolOut _) = applyRedeem pool redeemLqIn
 
@@ -169,7 +173,7 @@ runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (poolOut, pool@Pool{..})
         rewardValue = assetAmountValue outX <> assetAmountValue outY <> residualValue
 
     txCandidate = TxCandidate
-      { txCandidateInputs       = [poolIn, orderIn]
+      { txCandidateInputs       = inputs
       , txCandidateOutputs      = [nextPoolOut, rewardOut]
       , txCandidateValueMint    = mempty
       , txCandidateMintInputs   = mempty

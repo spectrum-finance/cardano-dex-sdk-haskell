@@ -9,11 +9,11 @@ import           Data.ByteString.Lazy      (toStrict)
 import           Data.Text.Prettyprint.Doc (Pretty(..))
 import qualified Data.Set                  as Set
 
-import           Cardano.Api                 hiding (TxBodyError)
-import           Cardano.Api.Shelley         (ProtocolParameters(..))
-import qualified Ledger                      as P
-import qualified Ledger.Tx.CardanoAPI        as Interop
-import qualified Ledger.Ada                  as Ada
+import           Cardano.Api          hiding (TxBodyError)
+import           Cardano.Api.Shelley  (ProtocolParameters(..))
+import qualified Ledger               as P
+import qualified Ledger.Tx.CardanoAPI as Interop
+import qualified Ledger.Ada           as Ada
 
 import qualified CardanoTx.Models   as Sdk
 import           CardanoTx.ToPlutus
@@ -39,7 +39,7 @@ buildBalancedTx SystemEnv{..} defaultChangeAddr collateral txc@Sdk.TxCandidate{.
   let eraInMode    = AlonzoEraInCardanoMode
       witOverrides = Nothing
   txBody     <- buildTxBodyContent pparams network collateral txc
-  inputsMap  <- buildInputsUTxO network txCandidateInputs
+  inputsMap  <- buildInputsUTxO network $ Set.elems txCandidateInputs
   changeAddr <- absorbError $ case txCandidateChangePolicy of
     Just (Sdk.ReturnTo addr) -> Interop.toCardanoAddress network addr
     _                        -> Interop.toCardanoAddress network $ Sdk.getAddress defaultChangeAddr
@@ -68,7 +68,7 @@ buildTxBodyContent
   -> Sdk.TxCandidate
   -> f (TxBodyContent BuildTx AlonzoEra)
 buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
-  txIns           <- buildTxIns txCandidateInputs
+  txIns           <- buildTxIns $ Set.elems txCandidateInputs
   txInsCollateral <- buildTxCollateral $ Set.elems collateral
   txOuts          <- buildTxOuts network txCandidateOutputs
   txFee           <- absorbError $ Interop.toCardanoFee dummyFee

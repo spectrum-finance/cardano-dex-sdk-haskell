@@ -1,8 +1,8 @@
 module ErgoDex.Amm.PoolSetup where
 
 import           Control.Monad           (unless)
-import           Data.Functor
-
+import           Data.Functor            ((<&>))
+import qualified Data.Set                as Set
 import           Data.Either.Combinators (mapLeft)
 
 import           Ledger          (Address, StakePubKeyHash, PaymentPubKeyHash, pubKeyHashAddress)
@@ -76,7 +76,7 @@ poolDeploy' burnLq changeAddr rewardPkh stakePkh pp@P.PoolConfig{..} utxosIn = d
   unless (overallAdaIn >= overallAdaOut) (Left InsufficientInputs)
 
   Right $ TxCandidate
-    { txCandidateInputs       = inputs
+    { txCandidateInputs       = Set.fromList inputs
     , txCandidateOutputs      = [poolOutput, rewardOutput]
     , txCandidateValueMint    = mempty -- todo: mint NFT and LQ right there?
     , txCandidateMintInputs   = mempty

@@ -78,7 +78,10 @@ instance Ord FullTxOut where
 data FullTxIn = FullTxIn
   { fullTxInTxOut :: FullTxOut
   , fullTxInType  :: TxInType
-  } deriving (Show, Eq, Ord, Generic, FromJSON, ToJSON)
+  } deriving (Show, Eq, Generic, FromJSON, ToJSON)
+
+instance Ord FullTxIn where
+  compare FullTxIn{fullTxInTxOut=foutx} FullTxIn{fullTxInTxOut=fouty} = compare foutx fouty
 
 toScriptOutput :: FullTxIn -> Maybe P.ScriptOutput
 toScriptOutput FullTxIn{fullTxInTxOut=FullTxOut{fullTxOutValue}, fullTxInType=ConsumeScriptAddress v _ d} =
@@ -131,7 +134,7 @@ mkMintInputs xs = MintInputs mps rs
 
 -- TX template without collaterals, fees, change etc.
 data TxCandidate = TxCandidate
-  { txCandidateInputs       :: [FullTxIn]
+  { txCandidateInputs       :: Set.Set FullTxIn
   , txCandidateOutputs      :: [TxOutCandidate]
   , txCandidateValueMint    :: MintValue
   , txCandidateMintInputs   :: MintInputs

@@ -114,4 +114,5 @@ genPlainTxCandidate = do
   extraIn <- if delta > 0
     then genFullTxInExact (Ada.lovelaceValueOf delta) <&> pure
     else pure []
-  pure $ Sdk.TxCandidate (inputs ++ extraIn) outputs mempty mempty Nothing Interval.always mempty
+  let updatedInputs = Set.fromList $ inputs ++ extraIn
+  pure $ Sdk.TxCandidate updatedInputs outputs mempty mempty Nothing Interval.always mempty
