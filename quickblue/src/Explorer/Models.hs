@@ -1,5 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
-
 module Explorer.Models where
 
 import           Data.Aeson.Types
@@ -109,7 +107,7 @@ instance ToCardanoTx FullTxOut Tx.FullTxOut where
       outDatum = case (data', dataHash) of
         (Just d, _)  -> Tx.KnownDatum d
         (_, Just dh) -> Tx.KnownDatumHash dh
-        _            -> Tx.UnitDatum
+        _            -> Tx.EmptyDatum
 
 data OutAsset = OutAsset
   { policy      :: PolicyId

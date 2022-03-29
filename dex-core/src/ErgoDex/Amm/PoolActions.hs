@@ -77,7 +77,7 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
         TxOutCandidate
           { txOutCandidateAddress = rewardAddr
           , txOutCandidateValue   = rewardValue
-          , txOutCandidateDatum   = UnitDatum
+          , txOutCandidateDatum   = EmptyDatum
           }
       where
         initValue     = fullTxOutValue swapOut
@@ -131,7 +131,7 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{.
         TxOutCandidate
           { txOutCandidateAddress = rewardAddr
           , txOutCandidateValue   = rewardValue
-          , txOutCandidateDatum   = UnitDatum
+          , txOutCandidateDatum   = EmptyDatum
           }
       where
         initValue     = fullTxOutValue depositOut
@@ -169,7 +169,7 @@ runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (poolOut, pool@Pool{..})
         TxOutCandidate
           { txOutCandidateAddress = rewardAddr
           , txOutCandidateValue   = rewardValue
-          , txOutCandidateDatum   = UnitDatum
+          , txOutCandidateDatum   = EmptyDatum
           }
       where
         (outX, outY)  = sharesAmount pool redeemLqIn

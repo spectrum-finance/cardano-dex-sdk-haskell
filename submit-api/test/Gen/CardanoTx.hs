@@ -20,9 +20,9 @@ import qualified Plutus.V1.Ledger.Api       as P
 import qualified Ledger.Interval            as Interval
 import qualified PlutusTx
 
-import qualified CardanoTx.Models as Sdk
-import Plutus.V1.Ledger.Ada (adaValueOf)
-import CardanoTx.Models (OutDatum(UnitDatum))
+import qualified CardanoTx.Models     as Sdk
+import           Plutus.V1.Ledger.Ada (adaValueOf)
+import           CardanoTx.Models     (OutDatum(EmptyDatum))
 
 mkTokenName :: BS.ByteString -> P.TokenName
 mkTokenName = P.TokenName . P.BuiltinByteString
@@ -84,7 +84,7 @@ genFullTxOutExact :: MonadGen f => P.Value -> f Sdk.FullTxOut
 genFullTxOutExact value = do
   ref   <- genTxOutRef
   addr  <- genPkhAddress
-  pure $ Sdk.FullTxOut ref addr value UnitDatum
+  pure $ Sdk.FullTxOut ref addr value EmptyDatum
 
 genFullTxIn :: MonadGen f => f Sdk.FullTxIn
 genFullTxIn = genFullTxOut <&> (`Sdk.FullTxIn` P.ConsumePublicKeyAddress)
@@ -100,7 +100,7 @@ genTxOutCandidate = do
 genTxOutCandidateExact :: MonadGen f => P.Value -> f Sdk.TxOutCandidate
 genTxOutCandidateExact value = do
   addr <- genPkhAddress
-  pure $ Sdk.TxOutCandidate addr value UnitDatum
+  pure $ Sdk.TxOutCandidate addr value EmptyDatum
 
 genPlainTxCandidate :: MonadGen f => f Sdk.TxCandidate
 genPlainTxCandidate = do

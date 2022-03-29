@@ -63,7 +63,7 @@ poolDeploy' burnLq changeAddr rewardPkh stakePkh pp@P.PoolConfig{..} utxosIn = d
     rewardOutput = TxOutCandidate
       { txOutCandidateAddress = pubKeyHashAddress rewardPkh stakePkh
       , txOutCandidateValue   = mintLqValue <> minSafeOutputValue
-      , txOutCandidateDatum   = UnitDatum
+      , txOutCandidateDatum   = EmptyDatum
       }
 
     inputs  = utxosIn <&> mkPkhTxIn

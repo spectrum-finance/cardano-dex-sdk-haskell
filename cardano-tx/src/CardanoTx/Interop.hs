@@ -42,7 +42,7 @@ extractCardanoTxContentOutputs bodyc =
   where
     toSdkOutput o = do
       P.TxOut{..} <- toCardanoTxOutput o
-      let dt = maybe UnitDatum KnownDatumHash txOutDatumHash
+      let dt = maybe EmptyDatum KnownDatumHash txOutDatumHash
       pure $ TxOutCandidate txOutAddress txOutValue dt
 
 extractCardanoTxOutputAt :: Int -> C.Tx era -> Maybe FullTxOut
@@ -51,7 +51,7 @@ extractCardanoTxOutputAt ix tx = do
   let
     txId = extractCardanoTxId tx
     ref  = P.TxOutRef txId (toInteger ix)
-    dt   = maybe UnitDatum KnownDatumHash txOutDatumHash
+    dt   = maybe EmptyDatum KnownDatumHash txOutDatumHash
   pure $ FullTxOut ref txOutAddress txOutValue dt
 
 getOutputAt :: Int -> C.Tx era -> Maybe (C.TxOut C.CtxTx era)

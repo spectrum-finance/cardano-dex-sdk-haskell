@@ -29,7 +29,7 @@ newtype MintValue = MintValue { unMintValue :: Value }
 data OutDatum
   = KnownDatum Datum
   | KnownDatumHash DatumHash
-  | UnitDatum
+  | EmptyDatum
   deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 outDatumHash :: OutDatum -> Maybe DatumHash
