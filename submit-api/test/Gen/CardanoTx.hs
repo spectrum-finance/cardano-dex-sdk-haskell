@@ -86,8 +86,17 @@ genFullTxOutExact value = do
   addr  <- genPkhAddress
   pure $ Sdk.FullTxOut ref addr value EmptyDatum
 
+genFullP2shTxOutExact :: MonadGen f => P.Value -> f Sdk.FullTxOut
+genFullP2shTxOutExact value = do
+  ref   <- genTxOutRef
+  addr  <- genPkhAddress
+  pure $ Sdk.FullTxOut ref addr value EmptyDatum
+
 genFullTxIn :: MonadGen f => f Sdk.FullTxIn
 genFullTxIn = genFullTxOut <&> (`Sdk.FullTxIn` P.ConsumePublicKeyAddress)
+
+genFullScriptTxIn :: MonadGen f => f Sdk.FullTxIn
+genFullScriptTxIn = undefined
 
 genFullTxInExact :: MonadGen f => P.Value -> f Sdk.FullTxIn
 genFullTxInExact value = genFullTxOutExact value <&> (`Sdk.FullTxIn` P.ConsumePublicKeyAddress)
