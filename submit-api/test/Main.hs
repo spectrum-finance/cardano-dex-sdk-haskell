@@ -12,6 +12,8 @@ import Control.Monad (unless)
 main :: IO ()
 main = do
   res <- sequence
-    [ buildBalancedTxTests
+    [ buildTxBodyTests
+    , buildTxBodyContentTests
+    , buildBalancedTxTests
     ]
   unless (and res) exitFailure

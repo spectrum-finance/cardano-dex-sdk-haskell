@@ -46,7 +46,7 @@ genBuiltinByteString :: MonadGen f => Int -> f P.BuiltinByteString
 genBuiltinByteString s = bytes (Range.singleton s) <&> P.BuiltinByteString
 
 genTxId :: MonadGen f => f P.TxId
-genTxId = genBuiltinByteString 32 <&> P.TxId
+genTxId = prune $ genBuiltinByteString 32 <&> P.TxId
 
 genTxOutRef :: MonadGen f => f P.TxOutRef
 genTxOutRef = do

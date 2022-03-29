@@ -17,23 +17,72 @@ import Spec.Network
 
 import qualified Cardano.Api as C
 
+import NetworkAPI.Env
 import SubmitAPI.Internal.Transaction
 import CardanoTx.Models
 import CardanoTx.Interop as Interop
-import GHC.Base (Bool)
 
-inputsOrderPreserved :: Property
-inputsOrderPreserved = property $ do
+inputsOrderPreservedBuildTxBody :: Property
+inputsOrderPreservedBuildTxBody = property $ do
   txc <- forAll genPlainTxCandidate
-  _   <- evalIO $ Prelude.print txc
+  ctx <- buildTxBodyContent staticProtocolParams (network staticSystemEnv) mempty txc
+  let
+    Right txb       = C.makeTransactionBody ctx
+    candidateInputs = txCandidateInputs txc <&> (fullTxOutRef . fullTxInTxOut)
+    balancedInputs  = Interop.extractCardanoTxBodyInputs txb
+  balancedInputs === candidateInputs
+
+outputsOrderPreservedBuildTxBody :: Property
+outputsOrderPreservedBuildTxBody = property $ do
+  txc <- forAll genPlainTxCandidate
+  ctx <- buildTxBodyContent staticProtocolParams (network staticSystemEnv) mempty txc
+  let
+    Right txb        = C.makeTransactionBody ctx
+    candidateOutputs = zip [0..] $ txCandidateOutputs txc
+    balancedOutputs  = Interop.extractCardanoTxBodyOutputs txb
+  balancedOutputs === candidateOutputs
+
+buildTxBodyTests :: IO Bool
+buildTxBodyTests = checkParallel $ Group "BuildTxBody"
+  [ ("inputs_order_preserved", inputsOrderPreservedBuildTxBody)
+  , ("outputs_order_preserved", outputsOrderPreservedBuildTxBody)
+  ]
+
+inputsOrderPreservedContent :: Property
+inputsOrderPreservedContent = property $ do
+  txc <- forAll genPlainTxCandidate
+  ctx <- buildTxBodyContent staticProtocolParams (network staticSystemEnv) mempty txc
+  let
+    candidateInputs = txCandidateInputs txc <&> (fullTxOutRef . fullTxInTxOut)
+    balancedInputs  = Interop.extractCardanoTxContentInputs ctx
+  balancedInputs === candidateInputs
+
+outputsOrderPreservedContent :: Property
+outputsOrderPreservedContent = property $ do
+  txc <- forAll genPlainTxCandidate
+  ctx <- buildTxBodyContent staticProtocolParams (network staticSystemEnv) mempty txc
+  let
+    candidateOutputs = zip [0..] $ txCandidateOutputs txc
+    balancedOutputs  = Interop.extractCardanoTxContentOutputs ctx
+  balancedOutputs === candidateOutputs
+
+buildTxBodyContentTests :: IO Bool
+buildTxBodyContentTests = checkParallel $ Group "BuildTxBodyContent"
+  [ ("inputs_order_preserved", inputsOrderPreservedContent)
+  , ("outputs_order_preserved", outputsOrderPreservedContent)
+  ]
+
+inputsOrderPreservedBalancing :: Property
+inputsOrderPreservedBalancing = property $ do
+  txc <- forAll genPlainTxCandidate
   (C.BalancedTxBody txb _ _) <- buildBalancedTx staticSystemEnv (ChangeAddress stableAddress) mempty txc
   let
     candidateInputs = txCandidateInputs txc <&> (fullTxOutRef . fullTxInTxOut)
     balancedInputs  = Interop.extractCardanoTxBodyInputs txb
   balancedInputs === candidateInputs
 
-outputsOrderPreserved :: Property
-outputsOrderPreserved = property $ do
+outputsOrderPreservedBalancing :: Property
+outputsOrderPreservedBalancing = property $ do
   txc <- forAll genPlainTxCandidate
   (C.BalancedTxBody txb _ _) <- buildBalancedTx staticSystemEnv (ChangeAddress stableAddress) mempty txc
   let
@@ -43,6 +92,6 @@ outputsOrderPreserved = property $ do
 
 buildBalancedTxTests :: IO Bool
 buildBalancedTxTests = checkParallel $ Group "BuildBalancedTx"
-  [ ("inputs_order_preserved", inputsOrderPreserved)
-  , ("outputs_order_preserved", outputsOrderPreserved)
+  [ ("inputs_order_preserved", inputsOrderPreservedBalancing)
+  , ("outputs_order_preserved", outputsOrderPreservedBalancing)
   ]

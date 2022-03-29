@@ -2,7 +2,9 @@ module CardanoTx.Interop
   ( extractCardanoTxId
   , extractCardanoInputs
   , extractCardanoTxBodyInputs
+  , extractCardanoTxContentInputs
   , extractCardanoTxBodyOutputs
+  , extractCardanoTxContentOutputs
   , extractCardanoTxOutputAt
   , getOutputAt
   ) where
@@ -24,12 +26,19 @@ extractCardanoInputs = extractCardanoTxBodyInputs . C.getTxBody
 extractCardanoTxBodyInputs :: C.TxBody era -> [P.TxOutRef]
 extractCardanoTxBodyInputs txb =
   case txb of
-    C.TxBody bodyc -> C.txIns bodyc <&> (Interop.fromCardanoTxIn . fst)
+    C.TxBody bodyc -> extractCardanoTxContentInputs bodyc
+
+extractCardanoTxContentInputs :: C.TxBodyContent mode era -> [P.TxOutRef]
+extractCardanoTxContentInputs bodyc = C.txIns bodyc <&> (Interop.fromCardanoTxIn . fst)
 
 extractCardanoTxBodyOutputs :: C.TxBody era -> [(Int, TxOutCandidate)]
 extractCardanoTxBodyOutputs txb =
   case txb of
-    C.TxBody bodyc -> zip [0..] $ C.txOuts bodyc >>= (maybe [] pure . toSdkOutput)
+    C.TxBody bodyc -> extractCardanoTxContentOutputs bodyc
+
+extractCardanoTxContentOutputs :: C.TxBodyContent mode era -> [(Int, TxOutCandidate)]
+extractCardanoTxContentOutputs bodyc =
+    zip [0..] $ C.txOuts bodyc >>= (maybe [] pure . toSdkOutput)
   where
     toSdkOutput o = do
       P.TxOut{..} <- toCardanoTxOutput o
