@@ -73,6 +73,7 @@ library
     exposed-modules: SubmitAPI.Service
                      SubmitAPI.Config
                      SubmitAPI.Internal.Transaction
+                     SubmitAPI.Internal.Balancing
 
     build-depends:
         rio==0.1.21.0,
@@ -104,7 +105,16 @@ library
         text,
         dhall,
         plutus-contract,
-        freer-simple==1.2.1.1
+        freer-simple==1.2.1.1,
+        cardano-ledger-alonzo,
+        cardano-ledger-shelley,
+        cardano-ledger-core,
+        cardano-ledger-shelley-ma,
+        cardano-ledger-byron,
+        cardano-binary,
+        strict-containers,
+        transformers,
+        array
         -- free-er==0.1.0.0
 
 test-suite submit-api-tests
