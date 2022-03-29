@@ -5,6 +5,7 @@ module Spec.Transaction where
 import           Data.Functor    ((<&>))
 import qualified Data.ByteString as BS
 import           Data.Map        as Map
+import qualified Data.List       as List
 import           Data.Set        as Set
 
 import Hedgehog
@@ -87,7 +88,7 @@ outputsOrderPreservedBalancing = property $ do
   let
     candidateOutputs = zip [0..] $ txCandidateOutputs txc
     balancedOutputs  = Interop.extractCardanoTxBodyOutputs txb
-  balancedOutputs === candidateOutputs
+  List.init balancedOutputs === candidateOutputs
 
 buildBalancedTxTests :: IO Bool
 buildBalancedTxTests = checkParallel $ Group "BuildBalancedTx"

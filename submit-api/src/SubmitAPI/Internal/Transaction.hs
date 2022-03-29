@@ -16,7 +16,8 @@ import qualified Ledger.Tx.CardanoAPI as Interop
 import qualified Ledger.Ada           as Ada
 import           Ledger.Scripts       (datumHash)
 
-import qualified CardanoTx.Models   as Sdk
+import qualified CardanoTx.Models             as Sdk
+import qualified SubmitAPI.Internal.Balancing as Balancing
 import           CardanoTx.ToPlutus
 import           NetworkAPI.Env
 
@@ -43,10 +44,11 @@ buildBalancedTx SystemEnv{..} defaultChangeAddr collateral txc@Sdk.TxCandidate{.
   changeAddr <- absorbError $ case txCandidateChangePolicy of
     Just (Sdk.ReturnTo addr) -> Interop.toCardanoAddress network addr
     _                        -> Interop.toCardanoAddress network $ Sdk.getAddress defaultChangeAddr
-  absorbBalancingError $ makeTransactionBodyAutoBalance eraInMode sysstart eraHistory pparams pools inputsMap txBody changeAddr witOverrides
-    where
-      absorbBalancingError (Left e)  = throwM $ BalancingError $ T.pack $ show e
-      absorbBalancingError (Right a) = pure a
+  absorbBalancingError $
+    Balancing.makeTransactionBodyAutoBalance eraInMode sysstart eraHistory pparams pools inputsMap txBody changeAddr witOverrides
+      where
+        absorbBalancingError (Left e)  = throwM $ BalancingError $ T.pack $ show e
+        absorbBalancingError (Right a) = pure a
 
 estimateTxFee
   :: (MonadThrow f, MonadIO f)
