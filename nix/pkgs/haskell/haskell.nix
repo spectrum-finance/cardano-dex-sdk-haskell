@@ -44,6 +44,7 @@ let
     modules = [
       {
         packages = {
+          ergo-hs-common.package.buildable = false;
           cardano-tx.package.buildable = false;
           dex-core.package.buildable = false;
           quickblue.package.buildable = false;

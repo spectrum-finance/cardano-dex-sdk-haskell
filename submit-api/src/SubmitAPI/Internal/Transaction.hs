@@ -14,11 +14,11 @@ import           Cardano.Api.Shelley  (ProtocolParameters(..))
 import qualified Ledger               as P
 import qualified Ledger.Tx.CardanoAPI as Interop
 import qualified Ledger.Ada           as Ada
+import           Ledger.Scripts       (datumHash)
 
 import qualified CardanoTx.Models   as Sdk
 import           CardanoTx.ToPlutus
 import           NetworkAPI.Env
-import Ledger.Scripts (datumHash)
 
 signTx
   :: TxBody AlonzoEra

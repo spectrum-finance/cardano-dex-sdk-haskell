@@ -1,5 +1,5 @@
 cabal-version:      2.4
-name:               common
+name:               ergo-hs-common
 version:            0.1.0.0
 
 author:             ErgoLabs
@@ -71,6 +71,8 @@ library
 
     hs-source-dirs: src
 
-    exposed-modules: Common.Throw.Combinators
+    exposed-modules:
+      Common.Throw.Combinators
+      Common.Data.List.Combinators
 
     build-depends:  rio, plutus-ledger-api, plutus-tx, containers

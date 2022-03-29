@@ -9,6 +9,7 @@ import           Control.Monad          (when)
 import qualified Data.Set               as Set
 import           Data.Bifunctor
 import           Data.Tuple
+import           Common.Data.List.Combinators
 
 import           Ledger          (Redeemer(..), PaymentPubKeyHash(..), pubKeyHashAddress)
 import qualified Ledger.Interval as Interval
@@ -49,6 +50,7 @@ mkPoolActions executorPkh = PoolActions
 runSwap' :: PaymentPubKeyHash -> Confirmed Swap -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
 runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
   let
+    preInputs = Set.fromList [poolOut, swapOut]
     poolIn  = mkScriptTxIn poolOut poolValidator (Redeemer $ toBuiltinData $ P.PoolRedeemer P.Swap 0)
     orderIn = mkScriptTxIn swapOut swapValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer 0 1 1 O.Apply)
     inputs  = Set.fromList [poolIn, orderIn]

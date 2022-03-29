@@ -7,8 +7,6 @@ import qualified Data.ByteString as BS
 import           Data.Map        as Map
 import           Data.Set        as Set
 
-import Test.Tasty
-import Test.Tasty.HUnit
 import Hedgehog
 import Hedgehog.Gen as Gen
 import Hedgehog.Range as Range
