@@ -45,8 +45,8 @@ outputsOrderPreservedBuildTxBody = property $ do
   balancedOutputs === candidateOutputs
 
 buildTxBodyTests = testGroup "BuildTxBody"
-  [ HH.testProperty "inputs order preserved" inputsOrderPreservedBuildTxBody
-  , HH.testProperty "outputs order preserved" outputsOrderPreservedBuildTxBody
+  [ HH.testProperty "inputs_order_preserved" inputsOrderPreservedBuildTxBody
+  , HH.testProperty "outputs_order_preserved" outputsOrderPreservedBuildTxBody
   ]
 
 inputsOrderPreservedContent :: Property
@@ -68,8 +68,8 @@ outputsOrderPreservedContent = property $ do
   balancedOutputs === candidateOutputs
 
 buildTxBodyContentTests = testGroup "BuildTxBodyContent"
-  [ HH.testProperty "inputs order preserved" inputsOrderPreservedContent
-  , HH.testProperty "outputs order preserved" outputsOrderPreservedContent
+  [ HH.testProperty "inputs_order_preserved" inputsOrderPreservedContent
+  , HH.testProperty "outputs_order_preserved" outputsOrderPreservedContent
   ]
 
 inputsOrderPreservedBalancing :: Property
@@ -91,6 +91,6 @@ outputsOrderPreservedBalancing = property $ do
   List.init balancedOutputs === candidateOutputs
 
 buildBalancedTxTests = testGroup "BuildBalancedTx"
-  [ HH.testProperty "inputs order preserved" inputsOrderPreservedBalancing
-  , HH.testProperty "outputs order preserved" outputsOrderPreservedBalancing
+  [ HH.testProperty "inputs_order_preserved" inputsOrderPreservedBalancing
+  , HH.testProperty "outputs_order_preserved" outputsOrderPreservedBalancing
   ]

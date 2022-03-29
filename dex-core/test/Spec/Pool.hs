@@ -49,11 +49,11 @@ poolLq = Coin $ mkAssetClass "lq" "pool_lq"
 
 poolFeeNum = 995
 
-initialLiquidityTests = testGroup "Initial liqudity"
-  [ testCase "exact initial lq output ^2 == x*y" $
+initialLiquidityTests = testGroup "InitialLiquidity"
+  [ testCase "initial_liquidity_exact" $
       initialLiquidityAmount poolLq (Amount 10, Amount 10) @?= Right (AssetAmount poolLq 10)
 
-  , testCase "approximated initial lq output" $
+  , testCase "initial_liquidity_approximated" $
       initialLiquidityAmount poolLq (Amount 10, Amount 11) @?= Right (AssetAmount poolLq 11)
   ]
 
@@ -79,9 +79,9 @@ nativePool = Pool
   , outCollateral = minSafeOutputAmount
   }
 
-initPoolTests = testGroup "Initialize native Pool"
-  [ testCase "init non-native nativePool with suffucient liqudity succeeds" $
+initPoolTests = testGroup "NonNativePoolInit"
+  [ testCase "init_non_native_pool_sufficient_liquidity" $
       initPool poolConf burnLqInitial (sufficientInitDepositX, initDepositY) @?= Right (Predicted (toLedger nativePool) nativePool, releasedLq)
-  , testCase "init non-native nativePool with insuffucient liqudity fails" $
+  , testCase "init_non_native_pool_insufficient_liquidity" $
       initPool poolConf burnLqInitial (insufficientInitDepositX, initDepositY) @?= Left (InsufficientInitialLiqudity $ Amount 1000)
   ]

@@ -10,4 +10,4 @@ import Spec.Pool as PS
 main :: IO ()
 main = defaultMain tests
 
-tests = testGroup "DEX Core" [PS.initialLiquidityTests, PS.initPoolTests]
+tests = testGroup "DexCore" [PS.initialLiquidityTests, PS.initPoolTests]

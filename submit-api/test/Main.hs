@@ -12,7 +12,7 @@ import Control.Monad (unless)
 main :: IO ()
 main = defaultMain tests
 
-tests = testGroup "Submit API Tests"
+tests = testGroup "SubmitApi"
   [ buildTxBodyTests
   , buildTxBodyContentTests 
   , buildBalancedTxTests 
