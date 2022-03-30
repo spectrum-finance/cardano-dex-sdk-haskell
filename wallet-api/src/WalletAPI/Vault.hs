@@ -2,26 +2,46 @@ module WalletAPI.Vault where
 
 import RIO
 
-import           Ledger      ( PubKeyHash )
-import           Cardano.Api ( Hash, PaymentKey, ShelleyWitnessSigningKey(WitnessPaymentKey) )
-import qualified Cardano.Api as Crypto
+import qualified PlutusTx.Prelude    as PlutusTx
+import           Ledger              (PubKeyHash(..))
+import qualified Cardano.Api         as C
+import           Cardano.Api.Shelley
 
-import WalletAPI.TrustStore ( TrustStore(TrustStore, readSK, readVK), KeyPass )
+import WalletAPI.TrustStore (TrustStore(TrustStore, readSK, readVK), KeyPass)
+
+data VaultError = VaultCorrupted
+  deriving (Show, Exception)
 
 data Vault f = Vault
   { getSigningKey     :: PubKeyHash -> f (Maybe ShelleyWitnessSigningKey)
-  , getPaymentKeyHash :: f (Hash PaymentKey)
+  , getPaymentKeyHash :: f (Hash PaymentKey) -- todo: dont mix Cardano.Api with Ledger.Api
   }
 
-mkVault :: Functor f => TrustStore f Crypto.PaymentKey -> KeyPass -> Vault f
+mkVault :: MonadThrow f => TrustStore f PaymentKey -> KeyPass -> Vault f
 mkVault tstore pass = do
   Vault
     { getSigningKey     = getSigningKey' tstore pass
     , getPaymentKeyHash = getPaymentKeyHash' tstore
     }
 
-getSigningKey' :: Functor f => TrustStore f Crypto.PaymentKey -> KeyPass -> PubKeyHash -> f (Maybe ShelleyWitnessSigningKey)
-getSigningKey' TrustStore{readSK} pass _ = readSK pass <&> WitnessPaymentKey <&> Just
+getSigningKey' :: MonadThrow f => TrustStore f PaymentKey -> KeyPass -> PubKeyHash -> f (Maybe ShelleyWitnessSigningKey)
+getSigningKey' TrustStore{readSK} pass pkh = do
+  sk <- readSK pass <&> WitnessPaymentKey
+  let vk   = extractVK (toShelleySigningKey sk)
+      pkh' = PubKeyHash $ PlutusTx.toBuiltin $ C.serialiseToRawBytes $ C.verificationKeyHash vk
+  unless (pkh == pkh') (throwM VaultCorrupted)
+  pure sk <&> Just
 
-getPaymentKeyHash' :: Functor f => TrustStore f Crypto.PaymentKey -> f (Hash PaymentKey)
-getPaymentKeyHash' TrustStore{readVK} = readVK <&> Crypto.verificationKeyHash
+extractVK :: ShelleySigningKey -> VerificationKey PaymentKey
+extractVK (ShelleyNormalSigningKey sk) =
+  getVerificationKey
+    . PaymentSigningKey
+    $ sk
+extractVK (ShelleyExtendedSigningKey sk) =
+  (castVerificationKey :: VerificationKey PaymentExtendedKey -> VerificationKey PaymentKey)
+    . getVerificationKey
+    . PaymentExtendedSigningKey
+    $ sk 
+
+getPaymentKeyHash' :: Functor f => TrustStore f PaymentKey -> f (Hash PaymentKey)
+getPaymentKeyHash' TrustStore{readVK} = readVK <&> C.verificationKeyHash

@@ -45,7 +45,8 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
     exUnitsMap <- first TxBodyErrorValidityInterval $
                     evaluateTransactionExecutionUnits
                       eraInMode
-                      systemstart history
+                      systemstart
+                      history
                       pparams
                       utxo
                       txbody0
@@ -163,7 +164,7 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
                    $ calculateMinimumUTxO era txout pparams'
      if txOutValueToLovelace v >= selectLovelace minUTxO
      then Right ()
-     else Left $ TxBodyErrorByronEraNotSupported --todo fix: TxOutInAnyEra
+     else Left TxBodyErrorByronEraNotSupported --todo fix: TxOutInAnyEra
 
 substituteExecutionUnits :: Map ScriptWitnessIndex ExecutionUnits
                          -> TxBodyContent BuildTx era
