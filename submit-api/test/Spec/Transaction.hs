@@ -22,6 +22,20 @@ import SubmitAPI.Internal.Transaction
 import CardanoTx.Models
 import CardanoTx.Interop as Interop
 
+import SubmitCli
+
+test123 :: Property
+test123 = property $ do
+  txc <- forAll genPlainTxCandidate
+  let r = buildTx txc
+  evalIO $ Prelude.print  r
+  ctx <- buildTxBodyContent staticProtocolParams (network staticSystemEnv) mempty txc
+  let
+    Right txb       = C.makeTransactionBody ctx
+    candidateInputs = txCandidateInputs txc <&> (fullTxOutRef . fullTxInTxOut)
+    balancedInputs  = Interop.extractCardanoTxBodyInputs txb
+  balancedInputs === candidateInputs
+
 inputsOrderPreservedBuildTxBody :: Property
 inputsOrderPreservedBuildTxBody = property $ do
   txc <- forAll genPlainTxCandidate
@@ -92,6 +106,5 @@ outputsOrderPreservedBalancing = property $ do
 
 buildBalancedTxTests :: IO Bool
 buildBalancedTxTests = checkParallel $ Group "BuildBalancedTx"
-  [ ("inputs_order_preserved", inputsOrderPreservedBalancing)
-  , ("outputs_order_preserved", outputsOrderPreservedBalancing)
+  [ ("inputs_order_preserved", test123)
   ]

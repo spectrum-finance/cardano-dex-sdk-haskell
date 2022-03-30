@@ -104,8 +104,8 @@ genTxOutCandidateExact value = do
 
 genPlainTxCandidate :: MonadGen f => f Sdk.TxCandidate
 genPlainTxCandidate = do
-  inputs  <- Gen.set (Range.constant 3 10) genFullTxIn <&> Set.elems
-  outputs <- Gen.set (Range.constant 3 10) genTxOutCandidate <&> Set.elems
+  inputs  <- Gen.set (Range.constant 2 2) genFullTxIn <&> Set.elems
+  outputs <- Gen.set (Range.constant 2 2) genTxOutCandidate <&> Set.elems
   let
     adaIn  = Prelude.foldl (\ acc i -> acc + (Ada.getLovelace $ Ada.fromValue $ Sdk.fullTxOutValue $ Sdk.fullTxInTxOut i)) 0 inputs
     adaOut = Prelude.foldl (\ acc i -> acc + (Ada.getLovelace $ Ada.fromValue $ Sdk.txOutCandidateValue i)) 0 outputs

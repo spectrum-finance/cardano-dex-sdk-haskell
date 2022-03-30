@@ -8,12 +8,16 @@ import Test.Tasty.HUnit
 import Spec.Transaction
 import System.Exit (exitFailure)
 import Control.Monad (unless)
+import CardanoTx.Address
+import ErgoDex.Amm.Scripts
+import qualified Ledger.Typed.Scripts.Validators as LV
+import Cardano.Api
 
 main :: IO ()
 main = do
+  let a = renderToShellyAddress Mainnet (LV.unsafeMkTypedValidator $ poolScript)
+  print a
   res <- sequence
-    [ buildTxBodyTests
-    , buildTxBodyContentTests
-    , buildBalancedTxTests
+    [ buildBalancedTxTests
     ]
   unless (and res) exitFailure

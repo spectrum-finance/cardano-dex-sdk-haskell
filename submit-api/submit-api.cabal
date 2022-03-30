@@ -111,10 +111,48 @@ test-suite submit-api-tests
   type: exitcode-stdio-1.0
   main-is: Main.hs
   hs-source-dirs: test
+  default-extensions:   OverloadedStrings
+                        DeriveAnyClass
+                        BangPatterns
+                        BinaryLiterals
+                        ConstraintKinds
+                        DataKinds
+                        DefaultSignatures
+                        DeriveDataTypeable
+                        DeriveFoldable
+                        DeriveFunctor
+                        DeriveGeneric
+                        DeriveTraversable
+                        DoAndIfThenElse
+                        EmptyDataDecls
+                        ExistentialQuantification
+                        FlexibleContexts
+                        FlexibleInstances
+                        FunctionalDependencies
+                        GADTs
+                        GeneralizedNewtypeDeriving
+                        InstanceSigs
+                        KindSignatures
+                        LambdaCase
+                        MultiParamTypeClasses
+                        MultiWayIf
+                        NamedFieldPuns
+                        PartialTypeSignatures
+                        PatternGuards
+                        PolyKinds
+                        RankNTypes
+                        RecordWildCards
+                        ScopedTypeVariables
+                        StandaloneDeriving
+                        TupleSections
+                        TypeFamilies
+                        TypeSynonymInstances
+                        ViewPatterns
   other-modules:
     Gen.CardanoTx
     Spec.Network
     Spec.Transaction
+    SubmitCli
   build-depends:
     , base== 4.14.1.0
     , HUnit== 1.6.2.0
@@ -141,3 +179,6 @@ test-suite submit-api-tests
     , cardano-tx==0.1.0.0
     , network-api==0.1.0.0
     , wallet-api==0.1.0.0
+    , rio==0.1.21.0
+    , dex-core
+    , cardano-api
