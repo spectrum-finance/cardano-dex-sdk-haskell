@@ -70,9 +70,9 @@ mkTrustStore
   -> SecretFile
   -> TrustStore f krole
 mkTrustStore krole file = TrustStore
-  { init   = init' krole file
-  , readSK = readSK' krole file
-  , readVK = readVK' krole file
+  { init          = init' krole file
+  , readSK        = readSK' krole file
+  , readVK        = readVK' krole file
   , isInitialized = isInitialized' file
   }
 
