@@ -37,8 +37,7 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
     txbody0 <-
       first TxBodyError $ makeTransactionBody txbodycontent
         { txOuts =
-              TxOut changeaddr (lovelaceToTxOutValue 0) TxOutDatumNone
-            : txOuts txbodycontent
+            txOuts txbodycontent ++ [TxOut changeaddr (lovelaceToTxOutValue 0) TxOutDatumNone]
             --TODO: think about the size of the change output
             -- 1,2,4 or 8 bytes?
         }
@@ -75,10 +74,11 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
     txbody1 <- first TxBodyError $ -- TODO: impossible to fail now
                makeTransactionBody txbodycontent1 {
                  txFee  = TxFeeExplicit explicitTxFees $ Lovelace (2^(32 :: Integer) - 1),
-                 txOuts = TxOut changeaddr
-                                (lovelaceToTxOutValue $ Lovelace (2^(64 :: Integer)) - 1)
-                                TxOutDatumNone
-                        : txOuts txbodycontent
+                 txOuts = txOuts txbodycontent ++
+                            [TxOut changeaddr
+                              (lovelaceToTxOutValue $ Lovelace (2^(64 :: Integer)) - 1)
+                              TxOutDatumNone
+                            ]
                }
 
     let nkeys = fromMaybe (estimateTransactionKeyWitnessCount txbodycontent1)
@@ -105,7 +105,7 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
       TxOutValue _ v   ->
         case valueToLovelace v of
           Nothing -> Left $ TxBodyErrorNonAdaAssetsUnbalanced v
-          Just _ -> balanceCheck balance
+          Just _  -> balanceCheck balance
 
     --TODO: we could add the extra fee for the CBOR encoding of the change,
     -- now that we know the magnitude of the change: i.e. 1-8 bytes extra.
@@ -140,7 +140,7 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
    accountForNoChange change@(TxOut _ balance _) rest =
      case txOutValueToLovelace balance of
        Lovelace 0 -> rest
-       _ -> rest ++ [change]
+       _          -> rest ++ [change]
 
    balanceCheck :: TxOutValue era -> Either TxBodyErrorAutoBalance ()
    balanceCheck balance
@@ -152,7 +152,7 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
           Left (TxBodyErrorMinUTxONotMet txOutAny minUTxO) ->
             Left $ TxBodyErrorAdaBalanceTooSmall txOutAny minUTxO (txOutValueToLovelace balance)
           Left err -> Left err
-          Right _ -> Right ()
+          Right _  -> Right ()
 
    checkMinUTxOValue
      :: TxOut CtxTx era
@@ -209,8 +209,8 @@ handleExUnitsErrors ScriptInvalid failuresMap exUnitsMap
         isScriptErrorEvaluationFailed :: (ScriptWitnessIndex, ScriptExecutionError) -> Bool
         isScriptErrorEvaluationFailed (_, e) = case e of
             ScriptErrorEvaluationFailed _ _ -> True
-            _ -> True
+            _                               -> True
 
 txScriptValidityToScriptValidity :: TxScriptValidity era -> ScriptValidity
-txScriptValidityToScriptValidity TxScriptValidityNone = ScriptValid
+txScriptValidityToScriptValidity TxScriptValidityNone                = ScriptValid
 txScriptValidityToScriptValidity (TxScriptValidity _ scriptValidity) = scriptValidity
