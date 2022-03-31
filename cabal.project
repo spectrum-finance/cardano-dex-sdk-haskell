@@ -8,6 +8,11 @@ packages:
   wallet-api
   network-api
   submit-api
+<<<<<<< HEAD
+=======
+  submit-api-plutus
+  submit-cli
+>>>>>>> init
   datum-keeper-client
 
 -- You never, ever, want this.

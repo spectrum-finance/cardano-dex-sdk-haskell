@@ -13,6 +13,8 @@ cradle:
     - path: "./network-api/src"
       component: "network-api:lib:network-api"
     - path: "./wallet-api/src"
+      component: "submit-cli:lib:submit-cli"
+    - path: "./submit-cli/src"
       component: "wallet-api:lib:wallet-api"
     - path: "./submit-api/src"
       component: "submit-api:lib:submit-api"
