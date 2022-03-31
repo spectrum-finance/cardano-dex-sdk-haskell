@@ -15,8 +15,6 @@ import Cardano.Api
 
 main :: IO ()
 main = do
-  let a = renderToShellyAddress Mainnet (LV.unsafeMkTypedValidator $ poolScript)
-  print a
   res <- sequence
     [ buildBalancedTxTests
     ]

@@ -182,3 +182,6 @@ test-suite submit-api-tests
     , rio==0.1.21.0
     , dex-core
     , cardano-api
+    , process
+    , cardano-dex-contracts
+    , serialise==0.2.3.0

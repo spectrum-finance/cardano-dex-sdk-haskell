@@ -23,11 +23,12 @@ import CardanoTx.Models
 import CardanoTx.Interop as Interop
 
 import SubmitCli
+import SubmitAPI.Config
 
 test123 :: Property
 test123 = property $ do
   txc <- forAll genPlainTxCandidate
-  let r = buildTx txc
+  r <- evalIO $ buildTx (DefaultChangeAddress $ ChangeAddress stableAddress) txc
   evalIO $ Prelude.print  r
   ctx <- buildTxBodyContent staticProtocolParams (network staticSystemEnv) mempty txc
   let

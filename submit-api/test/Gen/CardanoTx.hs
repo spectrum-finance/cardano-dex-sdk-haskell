@@ -22,7 +22,12 @@ import qualified PlutusTx
 
 import qualified CardanoTx.Models as Sdk
 import Plutus.V1.Ledger.Ada (adaValueOf)
-import CardanoTx.Models (OutDatum(UnitDatum))
+import CardanoTx.Models (OutDatum(..))
+import qualified Data.ByteString.Base16  as Hex
+import qualified Data.Text.Encoding      as E
+import qualified Data.Text as T
+import qualified ErgoDex.Contracts.Pool as P
+import qualified Ledger as Ledger
 
 mkTokenName :: BS.ByteString -> P.TokenName
 mkTokenName = P.TokenName . P.BuiltinByteString
@@ -75,16 +80,51 @@ genNonEmptyDatum :: MonadGen f => f (P.Datum, P.DatumHash)
 genNonEmptyDatum = Gen.constant (d, P.datumHash d)
   where d = P.Datum $ P.toBuiltinData $ DummyDatum 1 True
 
+unsafeFromEither :: (Show b) => Either b a -> a
+unsafeFromEither (Left err)    = Prelude.error ("Err:" ++ show err)
+unsafeFromEither (Right value) = value
+
+mkTokenNameHex :: T.Text -> P.TokenName
+mkTokenNameHex input = P.TokenName $ unsafeFromEither $ fmap P.toBuiltin ((Hex.decode . E.encodeUtf8) $ input)
+
+currencySymbolName :: P.CurrencySymbol
+currencySymbolName = "805fe1efcdea11f1e959eff4f422f118aa76dca2d0d797d184e487da"
+
+xTn1 ::P.TokenName
+xTn1 = mkTokenNameHex "6572676f54657374546f6b656e41"
+
+yTn1 :: P.TokenName
+yTn1 = mkTokenNameHex "6572676f54657374546f6b656e42"
+
+nftTn1 :: P.TokenName
+nftTn1 = mkTokenNameHex "6572676f54657374546f6b656e4e4654"
+
+lpTn1 :: P.TokenName
+lpTn1 = mkTokenNameHex "6572676f54657374546f6b656e4c50"
+
+ac = P.AssetClass (currencySymbolName, xTn1)
+
+dh = genDatumHash $ genDatum $ (genPoolConfig ac ac ac ac 1)
+
+genPoolConfig :: P.AssetClass -> P.AssetClass -> P.AssetClass ->P.AssetClass -> Integer -> P.PoolConfig
+genPoolConfig nft x y lq fee = P.PoolConfig nft x y lq fee
+
+genDatum :: P.PoolConfig -> Ledger.Datum
+genDatum = Ledger.Datum . PlutusTx.toBuiltinData
+
+genDatumHash :: Ledger.Datum -> Ledger.DatumHash
+genDatumHash datum = Ledger.datumHash datum
+
 genFullTxOut :: MonadGen f => f Sdk.FullTxOut
 genFullTxOut = do
-  value <- genAdaValue
+  let value = mkAdaValue 10000 <> (mkValue (P.AssetClass (currencySymbolName, xTn1)) 100) <> (mkValue (P.AssetClass (currencySymbolName, yTn1)) 200) <> (mkValue (P.AssetClass (currencySymbolName, nftTn1)) 300)
   genFullTxOutExact value
 
 genFullTxOutExact :: MonadGen f => P.Value -> f Sdk.FullTxOut
 genFullTxOutExact value = do
   ref   <- genTxOutRef
   addr  <- genPkhAddress
-  pure $ Sdk.FullTxOut ref addr value UnitDatum
+  pure $ Sdk.FullTxOut ref addr value (KnownDatumHash $ dh)
 
 genFullTxIn :: MonadGen f => f Sdk.FullTxIn
 genFullTxIn = genFullTxOut <&> (`Sdk.FullTxIn` P.ConsumePublicKeyAddress)
@@ -94,13 +134,13 @@ genFullTxInExact value = genFullTxOutExact value <&> (`Sdk.FullTxIn` P.ConsumePu
 
 genTxOutCandidate :: MonadGen f => f Sdk.TxOutCandidate
 genTxOutCandidate = do
-  value <- genAdaValue
+  let value = mkAdaValue 10000 <> (mkValue (P.AssetClass (currencySymbolName, xTn1)) 100) <> (mkValue (P.AssetClass (currencySymbolName, yTn1)) 200) <> (mkValue (P.AssetClass (currencySymbolName, nftTn1)) 300)
   genTxOutCandidateExact value
 
 genTxOutCandidateExact :: MonadGen f => P.Value -> f Sdk.TxOutCandidate
 genTxOutCandidateExact value = do
   addr <- genPkhAddress
-  pure $ Sdk.TxOutCandidate addr value UnitDatum
+  pure $ Sdk.TxOutCandidate addr value (KnownDatumHash $ dh)
 
 genPlainTxCandidate :: MonadGen f => f Sdk.TxCandidate
 genPlainTxCandidate = do
