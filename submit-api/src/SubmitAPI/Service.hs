@@ -15,7 +15,7 @@ import           SubmitAPI.Config
 import           SubmitAPI.Internal.Transaction
 import           NetworkAPI.Service             hiding (submitTx)
 import qualified NetworkAPI.Service             as Network
-import           NetworkAPI.Env
+import           NetworkAPI.Types
 import           WalletAPI.Utxos
 import           WalletAPI.Vault
 
@@ -27,12 +27,13 @@ data Transactions f era = Transactions
 mkTransactions
   :: (MonadThrow f, MonadIO f)
   => Network f C.AlonzoEra
+  -> C.NetworkId
   -> WalletOutputs f
   -> Vault f
   -> TxAssemblyConfig
   -> Transactions f C.AlonzoEra
-mkTransactions network utxos wallet conf = Transactions
-  { finalizeTx = finalizeTx' network utxos wallet conf
+mkTransactions network networkId utxos wallet conf = Transactions
+  { finalizeTx = finalizeTx' network networkId utxos wallet conf
   , submitTx   = Network.submitTx network
   }
 
@@ -40,16 +41,17 @@ finalizeTx'
   :: MonadThrow f
   => MonadIO f
   => Network f C.AlonzoEra
+  -> C.NetworkId
   -> WalletOutputs f
   -> Vault f
   -> TxAssemblyConfig
   -> Sdk.TxCandidate
   -> f (C.Tx C.AlonzoEra)
-finalizeTx' Network{..} utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
+finalizeTx' Network{..} network utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   sysenv      <- getSystemEnv
-  collaterals <- selectCollaterals utxos sysenv conf txc
+  collaterals <- selectCollaterals utxos sysenv network conf txc
 
-  (C.BalancedTxBody txb _ _) <- buildBalancedTx sysenv (getChangeAddr deafultChangeAddr) collaterals txc
+  (C.BalancedTxBody txb _ _) <- buildBalancedTx sysenv network (getChangeAddr deafultChangeAddr) collaterals txc
   let
     allInputs   = (Set.elems txCandidateInputs <&> Sdk.fullTxInTxOut) ++ (Set.elems collaterals <&> Sdk.fullCollateralTxInTxOut)
     signatories = allInputs >>= getPkh
@@ -64,10 +66,11 @@ selectCollaterals
   => MonadIO f
   => WalletOutputs f
   -> SystemEnv
+  -> C.NetworkId
   -> TxAssemblyConfig
   -> Sdk.TxCandidate
   -> f (Set.Set Sdk.FullCollateralTxIn)
-selectCollaterals WalletOutputs{selectUtxosStrict} SystemEnv{..} TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
+selectCollaterals WalletOutputs{selectUtxosStrict} SystemEnv{..} network TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   let isScriptIn Sdk.FullTxIn{fullTxInType=P.ConsumeScriptAddress {}} = True
       isScriptIn _                                                    = False
 

@@ -1,9 +1,11 @@
-module NetworkAPI.Service where
+module NetworkAPI.Service
+  ( Network(..)
+  ) where
 
-import qualified Cardano.Api    as C
-import           NetworkAPI.Env ( SystemEnv )
+import Cardano.Api
+import NetworkAPI.Types (SystemEnv)
 
 data Network f era = Network
   { getSystemEnv :: f SystemEnv
-  , submitTx     :: C.Tx era -> f ()
+  , submitTx     :: Tx era -> f ()
   }

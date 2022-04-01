@@ -19,6 +19,7 @@ common project-config
 
   default-extensions:   OverloadedStrings
                         DeriveAnyClass
+                        DerivingStrategies
                         BangPatterns
                         BinaryLiterals
                         ConstraintKinds
@@ -70,7 +71,7 @@ library
 
     hs-source-dirs: src
 
-    exposed-modules: NetworkAPI.Env
+    exposed-modules: NetworkAPI.Types
                      NetworkAPI.Service
                      NetworkAPI.Config.NodeConfig
                      NetworkAPI.Node.Service
