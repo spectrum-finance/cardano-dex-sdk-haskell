@@ -8,7 +8,7 @@ import qualified Data.Map   as Map
 import           Data.Maybe (fromMaybe)
 
 import NetworkAPI.Service
-import NetworkAPI.Env
+import NetworkAPI.Types
 
 import qualified Cardano.Api         as C
 import           Cardano.Api         (CardanoMode, NetworkId(..), EraHistory(..), CardanoMode)
@@ -28,7 +28,7 @@ import           Ouroboros.Consensus.BlockchainTime.WallClock.Types
 import           Ouroboros.Consensus.Block
 import           Ouroboros.Consensus.Util.Counting
 
-mkMockNetwork :: Applicative f => Network f
+mkMockNetwork :: Applicative f => Network f era
 mkMockNetwork = Network
   { getSystemEnv = pure staticSystemEnv
   , submitTx     = const $ pure ()
@@ -37,7 +37,6 @@ mkMockNetwork = Network
 staticSystemEnv :: SystemEnv
 staticSystemEnv = SystemEnv
   { pparams    = staticProtocolParams
-  , network    = Mainnet
   , sysstart   = undefined
   , pools      = mempty
   , eraHistory = staticEraHistory

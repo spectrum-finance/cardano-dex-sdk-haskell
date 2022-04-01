@@ -19,6 +19,7 @@ common project-config
 
   default-extensions:   OverloadedStrings
                         DeriveAnyClass
+                        DerivingStrategies
                         BangPatterns
                         BinaryLiterals
                         ConstraintKinds
@@ -70,17 +71,20 @@ library
 
     hs-source-dirs: src
 
-    exposed-modules: NetworkAPI.Env
+    exposed-modules: NetworkAPI.Types
                      NetworkAPI.Service
                      NetworkAPI.Config.NodeConfig
+                     NetworkAPI.Node.Service
 
     build-depends:
         rio==0.1.21.0,
+        transformers-except==0.1.2,
         serialise==0.2.3.0,
         cardano-tx==0.1.0.0,
         plutus-chain-index==0.1.0.0,
         prettyprinter==1.7.0,
         cardano-slotting==0.1.0.0,
+        ouroboros-network==0.1.0.0,
         mtl==2.2.2,
         http-conduit==2.3.8,
         plutus-ledger,

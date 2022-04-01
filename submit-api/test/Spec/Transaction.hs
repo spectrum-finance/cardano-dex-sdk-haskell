@@ -19,15 +19,16 @@ import Spec.Network
 
 import qualified Cardano.Api as C
 
-import NetworkAPI.Env
+import NetworkAPI.Types
 import SubmitAPI.Internal.Transaction
 import CardanoTx.Models
 import CardanoTx.Interop as Interop
+import Cardano.Api.Shelley (NetworkId(Mainnet))
 
 inputsOrderPreservedBuildTxBody :: Property
 inputsOrderPreservedBuildTxBody = property $ do
   txc <- forAll genPlainTxCandidate
-  ctx <- buildTxBodyContent staticProtocolParams (network staticSystemEnv) mempty txc
+  ctx <- buildTxBodyContent staticProtocolParams Mainnet mempty txc
   let
     Right txb       = C.makeTransactionBody ctx
     candidateInputs = Set.elems (txCandidateInputs txc) <&> (fullTxOutRef . fullTxInTxOut)
@@ -37,7 +38,7 @@ inputsOrderPreservedBuildTxBody = property $ do
 outputsOrderPreservedBuildTxBody :: Property
 outputsOrderPreservedBuildTxBody = property $ do
   txc <- forAll genPlainTxCandidate
-  ctx <- buildTxBodyContent staticProtocolParams (network staticSystemEnv) mempty txc
+  ctx <- buildTxBodyContent staticProtocolParams Mainnet mempty txc
   let
     Right txb        = C.makeTransactionBody ctx
     candidateOutputs = zip [0..] $ txCandidateOutputs txc
@@ -52,7 +53,7 @@ buildTxBodyTests = testGroup "BuildTxBody"
 inputsOrderPreservedContent :: Property
 inputsOrderPreservedContent = property $ do
   txc <- forAll genPlainTxCandidate
-  ctx <- buildTxBodyContent staticProtocolParams (network staticSystemEnv) mempty txc
+  ctx <- buildTxBodyContent staticProtocolParams Mainnet mempty txc
   let
     candidateInputs = Set.elems (txCandidateInputs txc) <&> (fullTxOutRef . fullTxInTxOut)
     balancedInputs  = Interop.extractCardanoTxContentInputs ctx
@@ -61,7 +62,7 @@ inputsOrderPreservedContent = property $ do
 outputsOrderPreservedContent :: Property
 outputsOrderPreservedContent = property $ do
   txc <- forAll genPlainTxCandidate
-  ctx <- buildTxBodyContent staticProtocolParams (network staticSystemEnv) mempty txc
+  ctx <- buildTxBodyContent staticProtocolParams Mainnet mempty txc
   let
     candidateOutputs = zip [0..] $ txCandidateOutputs txc
     balancedOutputs  = Interop.extractCardanoTxContentOutputs ctx
@@ -75,7 +76,7 @@ buildTxBodyContentTests = testGroup "BuildTxBodyContent"
 inputsOrderPreservedBalancing :: Property
 inputsOrderPreservedBalancing = property $ do
   txc <- forAll genPlainTxCandidate
-  (C.BalancedTxBody txb _ _) <- buildBalancedTx staticSystemEnv (ChangeAddress stableAddress) mempty txc
+  (C.BalancedTxBody txb _ _) <- buildBalancedTx staticSystemEnv Mainnet (ChangeAddress stableAddress) mempty txc
   let
     candidateInputs = Set.elems (txCandidateInputs txc) <&> (fullTxOutRef . fullTxInTxOut)
     balancedInputs  = Interop.extractCardanoTxBodyInputs txb
@@ -84,7 +85,7 @@ inputsOrderPreservedBalancing = property $ do
 outputsOrderPreservedBalancing :: Property
 outputsOrderPreservedBalancing = property $ do
   txc <- forAll genPlainTxCandidate
-  (C.BalancedTxBody txb _ _) <- buildBalancedTx staticSystemEnv (ChangeAddress stableAddress) mempty txc
+  (C.BalancedTxBody txb _ _) <- buildBalancedTx staticSystemEnv Mainnet (ChangeAddress stableAddress) mempty txc
   let
     candidateOutputs = zip [0..] $ txCandidateOutputs txc
     balancedOutputs  = Interop.extractCardanoTxBodyOutputs txb

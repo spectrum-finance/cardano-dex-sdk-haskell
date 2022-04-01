@@ -19,7 +19,7 @@ import           Ledger.Scripts       (datumHash)
 import qualified CardanoTx.Models             as Sdk
 import qualified SubmitAPI.Internal.Balancing as Balancing
 import           CardanoTx.ToPlutus
-import           NetworkAPI.Env
+import           NetworkAPI.Types
 
 signTx
   :: TxBody AlonzoEra
@@ -32,11 +32,12 @@ signTx body keys =
 buildBalancedTx
   :: (MonadThrow f, MonadIO f)
   => SystemEnv
+  -> NetworkId
   -> Sdk.ChangeAddress
   -> Set.Set Sdk.FullCollateralTxIn
   -> Sdk.TxCandidate
   -> f (BalancedTxBody AlonzoEra)
-buildBalancedTx SystemEnv{..} defaultChangeAddr collateral txc@Sdk.TxCandidate{..} = do
+buildBalancedTx SystemEnv{..} network defaultChangeAddr collateral txc@Sdk.TxCandidate{..} = do
   let eraInMode    = AlonzoEraInCardanoMode
       witOverrides = Nothing
   txBody     <- buildTxBodyContent pparams network collateral txc
