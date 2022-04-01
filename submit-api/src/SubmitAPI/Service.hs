@@ -5,6 +5,7 @@ import qualified Data.Set    as Set
 import           GHC.Natural (naturalToInteger)
 
 import qualified Cardano.Api                 as C
+import qualified Cardano.Api.Shelley         as C
 import qualified Ledger                      as P
 import qualified Ledger.Ada                  as P
 import qualified Plutus.V1.Ledger.Credential as P
@@ -50,7 +51,7 @@ finalizeTx' Network{..} utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCand
 
   (C.BalancedTxBody txb _ _) <- buildBalancedTx sysenv (getChangeAddr deafultChangeAddr) collaterals txc
   let
-    allInputs   = (txCandidateInputs <&> Sdk.fullTxInTxOut) ++ (Set.elems collaterals <&> Sdk.fullCollateralTxInTxOut)
+    allInputs   = (Set.elems txCandidateInputs <&> Sdk.fullTxInTxOut) ++ (Set.elems collaterals <&> Sdk.fullCollateralTxInTxOut)
     signatories = allInputs >>= getPkh
       where
         getPkh Sdk.FullTxOut{fullTxOutAddress=P.Address (P.PubKeyCredential pkh) _} = [pkh]
@@ -70,15 +71,15 @@ selectCollaterals WalletOutputs{selectUtxosStrict} SystemEnv{..} TxAssemblyConfi
   let isScriptIn Sdk.FullTxIn{fullTxInType=P.ConsumeScriptAddress {}} = True
       isScriptIn _                                                    = False
 
-      scriptInputs = filter isScriptIn txCandidateInputs
+      scriptInputs = filter isScriptIn (Set.elems txCandidateInputs)
 
       collectCollaterals knownCollaterals = do
         let
           estimateCollateral' collaterals = do
             fee <- estimateTxFee pparams network collaterals txc
-            let (C.Quantity fee')  = C.lovelaceToQuantity fee
-                collateralPercent' = naturalToInteger collateralPercent
-            pure $ P.Lovelace $ collateralPercent' * fee' `div` 100
+            let (C.Quantity fee') = C.lovelaceToQuantity fee
+                collateralPercent = naturalToInteger $ fromMaybe 0 (C.protocolParamCollateralPercent pparams)
+            pure $ P.Lovelace $ collateralPercent * fee' `div` 100
 
         collateral <- estimateCollateral' knownCollaterals
         utxos      <- selectUtxosStrict (P.toValue collateral) >>= maybe (throwM FailedToSatisfyCollateral) pure

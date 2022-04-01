@@ -73,6 +73,7 @@ library
     exposed-modules: SubmitAPI.Service
                      SubmitAPI.Config
                      SubmitAPI.Internal.Transaction
+                     SubmitAPI.Internal.Balancing
 
     build-depends:
         rio==0.1.21.0,
@@ -104,5 +105,49 @@ library
         text,
         dhall,
         plutus-contract,
-        freer-simple==1.2.1.1
+        freer-simple==1.2.1.1,
+        cardano-ledger-alonzo,
+        cardano-ledger-shelley,
+        cardano-ledger-core,
+        cardano-ledger-shelley-ma,
+        cardano-ledger-byron,
+        cardano-binary,
+        strict-containers,
+        transformers,
+        array
         -- free-er==0.1.0.0
+
+test-suite submit-api-tests
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  hs-source-dirs: test
+  other-modules:
+    Gen.CardanoTx
+    Spec.Network
+    Spec.Transaction
+  build-depends:
+    , base== 4.14.1.0
+    , HUnit== 1.6.2.0
+    , hedgehog
+    , tasty
+    , tasty-hunit
+    , tasty-hedgehog
+    , aeson
+    , text==1.2.4.1
+    , base16-bytestring==1.0.1.0
+    , bytestring==0.10.12.0
+    , plutus-ledger-api==0.1.0.0
+    , cardano-api==1.32.1
+    , ouroboros-consensus==0.1.0.0
+    , random==1.2.1
+    , plutus-tx==0.1.0.0
+    , plutus-ledger-api
+    , plutus-ledger
+    , containers==0.6.2.1
+    , random-strings
+    , plutus-core
+    , plutarch
+    , submit-api==0.1.0.0
+    , cardano-tx==0.1.0.0
+    , network-api==0.1.0.0
+    , wallet-api==0.1.0.0

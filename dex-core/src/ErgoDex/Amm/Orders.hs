@@ -35,7 +35,7 @@ data Swap = Swap
   } deriving (Show, Eq, Generic, ToJSON, FromJSON)
 
 instance FromLedger Swap where
-  parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
+  parseFromLedger fout@FullTxOut{fullTxOutDatum=(KnownDatum (Datum d)), ..} =
     case fromBuiltinData d of
       (Just SwapConfig{..}) -> do
         let
@@ -67,7 +67,7 @@ data Deposit = Deposit
   } deriving (Show, Eq, Generic, ToJSON, FromJSON)
 
 instance FromLedger Deposit where
-  parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
+  parseFromLedger fout@FullTxOut{fullTxOutDatum=(KnownDatum (Datum d)), ..} =
     case fromBuiltinData d of
       (Just DepositConfig{..}) -> do
         let adaIn       = Ada.getLovelace $ Ada.fromValue fullTxOutValue
@@ -98,7 +98,7 @@ data Redeem = Redeem
   } deriving (Show, Eq, Generic, ToJSON, FromJSON)
 
 instance FromLedger Redeem where
-  parseFromLedger fout@FullTxOut{fullTxOutDatum=(Just (Datum d)), ..} =
+  parseFromLedger fout@FullTxOut{fullTxOutDatum=(KnownDatum (Datum d)), ..} =
     case fromBuiltinData d of
       (Just RedeemConfig{..}) -> do
         let adaIn = Ada.getLovelace $ Ada.fromValue fullTxOutValue

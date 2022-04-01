@@ -1,9 +1,8 @@
 module CardanoTx.Models where
 
-import           Data.Functor
-import           Data.Aeson     (FromJSON, ToJSON)
-import qualified Data.Set       as Set
-import qualified Data.Map       as Map
+import           Data.Aeson (FromJSON, ToJSON)
+import qualified Data.Set   as Set
+import qualified Data.Map   as Map
 
 import           Ledger
 import           Plutus.V1.Ledger.Credential (Credential (..))
@@ -27,33 +26,51 @@ newtype MintValue = MintValue { unMintValue :: Value }
   deriving Semigroup via Value
   deriving Monoid via Value
 
+data OutDatum
+  = KnownDatum Datum
+  | KnownDatumHash DatumHash
+  | EmptyDatum
+  deriving (Show, Eq, Generic, FromJSON, ToJSON)
+
+outDatumHash :: OutDatum -> Maybe DatumHash
+outDatumHash (KnownDatum dt)     = Just $ datumHash dt
+outDatumHash (KnownDatumHash dh) = Just dh
+outDatumHash _                   = Nothing
+
+outDatum :: OutDatum -> Maybe Datum
+outDatum (KnownDatum dt) = Just dt
+outDatum _               = Nothing
+
 -- TX output template
 data TxOutCandidate = TxOutCandidate
   { txOutCandidateAddress :: Address
   , txOutCandidateValue   :: Value
-  , txOutCandidateDatum   :: Maybe Datum
-  } deriving (Show, Eq, Generic, FromJSON, ToJSON)
+  , txOutCandidateDatum   :: OutDatum
+  }
+  deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 instance ToPlutus TxOutCandidate P.TxOut where
   toPlutus TxOutCandidate{..} =
     P.TxOut txOutCandidateAddress txOutCandidateValue dh
-      where dh = txOutCandidateDatum <&> datumHash
+      where dh = outDatumHash txOutCandidateDatum
+
+instance Ord TxOutCandidate where
+  compare TxOutCandidate{txOutCandidateAddress=rx} TxOutCandidate{txOutCandidateAddress=ry} = compare rx ry
 
 data FullTxOut = FullTxOut
-  { fullTxOutRef       :: TxOutRef
-  , fullTxOutAddress   :: Address
-  , fullTxOutValue     :: Value
-  , fullTxOutDatumHash :: Maybe DatumHash
-  , fullTxOutDatum     :: Maybe Datum
+  { fullTxOutRef     :: TxOutRef
+  , fullTxOutAddress :: Address
+  , fullTxOutValue   :: Value
+  , fullTxOutDatum   :: OutDatum
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 mkFullTxOut :: TxOutRef -> TxOutCandidate -> FullTxOut
 mkFullTxOut ref TxOutCandidate{..} =
-    FullTxOut ref txOutCandidateAddress txOutCandidateValue dh txOutCandidateDatum
-  where dh = txOutCandidateDatum <&> datumHash
+    FullTxOut ref txOutCandidateAddress txOutCandidateValue txOutCandidateDatum
 
 instance ToPlutus FullTxOut P.TxOut where
-  toPlutus FullTxOut{..} = P.TxOut fullTxOutAddress fullTxOutValue fullTxOutDatumHash
+  toPlutus FullTxOut{..} = P.TxOut fullTxOutAddress fullTxOutValue dh
+    where dh = outDatumHash fullTxOutDatum
 
 instance Ord FullTxOut where
   compare FullTxOut{fullTxOutRef=rx} FullTxOut{fullTxOutRef=ry} = compare rx ry
@@ -61,7 +78,10 @@ instance Ord FullTxOut where
 data FullTxIn = FullTxIn
   { fullTxInTxOut :: FullTxOut
   , fullTxInType  :: TxInType
-  } deriving (Show, Eq, Ord, Generic, FromJSON, ToJSON)
+  } deriving (Show, Eq, Generic, FromJSON, ToJSON)
+
+instance Ord FullTxIn where
+  compare FullTxIn{fullTxInTxOut=foutx} FullTxIn{fullTxInTxOut=fouty} = compare foutx fouty
 
 toScriptOutput :: FullTxIn -> Maybe P.ScriptOutput
 toScriptOutput FullTxIn{fullTxInTxOut=FullTxOut{fullTxOutValue}, fullTxInType=ConsumeScriptAddress v _ d} =
@@ -74,8 +94,8 @@ mkPkhTxIn fout = FullTxIn fout ConsumePublicKeyAddress
 mkScriptTxIn :: FullTxOut -> Validator -> Redeemer -> FullTxIn
 mkScriptTxIn fout@FullTxOut{..} v r =
   FullTxIn fout $ case (fullTxOutAddress, fullTxOutDatum) of
-    (Address (ScriptCredential _) _, Just d) -> ConsumeScriptAddress v r d
-    _                                        -> ConsumeScriptAddress v r unitDatum
+    (Address (ScriptCredential _) _, KnownDatum d) -> ConsumeScriptAddress v r d
+    _                                              -> ConsumeScriptAddress v r unitDatum
 
 instance ToPlutus FullTxIn P.TxIn where
   toPlutus FullTxIn{..} =
@@ -114,7 +134,7 @@ mkMintInputs xs = MintInputs mps rs
 
 -- TX template without collaterals, fees, change etc.
 data TxCandidate = TxCandidate
-  { txCandidateInputs       :: [FullTxIn]
+  { txCandidateInputs       :: Set.Set FullTxIn
   , txCandidateOutputs      :: [TxOutCandidate]
   , txCandidateValueMint    :: MintValue
   , txCandidateMintInputs   :: MintInputs

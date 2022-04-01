@@ -1,8 +1,8 @@
 module ErgoDex.Amm.PoolSetup where
 
 import           Control.Monad           (unless)
-import           Data.Functor
-
+import           Data.Functor            ((<&>))
+import qualified Data.Set                as Set
 import           Data.Either.Combinators (mapLeft)
 
 import           Ledger          (Address, StakePubKeyHash, PaymentPubKeyHash, pubKeyHashAddress)
@@ -30,19 +30,23 @@ data PoolSetup = PoolSetup
   { poolDeploy :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> P.PoolConfig -> [FullTxOut] -> Either SetupExecError TxCandidate
   }
 
+burnLqInitial :: Amount Liquidity
+burnLqInitial = Amount 1000 -- todo: aggregate protocol constants
+
 mkPoolSetup :: Address -> PoolSetup
 mkPoolSetup changeAddr = PoolSetup
-  { poolDeploy = poolDeploy' changeAddr
+  { poolDeploy = poolDeploy' burnLqInitial changeAddr
   }
 
 poolDeploy'
-  :: Address
+  :: Amount Liquidity 
+  -> Address
   -> PaymentPubKeyHash
   -> Maybe StakePubKeyHash
   -> P.PoolConfig
   -> [FullTxOut]
   -> Either SetupExecError TxCandidate
-poolDeploy' changeAddr rewardPkh stakePkh pp@P.PoolConfig{..} utxosIn = do
+poolDeploy' burnLq changeAddr rewardPkh stakePkh pp@P.PoolConfig{..} utxosIn = do
   inNft <- overallAmountOf utxosIn poolNft
   inLq  <- overallAmountOf utxosIn poolLq
   inX   <- overallAmountOf utxosIn poolX
@@ -52,14 +56,14 @@ poolDeploy' changeAddr rewardPkh stakePkh pp@P.PoolConfig{..} utxosIn = do
   unless (getAmount inLq == maxLqCapAmount) (Left InvalidLiquidity) -- make sure valid amount of LQ tokens is provided
 
   (Predicted poolOutput nextPool, unlockedLq) <-
-    mapLeft (const InvalidLiquidity) (initPool pp (getAmount inX, getAmount inY))
+    mapLeft (const InvalidLiquidity) (initPool pp burnLq (getAmount inX, getAmount inY))
 
   let
     mintLqValue  = coinAmountValue (poolCoinLq nextPool) unlockedLq
     rewardOutput = TxOutCandidate
       { txOutCandidateAddress = pubKeyHashAddress rewardPkh stakePkh
       , txOutCandidateValue   = mintLqValue <> minSafeOutputValue
-      , txOutCandidateDatum   = Nothing
+      , txOutCandidateDatum   = EmptyDatum
       }
 
     inputs  = utxosIn <&> mkPkhTxIn
@@ -72,7 +76,7 @@ poolDeploy' changeAddr rewardPkh stakePkh pp@P.PoolConfig{..} utxosIn = do
   unless (overallAdaIn >= overallAdaOut) (Left InsufficientInputs)
 
   Right $ TxCandidate
-    { txCandidateInputs       = inputs
+    { txCandidateInputs       = Set.fromList inputs
     , txCandidateOutputs      = [poolOutput, rewardOutput]
     , txCandidateValueMint    = mempty -- todo: mint NFT and LQ right there?
     , txCandidateMintInputs   = mempty

@@ -6,7 +6,8 @@ module WalletAPI.TrustStore
   , TsImportError(..)
   , TrustStore(..)
   , mkTrustStore
-  , mkTrustStoreFromCardano
+  , mkTrustStoreUnsafe
+  , importTrustStoreFromCardano
   ) where
 
 import           RIO
@@ -69,14 +70,32 @@ mkTrustStore
   -> SecretFile
   -> TrustStore f krole
 mkTrustStore krole file = TrustStore
-  { init   = init' krole file
-  , readSK = readSK' krole file
-  , readVK = readVK' krole file
+  { init          = init' krole file
+  , readSK        = readSK' krole file
+  , readVK        = readVK' krole file
   , isInitialized = isInitialized' file
   }
 
--- Instantitate TrustStore by importing key from Cardano node .skey file.
-mkTrustStoreFromCardano
+-- Mk TrustStore in Cardano format.
+-- Note: In this format secrets are stored unencrypted.
+mkTrustStoreUnsafe
+  :: (MonadIO f, MonadThrow f)
+  => Crypto.Key krole
+  => AsType krole
+  -> FilePath
+  -> f (TrustStore f krole)
+mkTrustStoreUnsafe krole srcFile = do
+  sk <- absorbEnvelopeError =<< liftIO (Crypto.readFileTextEnvelope (Crypto.AsSigningKey krole) srcFile)
+  let vk = Crypto.getVerificationKey sk
+  pure $ TrustStore
+    { init          = const $ throwM AlreadyInitialized
+    , readSK        = const $ pure sk
+    , readVK        = pure vk
+    , isInitialized = pure True
+    }
+
+-- Instantiate TrustStore by importing key from Cardano node .skey file.
+importTrustStoreFromCardano
   :: (MonadIO f, MonadThrow f, MonadRandom f)
   => SerialiseAsRawBytes (Crypto.VerificationKey krole)
   => SerialiseAsRawBytes (Crypto.SigningKey krole)
@@ -86,7 +105,7 @@ mkTrustStoreFromCardano
   -> FilePath
   -> KeyPass
   -> f (TrustStore f krole)
-mkTrustStoreFromCardano krole targetFile srcFile pass = do
+importTrustStoreFromCardano krole targetFile srcFile pass = do
   sk <- absorbEnvelopeError =<< liftIO (Crypto.readFileTextEnvelope (Crypto.AsSigningKey krole) srcFile)
   let vkEncoded = EncodedVK $ Crypto.serialiseToRawBytes $ Crypto.getVerificationKey sk
   envelope <- encryptKey sk pass

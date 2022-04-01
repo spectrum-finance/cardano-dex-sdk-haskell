@@ -1,8 +1,7 @@
-{-# LANGUAGE RecordWildCards #-}
-
 module Explorer.Models where
 
 import           Data.Aeson.Types
+import qualified Data.Set          as Set
 import           Data.String       (IsString(..))
 import qualified Data.Text         as T
 import           GHC.Generics
@@ -13,8 +12,6 @@ import           Explorer.Types
 import           Explorer.Class
 import qualified CardanoTx.Models       as Tx
 import           CardanoTx.Value
-
-import qualified Data.Set        as Set
 
 import qualified Cardano.Api as Api
 import           Cardano.Api.Shelley   (ProtocolParameters(..), PoolId)
@@ -31,7 +28,6 @@ data SystemEnv = SystemEnv
   , sysstart'          :: SystemStart
   , pools'             :: Set.Set PoolId
   , eraHistory'        :: Api.EraHistory Api.CardanoMode
-  , collateralPercent' :: Int
   } deriving (Show, Generic)
 
 instance Show (Api.EraHistory Api.CardanoMode) where
@@ -39,17 +35,15 @@ instance Show (Api.EraHistory Api.CardanoMode) where
 
 instance FromJSON SystemEnv where
   parseJSON = withObject "SystemEnv" $ \o -> do
-    pparams'           <- o .: "pparams"
-    sysstart'          <- o .: "sysstart"
-    collateralPercent' <- o .: "collateralPercent"
+    pparams'  <- o .: "pparams"
+    sysstart' <- o .: "sysstart"
     return
       SystemEnv
-        { pparams' = pparams'
-        , network'           = Api.Testnet $ Api.NetworkMagic 1097911063
-        , sysstart'          = sysstart'
-        , pools'             = Set.empty
-        , eraHistory'        = dummyEraHistory
-        , collateralPercent' = collateralPercent'
+        { pparams'    = pparams'
+        , network'    = Api.Testnet $ Api.NetworkMagic 1097911063
+        , sysstart'   = sysstart'
+        , pools'      = Set.empty
+        , eraHistory' = dummyEraHistory
         }
 
 dummyEraHistory :: Api.EraHistory Api.CardanoMode
@@ -102,13 +96,18 @@ instance FromJSON FullTxOut where
     return FullTxOut{..}
 
 instance ToCardanoTx FullTxOut Tx.FullTxOut where
-  toCardanoTx FullTxOut{..} = Tx.FullTxOut
-    { fullTxOutRef       = toCardanoTx ref
-    , fullTxOutAddress   = toCardanoTx addr
-    , fullTxOutValue     = foldr (\a acc -> unionVal acc (toCardanoTx a)) mempty value
-    , fullTxOutDatumHash = dataHash
-    , fullTxOutDatum     = data'
-    }
+  toCardanoTx FullTxOut{..} =
+    Tx.FullTxOut
+      { fullTxOutRef       = toCardanoTx ref
+      , fullTxOutAddress   = toCardanoTx addr
+      , fullTxOutValue     = foldr (\a acc -> unionVal acc (toCardanoTx a)) mempty value
+      , fullTxOutDatum     = outDatum
+      }
+    where
+      outDatum = case (data', dataHash) of
+        (Just d, _)  -> Tx.KnownDatum d
+        (_, Just dh) -> Tx.KnownDatumHash dh
+        _            -> Tx.EmptyDatum
 
 data OutAsset = OutAsset
   { policy      :: PolicyId

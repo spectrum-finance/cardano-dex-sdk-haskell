@@ -1,9 +1,13 @@
 cradle:
   cabal:
+    - path: "./ergo-hs-common/src"
+      component: "ergo-hs-common:lib:ergo-hs-common"
     - path: "./cardano-tx/src"
       component: "cardano-tx:lib:cardano-tx"
     - path: "./dex-core/src"
       component: "dex-core:lib:dex-core"
+    - path: "./dex-core/test"
+      component: "dex-core:test:dex-core-tests"
     - path: "./quickblue/src"
       component: "quickblue:lib:quickblue"
     - path: "./network-api/src"
@@ -12,6 +16,8 @@ cradle:
       component: "wallet-api:lib:wallet-api"
     - path: "./submit-api/src"
       component: "submit-api:lib:submit-api"
+    - path: "./submit-api/test"
+      component: "submit-api:test:submit-api-tests"
     - path: "./submit-api-plutus/src"
       component: "submit-api-plutus:lib:submit-api-plutus"
     - path: "./datum-keeper-client/src"

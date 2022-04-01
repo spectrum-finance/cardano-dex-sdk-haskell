@@ -9,13 +9,15 @@ import           Data.ByteString.Lazy      (toStrict)
 import           Data.Text.Prettyprint.Doc (Pretty(..))
 import qualified Data.Set                  as Set
 
-import           Cardano.Api                 hiding (TxBodyError)
-import           Cardano.Api.Shelley         (ProtocolParameters(..))
-import qualified Ledger                      as P
-import qualified Ledger.Tx.CardanoAPI        as Interop
-import qualified Ledger.Ada                  as Ada
+import           Cardano.Api          hiding (TxBodyError)
+import           Cardano.Api.Shelley  (ProtocolParameters(..))
+import qualified Ledger               as P
+import qualified Ledger.Tx.CardanoAPI as Interop
+import qualified Ledger.Ada           as Ada
+import           Ledger.Scripts       (datumHash)
 
-import qualified CardanoTx.Models   as Sdk
+import qualified CardanoTx.Models             as Sdk
+import qualified SubmitAPI.Internal.Balancing as Balancing
 import           CardanoTx.ToPlutus
 import           NetworkAPI.Env
 
@@ -38,14 +40,15 @@ buildBalancedTx SystemEnv{..} defaultChangeAddr collateral txc@Sdk.TxCandidate{.
   let eraInMode    = AlonzoEraInCardanoMode
       witOverrides = Nothing
   txBody     <- buildTxBodyContent pparams network collateral txc
-  inputsMap  <- buildInputsUTxO network txCandidateInputs
+  inputsMap  <- buildInputsUTxO network $ Set.elems txCandidateInputs
   changeAddr <- absorbError $ case txCandidateChangePolicy of
     Just (Sdk.ReturnTo addr) -> Interop.toCardanoAddress network addr
     _                        -> Interop.toCardanoAddress network $ Sdk.getAddress defaultChangeAddr
-  absorbBalancingError $ makeTransactionBodyAutoBalance eraInMode sysstart eraHistory pparams pools inputsMap txBody changeAddr witOverrides
-    where
-      absorbBalancingError (Left e)  = throwM $ BalancingError $ T.pack $ show e
-      absorbBalancingError (Right a) = pure a
+  absorbBalancingError $
+    Balancing.makeTransactionBodyAutoBalance eraInMode sysstart eraHistory pparams pools inputsMap txBody changeAddr witOverrides
+      where
+        absorbBalancingError (Left e)  = throwM $ BalancingError $ T.pack $ show e
+        absorbBalancingError (Right a) = pure a
 
 estimateTxFee
   :: (MonadThrow f, MonadIO f)
@@ -67,7 +70,7 @@ buildTxBodyContent
   -> Sdk.TxCandidate
   -> f (TxBodyContent BuildTx AlonzoEra)
 buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
-  txIns           <- buildTxIns txCandidateInputs
+  txIns           <- buildTxIns $ Set.elems txCandidateInputs
   txInsCollateral <- buildTxCollateral $ Set.elems collateral
   txOuts          <- buildTxOuts network txCandidateOutputs
   txFee           <- absorbError $ Interop.toCardanoFee dummyFee
@@ -139,7 +142,7 @@ buildInputsUTxO network inputs =
   where
     translate Sdk.FullTxIn{fullTxInTxOut=out@Sdk.FullTxOut{..}} = do
       txIn  <- Interop.toCardanoTxIn fullTxOutRef
-      let dhMap = RIO.fromMaybe mempty (fullTxOutDatumHash >>= (\hash -> fmap (Map.singleton hash) fullTxOutDatum))
+      let dhMap = maybe mempty (\d -> Map.singleton (datumHash d) d) (Sdk.outDatum fullTxOutDatum)
       txOut <- Interop.toCardanoTxOut network dhMap $ toPlutus out
       pure (txIn, toCtxUTxOTxOut txOut)
 
@@ -152,9 +155,9 @@ collectInputsData inputs = do
   pure $ Map.fromList $ rawData >>= maybe mempty pure
 
 extractInputDatum :: MonadThrow f => Sdk.FullTxIn -> f (Maybe (P.DatumHash, P.Datum))
-extractInputDatum Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{fullTxOutDatumHash=Just dh, fullTxOutDatum=Just d}} =
-  pure $ Just (dh, d)
-extractInputDatum Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{fullTxOutDatumHash=Just dh}} =
+extractInputDatum Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{fullTxOutDatum=Sdk.KnownDatum d}} =
+  pure $ Just (datumHash d, d)
+extractInputDatum Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{fullTxOutDatum=Sdk.KnownDatumHash dh}} =
   throwM $ UnresolvedData dh
 extractInputDatum _ = pure Nothing
 
