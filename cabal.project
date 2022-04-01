@@ -8,7 +8,6 @@ packages:
   wallet-api
   network-api
   submit-api
-  submit-api-plutus
   datum-keeper-client
 
 -- You never, ever, want this.

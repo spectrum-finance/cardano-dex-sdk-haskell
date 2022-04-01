@@ -28,7 +28,7 @@ import           Ouroboros.Consensus.BlockchainTime.WallClock.Types
 import           Ouroboros.Consensus.Block
 import           Ouroboros.Consensus.Util.Counting
 
-mkMockNetwork :: Applicative f => Network f
+mkMockNetwork :: Applicative f => Network f era
 mkMockNetwork = Network
   { getSystemEnv = pure staticSystemEnv
   , submitTx     = const $ pure ()

@@ -26,7 +26,7 @@ data Transactions f era = Transactions
 
 mkTransactions
   :: (MonadThrow f, MonadIO f)
-  => Network f
+  => Network f C.AlonzoEra
   -> WalletOutputs f
   -> Vault f
   -> TxAssemblyConfig
@@ -39,7 +39,7 @@ mkTransactions network utxos wallet conf = Transactions
 finalizeTx'
   :: MonadThrow f
   => MonadIO f
-  => Network f
+  => Network f C.AlonzoEra
   -> WalletOutputs f
   -> Vault f
   -> TxAssemblyConfig
