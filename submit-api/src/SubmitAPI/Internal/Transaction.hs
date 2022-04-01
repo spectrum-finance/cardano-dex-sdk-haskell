@@ -82,6 +82,11 @@ buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
         policies  = Sdk.mintInputsPolicies txCandidateMintInputs
     in absorbError $ Interop.toCardanoMintValue redeemers valueMint policies
   wits <- absorbError $ traverse Interop.toCardanoPaymentKeyHash txCandidateSigners
+  let
+    wits' =
+      if null wits
+        then TxExtraKeyWitnessesNone
+        else TxExtraKeyWitnesses ExtraKeyWitnessesInAlonzoEra wits
   pure $ TxBodyContent
     { txIns             = txIns
     , txInsCollateral   = txInsCollateral
@@ -90,7 +95,7 @@ buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
     , txValidityRange   = txValidityRange
     , txMintValue       = txMintValue
     , txProtocolParams  = BuildTxWith $ Just protocolParams
-    , txExtraKeyWits    = TxExtraKeyWitnesses ExtraKeyWitnessesInAlonzoEra wits
+    , txExtraKeyWits    = wits'
     -- unused:
     , txScriptValidity = TxScriptValidityNone
     , txMetadata       = TxMetadataNone
