@@ -88,14 +88,14 @@ buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
         then TxExtraKeyWitnessesNone
         else TxExtraKeyWitnesses ExtraKeyWitnessesInAlonzoEra wits
   pure $ TxBodyContent
-    { txIns             = txIns
-    , txInsCollateral   = txInsCollateral
-    , txOuts            = txOuts
-    , txFee             = txFee
-    , txValidityRange   = txValidityRange
-    , txMintValue       = txMintValue
-    , txProtocolParams  = BuildTxWith $ Just protocolParams
-    , txExtraKeyWits    = wits'
+    { txIns            = txIns
+    , txInsCollateral  = txInsCollateral
+    , txOuts           = txOuts
+    , txFee            = txFee
+    , txValidityRange  = txValidityRange
+    , txMintValue      = txMintValue
+    , txProtocolParams = BuildTxWith $ Just protocolParams
+    , txExtraKeyWits   = wits'
     -- unused:
     , txScriptValidity = TxScriptValidityNone
     , txMetadata       = TxMetadataNone
@@ -148,7 +148,7 @@ buildInputsUTxO network inputs =
   where
     translate Sdk.FullTxIn{fullTxInTxOut=out@Sdk.FullTxOut{..}} = do
       txIn  <- Interop.toCardanoTxIn fullTxOutRef
-      let dhMap = maybe mempty (\d -> Map.singleton (datumHash d) d) (Sdk.outDatum fullTxOutDatum)
+      let dhMap = maybe mempty (\d -> Map.singleton (datumHash d) d) (Sdk.asTxOutDatum fullTxOutDatum)
       txOut <- Interop.toCardanoTxOut network dhMap $ toPlutus out
       pure (txIn, toCtxUTxOTxOut txOut)
 

@@ -22,7 +22,7 @@ import qualified PlutusTx
 
 import qualified CardanoTx.Models     as Sdk
 import           Plutus.V1.Ledger.Ada (adaValueOf)
-import           CardanoTx.Models     (OutDatum(EmptyDatum))
+import           CardanoTx.Models     (TxOutDatum(EmptyDatum))
 
 mkTokenName :: BS.ByteString -> P.TokenName
 mkTokenName = P.TokenName . P.BuiltinByteString

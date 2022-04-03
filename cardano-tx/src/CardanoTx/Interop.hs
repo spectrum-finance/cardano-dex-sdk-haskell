@@ -15,7 +15,7 @@ import qualified Cardano.Api          as C
 import qualified Ledger.Tx.CardanoAPI as Interop
 import qualified Ledger               as P
 
-import CardanoTx.Models (FullTxOut(..), TxOutCandidate(..), OutDatum(..))
+import CardanoTx.Models (FullTxOut(..), TxOutCandidate(..), TxOutDatum(..))
 
 extractCardanoTxId :: C.Tx era -> P.TxId
 extractCardanoTxId = Interop.fromCardanoTxId . C.getTxId . C.getTxBody

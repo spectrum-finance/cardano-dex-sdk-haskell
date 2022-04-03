@@ -4,7 +4,7 @@ import           Data.Aeson (FromJSON, ToJSON)
 import qualified Data.Set   as Set
 import qualified Data.Map   as Map
 
-import           Ledger
+import           Ledger                      hiding (TxIn)
 import           Plutus.V1.Ledger.Credential (Credential (..))
 import qualified Ledger                      as P
 import qualified Ledger.Constraints.OffChain as P
@@ -26,33 +26,33 @@ newtype MintValue = MintValue { unMintValue :: Value }
   deriving Semigroup via Value
   deriving Monoid via Value
 
-data OutDatum
+data TxOutDatum
   = KnownDatum Datum
   | KnownDatumHash DatumHash
   | EmptyDatum
   deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
-outDatumHash :: OutDatum -> Maybe DatumHash
-outDatumHash (KnownDatum dt)     = Just $ datumHash dt
-outDatumHash (KnownDatumHash dh) = Just dh
-outDatumHash _                   = Nothing
+asTxOutDatumHash :: TxOutDatum -> Maybe DatumHash
+asTxOutDatumHash (KnownDatum dt)     = Just $ datumHash dt
+asTxOutDatumHash (KnownDatumHash dh) = Just dh
+asTxOutDatumHash _                   = Nothing
 
-outDatum :: OutDatum -> Maybe Datum
-outDatum (KnownDatum dt) = Just dt
-outDatum _               = Nothing
+asTxOutDatum :: TxOutDatum -> Maybe Datum
+asTxOutDatum (KnownDatum dt) = Just dt
+asTxOutDatum _               = Nothing
 
 -- TX output template
 data TxOutCandidate = TxOutCandidate
   { txOutCandidateAddress :: Address
   , txOutCandidateValue   :: Value
-  , txOutCandidateDatum   :: OutDatum
+  , txOutCandidateDatum   :: TxOutDatum
   }
   deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 instance ToPlutus TxOutCandidate P.TxOut where
   toPlutus TxOutCandidate{..} =
     P.TxOut txOutCandidateAddress txOutCandidateValue dh
-      where dh = outDatumHash txOutCandidateDatum
+      where dh = asTxOutDatumHash txOutCandidateDatum
 
 instance Ord TxOutCandidate where
   compare TxOutCandidate{txOutCandidateAddress=rx} TxOutCandidate{txOutCandidateAddress=ry} = compare rx ry
@@ -61,7 +61,7 @@ data FullTxOut = FullTxOut
   { fullTxOutRef     :: TxOutRef
   , fullTxOutAddress :: Address
   , fullTxOutValue   :: Value
-  , fullTxOutDatum   :: OutDatum
+  , fullTxOutDatum   :: TxOutDatum
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 mkFullTxOut :: TxOutRef -> TxOutCandidate -> FullTxOut
@@ -70,7 +70,7 @@ mkFullTxOut ref TxOutCandidate{..} =
 
 instance ToPlutus FullTxOut P.TxOut where
   toPlutus FullTxOut{..} = P.TxOut fullTxOutAddress fullTxOutValue dh
-    where dh = outDatumHash fullTxOutDatum
+    where dh = asTxOutDatumHash fullTxOutDatum
 
 instance Ord FullTxOut where
   compare FullTxOut{fullTxOutRef=rx} FullTxOut{fullTxOutRef=ry} = compare rx ry
