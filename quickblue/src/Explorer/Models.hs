@@ -1,20 +1,22 @@
 module Explorer.Models where
 
 import           Data.Aeson.Types
-import qualified Data.Set          as Set
-import           Data.String       (IsString(..))
-import qualified Data.Text         as T
+import qualified Data.Set                as Set
+import qualified Data.Either.Combinators as EC
+import           Data.String             (IsString(..))
+import qualified Data.Text               as T
 import           GHC.Generics
 
-import qualified Ledger                 as P
-import qualified Plutus.V1.Ledger.Value as Value
+import qualified Ledger                     as P
+import qualified Plutus.V1.Ledger.Value     as Value
+import qualified PlutusTx.Builtins.Internal as BI
 import           Explorer.Types
 import           Explorer.Class
-import qualified CardanoTx.Models       as Tx
+import qualified CardanoTx.Models           as Tx
 import           CardanoTx.Value
 
 import qualified Cardano.Api as Api
-import           Cardano.Api.Shelley   (ProtocolParameters(..), PoolId)
+import           Cardano.Api.Shelley   (ProtocolParameters(..), PoolId, toPlutusData)
 import qualified Ouroboros.Consensus.HardFork.History as History
 import           Ouroboros.Consensus.HardFork.History.Summary as HSummary
 import           Ouroboros.Consensus.HardFork.History.EraParams as EP
@@ -92,7 +94,10 @@ instance FromJSON FullTxOut where
     addr         <- Addr <$> o .: "addr"
     value        <- o .: "value"
     dataHash     <- o .:? "dataHash"
-    data'        <- o .:? "data"
+    rawDataM     <- o .:? "data"
+    let
+      jsonDataM  = rawDataM >>= (EC.rightToMaybe . (Api.scriptDataFromJson Api.ScriptDataJsonDetailedSchema))
+      data'      = fmap (P.Datum . BI.dataToBuiltinData . toPlutusData) jsonDataM
     return FullTxOut{..}
 
 instance ToCardanoTx FullTxOut Tx.FullTxOut where
