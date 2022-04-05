@@ -27,11 +27,11 @@ mkExplorer conf = Explorer
 
 getUnspentOutputs' :: MonadIO f => ExplorerConfig -> Gix -> Limit -> f (Items FullTxOut)
 getUnspentOutputs' conf minIndex limit =
-  mkGetRequest conf $ "/outputs/unspent/indexed?minIndex=" ++ show minIndex ++ "&limit=" ++ show limit
+  mkGetRequest conf $ "/v1/outputs/unspent/indexed?minIndex=" ++ show minIndex ++ "&limit=" ++ show limit
 
 getUnspentOutputsByPCred' :: MonadIO f => ExplorerConfig -> PaymentCred -> Paging -> f (Items FullTxOut)
 getUnspentOutputsByPCred' conf pcred Paging{..} =
-  mkGetRequest conf $ "/outputs/unspent/byPaymentCred/" ++ T.unpack (unPaymentCred pcred) ++  "/?offset=" ++ show offset ++ "&limit=" ++ show limit
+  mkGetRequest conf $ "/v1/outputs/unspent/byPaymentCred/" ++ T.unpack (unPaymentCred pcred) ++  "/?offset=" ++ show offset ++ "&limit=" ++ show limit
 
 getSystemEnv' :: MonadIO f => ExplorerConfig -> f SystemEnv
 getSystemEnv' conf = mkGetRequest conf "/networkParams"
