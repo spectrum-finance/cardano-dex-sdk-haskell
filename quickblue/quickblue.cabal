@@ -89,6 +89,8 @@ library
         cardano-slotting,
         cardano-api,
         containers,
+        plutus-tx,
+        either,
         ouroboros-consensus,
         rio,
         cardano-crypto-class,
