@@ -34,8 +34,8 @@ mkWalletOutputs :: MonadIO f => Explorer f -> Hash PaymentKey -> f (WalletOutput
 mkWalletOutputs explorer pkh = do
   ustore <- mkUtxoStore
   pure $ WalletOutputs
-    { selectUtxos       = selectUtxos'' explorer ustore pkh True
-    , selectUtxosStrict = selectUtxos'' explorer ustore pkh False
+    { selectUtxos       = selectUtxos'' explorer ustore pkh False
+    , selectUtxosStrict = selectUtxos'' explorer ustore pkh True
     }
 
 mkWalletOutputs' :: MonadIO f => Explorer f -> Vault f -> f (WalletOutputs f)
@@ -70,7 +70,7 @@ selectUtxos'' explorer@Explorer{..} ustore@UtxoStore{..} pkh strict requiredValu
           where
             assets              = extractAssets fullTxOutValue
             containsTargetAsset = not $ Set.null $ Set.intersection assets requiredAssets
-            containsOtherAssets = Set.null $ Set.difference assets requiredAssets
+            containsOtherAssets = not $ Set.null $ Set.difference assets requiredAssets
             satisfies           = (containsTargetAsset && not strict) || (containsTargetAsset && not containsOtherAssets)
         [] | valueAcc `lt` requiredValue ->
           Nothing
