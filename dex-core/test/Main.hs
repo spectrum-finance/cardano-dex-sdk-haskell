@@ -8,6 +8,14 @@ import Test.Tasty.HUnit
 import Spec.Pool as PS
 
 main :: IO ()
-main = defaultMain tests
+main = do
+  print PS.at
+  defaultMain tests
 
-tests = testGroup "DexCore" [PS.initialLiquidityTests, PS.initPoolTests]
+tests = testGroup "DexCore" 
+  [ PS.toFromLedgerPoolTests
+  , PS.lqAmountTests
+  , PS.applyDepositTests
+  , PS.shareAmountTests
+  ]
+--[PS.initialLiquidityTests, PS.initPoolTests]

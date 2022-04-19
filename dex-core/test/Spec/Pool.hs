@@ -3,6 +3,11 @@
 module Spec.Pool
   ( initialLiquidityTests
   , initPoolTests
+  , toFromLedgerPoolTests
+  , lqAmountTests
+  , applyDepositTests
+  , shareAmountTests
+  , at
   ) where
 
 import qualified Data.ByteString as BS
@@ -14,16 +19,17 @@ import Data.List
 import Data.Ord
 
 import PlutusTx.Builtins.Internal (BuiltinByteString(..))
-import Plutus.V1.Ledger.Api       (CurrencySymbol(..), TokenName(..))
+import Plutus.V1.Ledger.Api       (CurrencySymbol(..), TokenName(..), toBuiltinData, TxOutRef(..))
 import Plutus.V1.Ledger.Value     (AssetClass(..))
 
+import CardanoTx.Models (TxOutCandidate(..), mkFullTxOut)
 import           ErgoDex.Amm.Pool
 import qualified ErgoDex.Contracts.Typed as S
 import           ErgoDex.Contracts.Types
 import           ErgoDex.Types
 import           ErgoDex.State
 import           ErgoDex.Amm.PoolSetup   (burnLqInitial)
-import           ErgoDex.Class           (ToLedger(toLedger))
+import           ErgoDex.Class           (ToLedger(toLedger), FromLedger(parseFromLedger))
 import           ErgoDex.Amm.Constants   (minSafeOutputAmount)
 
 mkTokenName :: BS.ByteString -> TokenName
@@ -84,4 +90,34 @@ initPoolTests = testGroup "NonNativePoolInit"
       initPool poolConf burnLqInitial (sufficientInitDepositX, initDepositY) @?= Right (Predicted (toLedger nativePool) nativePool, releasedLq)
   , testCase "init_non_native_pool_insufficient_liquidity" $
       initPool poolConf burnLqInitial (insufficientInitDepositX, initDepositY) @?= Left (InsufficientInitialLiqudity $ Amount 1000)
+  ]
+
+fromLedgerPool :: Maybe Pool
+fromLedgerPool = case (parseFromLedger $ mkFullTxOut (TxOutRef "test" 1) (toLedger nativePool)) of
+  Just (OnChain _ pool) -> Just pool
+  _ -> Nothing
+
+toFromLedgerPoolTests = testGroup "ToFromLedgerPoolTests"
+  [  testCase "pool_before_to_ledger_and_after_from_ledger_is_eq" $ Just nativePool @?= fromLedgerPool
+  ]
+
+lqAmountTests = testGroup "LqAmountTests"
+  [ testCase "lq_amount_is_correct" $
+      liquidityAmount nativePool (Amount 80, Amount 200) @=? assetAmountCoinOf poolLq 26
+  ]
+
+depositPP = nativePool 
+  { poolReservesX = Amount 880 
+  , poolReservesY = Amount 2200
+  , poolLiquidity = Amount 291
+  }
+
+applyDepositTests = testGroup "ApplyDepositTests"
+  [ testCase "correct_apply_deposit" $
+      applyDeposit nativePool (Amount 80, Amount 200) @=? Predicted (toLedger depositPP) depositPP
+  ]
+at = sharesAmount depositPP (Amount 26)
+shareAmountTests = testGroup "ShareAmountTests"
+  [ testCase "share_amount_is_correct" $
+      sharesAmount depositPP (Amount 26) @=? (assetAmountCoinOf poolX 80, assetAmountCoinOf poolY 200)
   ]

@@ -131,3 +131,4 @@ test-suite dex-core-tests
     , plutus-core
     , plutarch
     , dex-core==0.1.0.0
+    , cardano-tx==0.1.0.0
