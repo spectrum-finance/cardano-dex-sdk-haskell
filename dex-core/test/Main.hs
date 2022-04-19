@@ -9,13 +9,13 @@ import Spec.Pool as PS
 
 main :: IO ()
 main = do
-  print PS.at
   defaultMain tests
 
 tests = testGroup "DexCore" 
   [ PS.toFromLedgerPoolTests
-  , PS.lqAmountTests
-  , PS.applyDepositTests
-  , PS.shareAmountTests
+  , PS.checkDeposit
+  , PS.checkRedeem
+  , PS.checkSwap
+  , PS.initialLiquidityTests
+  , PS.initPoolTests
   ]
---[PS.initialLiquidityTests, PS.initPoolTests]
