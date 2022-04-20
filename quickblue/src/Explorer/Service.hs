@@ -5,7 +5,6 @@ import Data.ByteString.Char8  as Data
 import Data.Function
 import Data.Aeson
 import qualified  Data.Text as T
-import GHC.Natural
 import Network.HTTP.Simple
 
 import Explorer.Types
@@ -46,11 +45,7 @@ getSystemEnv' conf = mkGetRequest conf "/networkParams"
 
 mkGetRequest :: (MonadIO f, FromJSON a, Show a) => ExplorerConfig -> String -> f a
 mkGetRequest ExplorerConfig{..} path = do
-  let
-    request = defaultRequest
-      & setRequestPath (Data.pack path)
-      & setRequestHost (Data.pack explorerHost)
-      & setRequestPort (naturalToInt explorerPort)
+  let request = parseRequest_ (unUri explorerUri) & setRequestPath (Data.pack path)
 
   response <- httpJSON request
 

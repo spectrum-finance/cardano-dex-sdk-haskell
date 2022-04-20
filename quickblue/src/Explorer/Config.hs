@@ -1,12 +1,14 @@
 module Explorer.Config where
 
-import GHC.Natural
 import GHC.Generics
 import Dhall
 
+newtype Uri = Uri { unUri :: String }
+  deriving Generic
+  deriving newtype (Show, FromDhall)
+
 data ExplorerConfig = ExplorerConfig
-  { explorerHost :: String
-  , explorerPort :: Natural
+  { explorerUri :: Uri
   } deriving (Generic, Show)
 
 instance FromDhall ExplorerConfig
