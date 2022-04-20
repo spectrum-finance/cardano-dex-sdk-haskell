@@ -75,28 +75,30 @@ data Items a = Items
   } deriving (Show, Generic, FromJSON)
 
 data FullTxOut = FullTxOut
-  { ref         :: OutRef
-  , txHash      :: TxHash
-  , index       :: Int
-  , globalIndex :: Gix
-  , addr        :: Addr
-  , value       :: [OutAsset]
-  , dataHash    :: Maybe P.DatumHash
-  , data'       :: Maybe P.Datum
+  { ref           :: OutRef
+  , txHash        :: TxHash
+  , index         :: Int
+  , globalIndex   :: Gix
+  , addr          :: Addr
+  , value         :: [OutAsset]
+  , dataHash      :: Maybe P.DatumHash
+  , data'         :: Maybe P.Datum
+  , spentByTxHash :: Maybe TxHash
   } deriving (Show, Generic)
 
 instance FromJSON FullTxOut where
   parseJSON = withObject "quickblueFullTxOut" $ \o -> do
-    ref          <- OutRef <$> o .: "ref"
-    txHash       <- TxHash <$> o .: "txHash"
-    index        <- o .: "index"
-    globalIndex  <- Gix <$> o .: "globalIndex"
-    addr         <- Addr <$> o .: "addr"
-    value        <- o .: "value"
-    dataHash     <- o .:? "dataHash"
-    rawDataM     <- o .:? "data"
+    ref           <- OutRef <$> o .: "ref"
+    txHash        <- TxHash <$> o .: "txHash"
+    index         <- o .: "index"
+    globalIndex   <- Gix <$> o .: "globalIndex"
+    addr          <- Addr <$> o .: "addr"
+    value         <- o .: "value"
+    dataHash      <- o .:? "dataHash"
+    rawDataM      <- o .:? "data"
+    spentByTxHash <- o .:? "spentByTxHash"
     let
-      jsonDataM  = rawDataM >>= (EC.rightToMaybe . (Api.scriptDataFromJson Api.ScriptDataJsonDetailedSchema))
+      jsonDataM  = rawDataM >>= (EC.rightToMaybe . Api.scriptDataFromJson Api.ScriptDataJsonDetailedSchema)
       data'      = fmap (P.Datum . BI.dataToBuiltinData . toPlutusData) jsonDataM
     return FullTxOut{..}
 

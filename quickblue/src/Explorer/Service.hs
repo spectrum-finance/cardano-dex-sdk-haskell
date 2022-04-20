@@ -12,18 +12,26 @@ import Explorer.Types
 import Explorer.Models
 import Explorer.Config
 
+import Ledger ( TxOutRef, txOutRefId, txOutRefIdx )
+
 data Explorer f = Explorer
-  { getUnspentOutputs        :: Gix -> Limit -> f (Items FullTxOut)
+  { getOutput                :: TxOutRef -> f (Maybe FullTxOut)
+  , getUnspentOutputs        :: Gix -> Limit -> f (Items FullTxOut)
   , getUnspentOutputsByPCred :: PaymentCred -> Paging -> f (Items FullTxOut)
   , getSystemEnv             :: f SystemEnv
   }
 
 mkExplorer :: MonadIO f => ExplorerConfig -> Explorer f
 mkExplorer conf = Explorer
-  { getUnspentOutputs        = getUnspentOutputs' conf
+  { getOutput                = getOutput' conf
+  , getUnspentOutputs        = getUnspentOutputs' conf
   , getUnspentOutputsByPCred = getUnspentOutputsByPCred' conf
   , getSystemEnv             = getSystemEnv' conf
   }
+
+getOutput' :: MonadIO f => ExplorerConfig -> TxOutRef -> f (Maybe FullTxOut)
+getOutput' conf ref = 
+  mkGetRequest conf $ "/v1/outputs/" ++ renderTxOutRef ref
 
 getUnspentOutputs' :: MonadIO f => ExplorerConfig -> Gix -> Limit -> f (Items FullTxOut)
 getUnspentOutputs' conf minIndex limit =
@@ -51,3 +59,5 @@ mkGetRequest ExplorerConfig{..} path = do
   liftIO . print $ "Response is: " ++ show parsedResponse
 
   pure parsedResponse
+
+renderTxOutRef ref = (show . txOutRefId $ ref) ++ "#" ++ (show . txOutRefIdx $ ref)
