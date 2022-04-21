@@ -86,7 +86,7 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
         residualValue =
              initValue
           <> assetClassValue (unCoin swapBase) (negate $ unAmount swapBaseIn) -- Remove Base input
-          <> Ada.lovelaceValueOf exFee                                        -- Remove Fee
+          <> Ada.lovelaceValueOf (negate exFee)                               -- Remove Fee
 
         rewardValue = assetAmountValue quoteOutput <> residualValue
 
