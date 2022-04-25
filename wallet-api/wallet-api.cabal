@@ -25,6 +25,7 @@ common project-config
                         DataKinds
                         DefaultSignatures
                         DeriveDataTypeable
+                        DerivingStrategies
                         DeriveFoldable
                         DeriveFunctor
                         DeriveGeneric
