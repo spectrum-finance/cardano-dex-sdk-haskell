@@ -129,15 +129,30 @@ applyDeposit :: Pool -> (Amount X, Amount Y) -> Predicted Pool
 applyDeposit p@Pool{..} (inX, inY) =
     Predicted nextPoolOut nextPool
   where
-    unlockedLq = getAmount (liquidityAmount p (inX, inY))
+    (unlockedLq, (changeX, changeY)) = rewardLp p (inX, inY)
 
     nextPool = p
-      { poolReservesX = poolReservesX + inX
-      , poolReservesY = poolReservesY + inY
+      { poolReservesX = poolReservesX + inX - changeX
+      , poolReservesY = poolReservesY + inY - changeY
       , poolLiquidity = poolLiquidity + unlockedLq
       }
 
     nextPoolOut = toLedger nextPool
+
+rewardLp :: Pool -> (Amount X, Amount Y) -> (Amount Liquidity, (Amount X, Amount Y))
+rewardLp p@Pool{poolLiquidity=(Amount lq), poolReservesX=(Amount poolX), poolReservesY=(Amount poolY)} (Amount inX, Amount inY) =
+    (unlockedLq, change)
+  where
+    minByX = inX * lq `div` poolX
+    minByY = inY * lq `div` poolY
+    change =
+      if (minByX == minByY)
+      then (Amount 0, Amount 0) -- empty change
+      else
+        if (minByX < minByY)
+        then (Amount 0, Amount $ (minByY - minByX) * poolY `div` lq)
+        else (Amount $ (minByX - minByY) * poolX `div` lq, Amount 0)
+    unlockedLq = getAmount (liquidityAmount p (Amount $ inX - minByX, Amount $ inY))
 
 applyRedeem :: Pool -> Amount Liquidity -> Predicted Pool
 applyRedeem p@Pool{..} burnedLq =

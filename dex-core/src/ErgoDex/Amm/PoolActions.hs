@@ -122,6 +122,12 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{.
       | isAda poolCoinY = (inX, inY - retagAmount exFee - retagAmount adaCollateral)
       | otherwise       = (inX, inY)
 
+    (_, (Amount changeX, Amount changeY)) = rewardLp pool (inX, inY)
+
+    alignmentValue =
+         assetClassValue (unCoin poolCoinY) changeY
+      <> assetClassValue (unCoin poolCoinY) changeX
+
     pp@(Predicted nextPoolOut _) = applyDeposit pool (netInX, netInY)
 
     mintLqValue = assetAmountValue lqOutput
@@ -141,7 +147,7 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{.
           <> assetClassValue (unCoin poolCoinX) (negate $ unAmount netInX) -- Remove X net input
           <> assetClassValue (unCoin poolCoinY) (negate $ unAmount netInY) -- Remove Y net input
           <> Ada.lovelaceValueOf (negate $ unAmount exFee)                 -- Remove Fee
-        rewardValue = residualValue <> mintLqValue
+        rewardValue = residualValue <> mintLqValue <> alignmentValue
 
     txCandidate = TxCandidate
       { txCandidateInputs       = inputs
