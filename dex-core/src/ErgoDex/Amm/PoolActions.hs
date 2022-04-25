@@ -57,7 +57,7 @@ mkOrderInputs action orderValidator (PoolIn poolOut) (OrderIn orderOut) =
     preInputs = Set.fromList [poolOut, orderOut]
     poolIx    = toInteger $ Set.findIndex poolOut preInputs
     orderIx   = toInteger $ Set.findIndex orderOut preInputs
-    poolIn    = mkScriptTxIn poolOut poolValidator   (Redeemer $ toBuiltinData $ P.PoolRedeemer action 0)
+    poolIn    = mkScriptTxIn poolOut poolValidator   (Redeemer $ toBuiltinData $ P.PoolRedeemer action poolIx)
     orderIn   = mkScriptTxIn orderOut orderValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer poolIx orderIx 1 O.Apply)
 
 runSwap' :: PaymentPubKeyHash -> Confirmed Swap -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
