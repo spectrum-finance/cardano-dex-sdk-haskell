@@ -28,7 +28,7 @@ newtype OutRef = OutRef { unOutRef :: Text }
 
 instance ToCardanoTx OutRef P.TxOutRef where
   toCardanoTx (OutRef ref) = P.TxOutRef (fromString $ unpack hash) (read $ unpack index)
-    where [hash, index] = splitOn ":" ref
+    where [hash, index] = splitOn "#" ref
 
 -- A hex-encoded hash of minting policy
 newtype PolicyId = PolicyId { unPolicyId :: Text }
