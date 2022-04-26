@@ -3,6 +3,7 @@ module CardanoTx.Interop
   , extractCardanoInputs
   , extractCardanoTxBodyInputs
   , extractCardanoTxContentInputs
+  , extractCardanoTxOutputs
   , extractCardanoTxBodyOutputs
   , extractCardanoTxContentOutputs
   , extractCardanoTxOutputAt
@@ -30,6 +31,9 @@ extractCardanoTxBodyInputs txb =
 
 extractCardanoTxContentInputs :: C.TxBodyContent mode era -> [P.TxOutRef]
 extractCardanoTxContentInputs bodyc = C.txIns bodyc <&> (Interop.fromCardanoTxIn . fst)
+
+extractCardanoTxOutputs :: C.Tx era -> [(Int, TxOutCandidate)]
+extractCardanoTxOutputs = extractCardanoTxBodyOutputs . C.getTxBody
 
 extractCardanoTxBodyOutputs :: C.TxBody era -> [(Int, TxOutCandidate)]
 extractCardanoTxBodyOutputs txb =
