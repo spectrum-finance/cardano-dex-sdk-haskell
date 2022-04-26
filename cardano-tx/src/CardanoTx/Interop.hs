@@ -32,8 +32,14 @@ extractCardanoTxBodyInputs txb =
 extractCardanoTxContentInputs :: C.TxBodyContent mode era -> [P.TxOutRef]
 extractCardanoTxContentInputs bodyc = C.txIns bodyc <&> (Interop.fromCardanoTxIn . fst)
 
-extractCardanoTxOutputs :: C.Tx era -> [(Int, TxOutCandidate)]
-extractCardanoTxOutputs = extractCardanoTxBodyOutputs . C.getTxBody
+extractCardanoTxOutputs :: C.Tx era -> [FullTxOut]
+extractCardanoTxOutputs tx =
+  let
+    collectOutputs acc ix =
+      case extractCardanoTxOutputAt ix tx of
+        Just out -> collectOutputs (out : acc) (ix + 1)
+        Nothing  -> reverse acc
+  in collectOutputs [] 0
 
 extractCardanoTxBodyOutputs :: C.TxBody era -> [(Int, TxOutCandidate)]
 extractCardanoTxBodyOutputs txb =
