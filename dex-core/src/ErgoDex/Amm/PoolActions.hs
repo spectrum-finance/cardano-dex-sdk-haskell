@@ -122,16 +122,15 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{.
       | isAda poolCoinY = (inX, inY - retagAmount exFee - retagAmount adaCollateral)
       | otherwise       = (inX, inY)
 
-    (_, (Amount changeX, Amount changeY)) = rewardLp pool (inX, inY)
+    (unlockedLq, (Amount changeX, Amount changeY)) = rewardLp pool (inX, inY)
 
     alignmentValue =
          assetClassValue (unCoin poolCoinY) changeY
-      <> assetClassValue (unCoin poolCoinY) changeX
+      <> assetClassValue (unCoin poolCoinX) changeX
 
     pp@(Predicted nextPoolOut _) = applyDeposit pool (netInX, netInY)
 
-    mintLqValue = assetAmountValue lqOutput
-      where lqOutput = liquidityAmount pool (netInX, netInY)
+    mintLqValue = assetAmountValue (AssetAmount poolCoinLq unlockedLq)
 
     rewardAddr = pubKeyHashAddress (PaymentPubKeyHash depositRewardPkh) Nothing
     rewardOut  =
