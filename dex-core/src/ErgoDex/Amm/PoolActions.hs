@@ -126,7 +126,7 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{.
 
     alignmentValue =
          assetClassValue (unCoin poolCoinY) changeY
-      <> assetClassValue (unCoin poolCoinY) changeX
+      <> assetClassValue (unCoin poolCoinX) changeX
 
     pp@(Predicted nextPoolOut _) = applyDeposit pool (netInX, netInY)
 
