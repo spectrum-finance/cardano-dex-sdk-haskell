@@ -20,8 +20,9 @@ import           WalletAPI.Utxos
 import           WalletAPI.Vault
 
 data Transactions f era = Transactions
-  { finalizeTx :: Sdk.TxCandidate -> f (C.Tx era)
-  , submitTx   :: C.Tx era -> f ()
+  { estimateTxFee :: Set.Set Sdk.FullCollateralTxIn -> Sdk.TxCandidate -> f C.Lovelace
+  , finalizeTx    :: Sdk.TxCandidate -> f (C.Tx era)
+  , submitTx      :: C.Tx era -> f ()
   }
 
 mkTransactions
@@ -33,9 +34,22 @@ mkTransactions
   -> TxAssemblyConfig
   -> Transactions f C.AlonzoEra
 mkTransactions network networkId utxos wallet conf = Transactions
-  { finalizeTx = finalizeTx' network networkId utxos wallet conf
-  , submitTx   = Network.submitTx network
+  { estimateTxFee = estimateTxFee'' network networkId
+  , finalizeTx    = finalizeTx' network networkId utxos wallet conf
+  , submitTx      = Network.submitTx network
   }
+
+estimateTxFee''
+  :: MonadThrow f
+  => MonadIO f
+  => Network f C.AlonzoEra
+  -> C.NetworkId
+  -> Set.Set Sdk.FullCollateralTxIn
+  -> Sdk.TxCandidate
+  -> f C.Lovelace
+estimateTxFee'' Network{..} network collateral txc = do
+  SystemEnv{pparams}     <- getSystemEnv
+  estimateTxFee' pparams network collateral txc 
 
 finalizeTx'
   :: MonadThrow f
@@ -79,7 +93,7 @@ selectCollaterals WalletOutputs{selectUtxosStrict} SystemEnv{..} network TxAssem
       collectCollaterals knownCollaterals = do
         let
           estimateCollateral' collaterals = do
-            fee <- estimateTxFee pparams network collaterals txc
+            fee <- estimateTxFee' pparams network collaterals txc
             let (C.Quantity fee') = C.lovelaceToQuantity fee
                 collateralPercent = naturalToInteger $ fromMaybe 0 (C.protocolParamCollateralPercent pparams)
             pure $ P.Lovelace $ collateralPercent * fee' `div` 100
@@ -97,5 +111,5 @@ selectCollaterals WalletOutputs{selectUtxosStrict} SystemEnv{..} network TxAssem
 
   case (scriptInputs, collateralPolicy) of
     ([], _)    -> pure mempty
-    (_, Cover) -> collectCollaterals mempty  
+    (_, Cover) -> collectCollaterals mempty
     _          -> throwM CollateralNotAllowed

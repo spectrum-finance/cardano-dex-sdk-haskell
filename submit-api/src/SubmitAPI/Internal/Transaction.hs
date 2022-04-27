@@ -51,14 +51,14 @@ buildBalancedTx SystemEnv{..} network defaultChangeAddr collateral txc@Sdk.TxCan
         absorbBalancingError (Left e)  = throwM $ BalancingError $ T.pack $ show e
         absorbBalancingError (Right a) = pure a
 
-estimateTxFee
+estimateTxFee'
   :: (MonadThrow f, MonadIO f)
   => ProtocolParameters
   -> NetworkId
   -> Set.Set Sdk.FullCollateralTxIn
   -> Sdk.TxCandidate
   -> f Lovelace
-estimateTxFee pparams network collateral txc = do
+estimateTxFee' pparams network collateral txc = do
   txBodyContent <- buildTxBodyContent pparams network collateral txc
   txBody        <- either (throwM . TxBodyError . T.pack . show) pure (makeTransactionBody txBodyContent)
   pure $ evaluateTransactionFee pparams txBody 0 0
