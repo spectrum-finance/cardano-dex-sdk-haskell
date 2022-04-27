@@ -10,9 +10,10 @@ import           GHC.Generics     (Generic)
 
 import           Ledger
 import           PlutusTx.IsData.Class
-import           Ledger.Value          (AssetClass(..), assetClassValueOf, flattenValue)
-import qualified Ledger.Ada            as Ada
-import           PlutusTx.Prelude      (divide)
+import qualified Plutus.V1.Ledger.Value as V
+import           Ledger.Value           (AssetClass(..), assetClassValueOf, flattenValue)
+import qualified Ledger.Ada             as Ada
+import           PlutusTx.Prelude       (divide)
 
 import CardanoTx.Models
 import ErgoDex.Types
@@ -100,11 +101,10 @@ data Redeem = Redeem
 instance FromLedger Redeem where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(KnownDatum (Datum d)), ..} =
     case fromBuiltinData d of
-      (Just RedeemConfig{..}) -> do
+      (Just cfg@RedeemConfig{..}) -> do
         let adaIn = Ada.getLovelace $ Ada.fromValue fullTxOutValue
-        when (adaIn < exFee) Nothing
-        case extractPairValue fullTxOutValue of
-          [(ac, tn, v)] ->
+        case extractLpToken fullTxOutValue cfg of
+          Just (ac, tn, v) ->
               Just $ OnChain fout Redeem
                 { redeemPoolId    = PoolId $ Coin poolNft
                 , redeemLqIn      = Amount v
@@ -115,6 +115,13 @@ instance FromLedger Redeem where
           _ -> Nothing
       _ -> Nothing
   parseFromLedger _ = Nothing
+
+extractLpToken :: Value -> RedeemConfig -> Maybe (CurrencySymbol, TokenName, Integer)
+extractLpToken inputValue RedeemConfig{..} =
+    if (lpValue <= 0) then Nothing else Just (lpCs, lpTn, lpValue)
+  where
+    (lpCs, lpTn) = unAssetClass poolLp
+    lpValue = V.assetClassValueOf inputValue poolLp
 
 -- Extract pair of assets for order (Deposit|Redeem) from a given value.
 extractPairValue :: Value -> [(CurrencySymbol, TokenName, Integer)]
