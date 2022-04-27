@@ -152,7 +152,7 @@ rewardLp p@Pool{poolLiquidity=(Amount lq), poolReservesX=(Amount poolX), poolRes
         if (minByX < minByY)
         then (Amount 0, Amount $ (minByY - minByX) * poolY `div` lq)
         else (Amount $ (minByX - minByY) * poolX `div` lq, Amount 0)
-    unlockedLq = getAmount (liquidityAmount p (Amount $ inX - minByX, Amount $ inY))
+    unlockedLq = Amount (min minByX minByY)
 
 applyRedeem :: Pool -> Amount Liquidity -> Predicted Pool
 applyRedeem p@Pool{..} burnedLq =
