@@ -95,11 +95,13 @@ library
         either,
         aeson-gadt-th,
         some,
+        network-mux,
         dependent-sum-template,
         containers,
         freer-simple,
         extra,
         cardano-api,
+        base16-bytestring,
         text,
         dhall,
         quickblue

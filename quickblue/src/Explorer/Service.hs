@@ -51,8 +51,6 @@ mkGetRequest ExplorerConfig{..} path = do
 
   let parsedResponse = getResponseBody response
 
-  liftIO . print $ "Response is: " ++ show parsedResponse
-
   pure parsedResponse
 
 renderTxOutRef ref = (show . txOutRefId $ ref) ++ "#" ++ (show . txOutRefIdx $ ref)

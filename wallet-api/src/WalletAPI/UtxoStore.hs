@@ -10,10 +10,10 @@ import CardanoTx.Models
 type Store = Map.Map TxOutRef FullTxOut
 
 data UtxoStore f = UtxoStore
-  { putUtxos     :: Set.Set FullTxOut -> f ()
-  , getUtxos     :: f (Set.Set FullTxOut)
-  , dropUtxos    :: Set.Set TxOutRef -> f ()
-  , containsUtxo :: TxOutRef -> f Bool
+  { putUtxos      :: Set.Set FullTxOut -> f ()
+  , getUtxos      :: f (Set.Set FullTxOut)
+  , dropUtxos     :: Set.Set TxOutRef -> f ()
+  , containsUtxo  :: TxOutRef -> f Bool
   }
 
 mkUtxoStore :: MonadIO f => f (UtxoStore f)

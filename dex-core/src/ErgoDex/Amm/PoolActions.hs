@@ -1,12 +1,13 @@
 module ErgoDex.Amm.PoolActions
   ( PoolActions(..)
-  , OrderExecErr
+  , OrderExecErr(..)
   , mkPoolActions
   ) where
 
 import           Control.Exception.Base
 import           Control.Monad          (when)
 import qualified Data.Set               as Set
+import qualified Debug.Trace            as D
 import           Data.Bifunctor
 import           Data.Tuple
 
@@ -122,7 +123,13 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{.
       | isAda poolCoinY = (inX, inY - retagAmount exFee - retagAmount adaCollateral)
       | otherwise       = (inX, inY)
 
-    (unlockedLq, (Amount changeX, Amount changeY)) = rewardLp pool (inX, inY)
+    lq = unAmount poolLiquidity
+    poolX  = unAmount poolReservesX
+    poolY  = unAmount poolReservesY
+    minByX = (unAmount netInX) * lq `div` poolX
+    minByY = (unAmount netInY) * lq `div` poolY
+
+    (unlockedLq, (Amount changeX, Amount changeY)) = rewardLp pool (netInX, netInY)
 
     alignmentValue =
          assetClassValue (unCoin poolCoinY) changeY
@@ -157,7 +164,14 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{.
       , txCandidateValidRange   = Interval.always
       , txCandidateSigners      = mempty
       }
-
+  _ <- D.traceM ("lq:" ++ show lq)
+  _ <- D.traceM ("poolX:" ++ show poolX)
+  _ <- D.traceM ("poolY:" ++ show poolY)
+  _ <- D.traceM ("minByX:" ++ show minByX)
+  _ <- D.traceM ("minByY:" ++ show minByY)
+  _ <- D.traceM ("unlockedLq:" ++ show unlockedLq)
+  _ <- D.traceM ("minByX == minByY:" ++ show (minByX == minByY))
+  _ <- D.traceM ("alignmentValue:" ++ show alignmentValue)
   Right (txCandidate, pp)
 
 runRedeem' :: PaymentPubKeyHash -> Confirmed Redeem -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
