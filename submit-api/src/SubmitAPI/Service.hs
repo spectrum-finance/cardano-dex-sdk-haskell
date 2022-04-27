@@ -22,7 +22,7 @@ import           WalletAPI.Vault
 data Transactions f era = Transactions
   { estimateTxFee :: Set.Set Sdk.FullCollateralTxIn -> Sdk.TxCandidate -> f C.Lovelace
   , finalizeTx    :: Sdk.TxCandidate -> f (C.Tx era)
-  , submitTx      :: C.Tx era -> f ()
+  , submitTx      :: C.Tx era -> f C.TxId
   }
 
 mkTransactions
@@ -36,7 +36,7 @@ mkTransactions
 mkTransactions network networkId utxos wallet conf = Transactions
   { estimateTxFee = estimateTxFee'' network networkId
   , finalizeTx    = finalizeTx' network networkId utxos wallet conf
-  , submitTx      = Network.submitTx network
+  , submitTx      = submitTx' network
   }
 
 estimateTxFee''
@@ -48,7 +48,7 @@ estimateTxFee''
   -> Sdk.TxCandidate
   -> f C.Lovelace
 estimateTxFee'' Network{..} network collateral txc = do
-  SystemEnv{pparams}     <- getSystemEnv
+  SystemEnv{pparams} <- getSystemEnv
   estimateTxFee' pparams network collateral txc 
 
 finalizeTx'
@@ -74,6 +74,11 @@ finalizeTx' Network{..} network utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sd
         getPkh _                                                                    = []
   signers <- mapM (\pkh -> getSigningKey pkh >>= maybe (throwM $ SignerNotFound pkh) pure) signatories
   pure $ signTx txb signers
+
+submitTx' :: Monad f => Network f C.AlonzoEra -> C.Tx C.AlonzoEra -> f C.TxId
+submitTx' Network{submitTx} tx = do
+  submitTx tx
+  pure . C.getTxId . C.getTxBody $ tx
 
 selectCollaterals
   :: MonadThrow f
