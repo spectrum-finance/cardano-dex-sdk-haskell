@@ -12,7 +12,8 @@ import qualified Plutus.V1.Ledger.Credential as P
 
 import qualified CardanoTx.Models               as Sdk
 import           SubmitAPI.Config
-import           SubmitAPI.Internal.Transaction
+import qualified SubmitAPI.Internal.Transaction as Internal
+import           SubmitAPI.Internal.Transaction (TxAssemblyError(..))
 import           NetworkAPI.Service             hiding (submitTx)
 import qualified NetworkAPI.Service             as Network
 import           NetworkAPI.Types
@@ -20,8 +21,9 @@ import           WalletAPI.Utxos
 import           WalletAPI.Vault
 
 data Transactions f era = Transactions
-  { finalizeTx :: Sdk.TxCandidate -> f (C.Tx era)
-  , submitTx   :: C.Tx era -> f ()
+  { estimateTxFee :: Set.Set Sdk.FullCollateralTxIn -> Sdk.TxCandidate -> f C.Lovelace
+  , finalizeTx    :: Sdk.TxCandidate -> f (C.Tx era)
+  , submitTx      :: C.Tx era -> f C.TxId
   }
 
 mkTransactions
@@ -33,9 +35,22 @@ mkTransactions
   -> TxAssemblyConfig
   -> Transactions f C.AlonzoEra
 mkTransactions network networkId utxos wallet conf = Transactions
-  { finalizeTx = finalizeTx' network networkId utxos wallet conf
-  , submitTx   = Network.submitTx network
+  { estimateTxFee = estimateTxFee' network networkId
+  , finalizeTx    = finalizeTx' network networkId utxos wallet conf
+  , submitTx      = submitTx' network
   }
+
+estimateTxFee'
+  :: MonadThrow f
+  => MonadIO f
+  => Network f C.AlonzoEra
+  -> C.NetworkId
+  -> Set.Set Sdk.FullCollateralTxIn
+  -> Sdk.TxCandidate
+  -> f C.Lovelace
+estimateTxFee' Network{..} network collateral txc = do
+  SystemEnv{pparams} <- getSystemEnv
+  Internal.estimateTxFee pparams network collateral txc 
 
 finalizeTx'
   :: MonadThrow f
@@ -51,7 +66,7 @@ finalizeTx' Network{..} network utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sd
   sysenv      <- getSystemEnv
   collaterals <- selectCollaterals utxos sysenv network conf txc
 
-  (C.BalancedTxBody txb _ _) <- buildBalancedTx sysenv network (getChangeAddr deafultChangeAddr) collaterals txc
+  (C.BalancedTxBody txb _ _) <- Internal.buildBalancedTx sysenv network (getChangeAddr deafultChangeAddr) collaterals txc
   let
     allInputs   = (Set.elems txCandidateInputs <&> Sdk.fullTxInTxOut) ++ (Set.elems collaterals <&> Sdk.fullCollateralTxInTxOut)
     signatories = allInputs >>= getPkh
@@ -59,7 +74,12 @@ finalizeTx' Network{..} network utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sd
         getPkh Sdk.FullTxOut{fullTxOutAddress=P.Address (P.PubKeyCredential pkh) _} = [pkh]
         getPkh _                                                                    = []
   signers <- mapM (\pkh -> getSigningKey pkh >>= maybe (throwM $ SignerNotFound pkh) pure) signatories
-  pure $ signTx txb signers
+  pure $ Internal.signTx txb signers
+
+submitTx' :: Monad f => Network f C.AlonzoEra -> C.Tx C.AlonzoEra -> f C.TxId
+submitTx' Network{submitTx} tx = do
+  submitTx tx
+  pure . C.getTxId . C.getTxBody $ tx
 
 selectCollaterals
   :: MonadThrow f
@@ -79,7 +99,7 @@ selectCollaterals WalletOutputs{selectUtxosStrict} SystemEnv{..} network TxAssem
       collectCollaterals knownCollaterals = do
         let
           estimateCollateral' collaterals = do
-            fee <- estimateTxFee pparams network collaterals txc
+            fee <- Internal.estimateTxFee pparams network collaterals txc
             let (C.Quantity fee') = C.lovelaceToQuantity fee
                 collateralPercent = naturalToInteger $ fromMaybe 0 (C.protocolParamCollateralPercent pparams)
             pure $ P.Lovelace $ collateralPercent * fee' `div` 100
@@ -97,5 +117,5 @@ selectCollaterals WalletOutputs{selectUtxosStrict} SystemEnv{..} network TxAssem
 
   case (scriptInputs, collateralPolicy) of
     ([], _)    -> pure mempty
-    (_, Cover) -> collectCollaterals mempty  
+    (_, Cover) -> collectCollaterals mempty
     _          -> throwM CollateralNotAllowed
