@@ -73,7 +73,7 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
   when (getAmount quoteOutput < swapMinQuoteOut) (Left PriceTooHigh)
 
   let
-    rewardAddr = pubKeyHashAddress (PaymentPubKeyHash swapRewardPkh) Nothing
+    rewardAddr = pubKeyHashAddress (PaymentPubKeyHash swapRewardPkh) swapRewardSPkh
     rewardOut  =
         TxOutCandidate
           { txOutCandidateAddress = rewardAddr
@@ -132,7 +132,7 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{.
 
     mintLqValue = assetAmountValue (AssetAmount poolCoinLq unlockedLq)
 
-    rewardAddr = pubKeyHashAddress (PaymentPubKeyHash depositRewardPkh) Nothing
+    rewardAddr = pubKeyHashAddress (PaymentPubKeyHash depositRewardPkh) depositRewardSPkh
     rewardOut  =
         TxOutCandidate
           { txOutCandidateAddress = rewardAddr
@@ -170,7 +170,7 @@ runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (poolOut, pool@Pool{..})
 
     burnLqValue = assetClassValue (unCoin redeemLq) (negate $ unAmount redeemLqIn)
 
-    rewardAddr = pubKeyHashAddress (PaymentPubKeyHash redeemRewardPkh) Nothing
+    rewardAddr = pubKeyHashAddress (PaymentPubKeyHash redeemRewardPkh) redeemRewardSPkh
     rewardOut  =
         TxOutCandidate
           { txOutCandidateAddress = rewardAddr

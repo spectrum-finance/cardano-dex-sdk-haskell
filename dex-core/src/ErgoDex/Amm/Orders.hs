@@ -33,6 +33,7 @@ data Swap = Swap
   , swapQuote       :: Coin Quote
   , swapExFee       :: ExFeePerToken
   , swapRewardPkh   :: PubKeyHash
+  , swapRewardSPkh  :: Maybe StakePubKeyHash
   } deriving (Show, Eq, Generic, ToJSON, FromJSON)
 
 instance FromLedger Swap where
@@ -55,16 +56,18 @@ instance FromLedger Swap where
           , swapQuote       = Coin quote
           , swapExFee       = ExFeePerToken exFeePerTokenNum exFeePerTokenDen
           , swapRewardPkh   = rewardPkh
+          , swapRewardSPkh  = fmap StakePubKeyHash stakePkh
           }
       _ -> Nothing
   parseFromLedger _ = Nothing
 
 data Deposit = Deposit
-  { depositPoolId    :: PoolId
-  , depositPair      :: (AssetEntry, AssetEntry)
-  , depositExFee     :: ExFee
-  , depositRewardPkh :: PubKeyHash
-  , adaCollateral    :: Amount Lovelace
+  { depositPoolId     :: PoolId
+  , depositPair       :: (AssetEntry, AssetEntry)
+  , depositExFee      :: ExFee
+  , depositRewardPkh  :: PubKeyHash
+  , depositRewardSPkh :: Maybe StakePubKeyHash
+  , adaCollateral     :: Amount Lovelace
   } deriving (Show, Eq, Generic, ToJSON, FromJSON)
 
 instance FromLedger Deposit where
@@ -77,11 +80,12 @@ instance FromLedger Deposit where
         case extractPairValue fullTxOutValue of
           [assetX, assetY] ->
               Just $ OnChain fout Deposit
-                { depositPoolId    = PoolId $ Coin poolNft
-                , depositPair      = pair
-                , depositExFee     = ExFee $ Amount exFee
-                , depositRewardPkh = rewardPkh
-                , adaCollateral    = Amount collateralAda
+                { depositPoolId     = PoolId $ Coin poolNft
+                , depositPair       = pair
+                , depositExFee      = ExFee $ Amount exFee
+                , depositRewardPkh  = rewardPkh
+                , depositRewardSPkh = fmap StakePubKeyHash stakePkh
+                , adaCollateral     = Amount collateralAda
                 }
             where
               toEntry = uncurry3 assetEntry
@@ -91,11 +95,12 @@ instance FromLedger Deposit where
   parseFromLedger _ = Nothing
 
 data Redeem = Redeem
-  { redeemPoolId    :: PoolId
-  , redeemLqIn      :: Amount Liquidity
-  , redeemLq        :: Coin Liquidity
-  , redeemExFee     :: ExFee
-  , redeemRewardPkh :: PubKeyHash
+  { redeemPoolId     :: PoolId
+  , redeemLqIn       :: Amount Liquidity
+  , redeemLq         :: Coin Liquidity
+  , redeemExFee      :: ExFee
+  , redeemRewardPkh  :: PubKeyHash
+  , redeemRewardSPkh :: Maybe StakePubKeyHash
   } deriving (Show, Eq, Generic, ToJSON, FromJSON)
 
 instance FromLedger Redeem where
@@ -111,6 +116,7 @@ instance FromLedger Redeem where
                 , redeemLq        = Coin $ AssetClass (ac, tn)
                 , redeemExFee     = ExFee $ Amount exFee
                 , redeemRewardPkh = rewardPkh
+                , redeemRewardSPkh = fmap StakePubKeyHash stakePkh
                 }
           _ -> Nothing
       _ -> Nothing
