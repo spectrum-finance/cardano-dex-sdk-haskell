@@ -335,10 +335,10 @@ poolConfigCbor = (Json.encode
 
 newDepositConfig =
   CPD.DepositConfig
-    { poolNft       = AssetClass (currencySymbolNameNft, nftTn)
-    , tokenA        = AssetClass (currencySymbolNameX, xTn)
-    , tokenB        = AssetClass (currencySymbolNameY, yTn)
-    , tokenLp       = AssetClass (currencySymbolNameLq, lpTn)
+    { poolNft       = AssetClass (currencySymbolName, nftTn)
+    , tokenA        = AssetClass (currencySymbolName, xTn)
+    , tokenB        = AssetClass (currencySymbolName, yTn)
+    , tokenLp       = AssetClass (currencySymbolName, lpTn)
     , exFee         = 2
     , rewardPkh     = pPubKeyHashReward
     , stakePkh         = Nothing
@@ -347,10 +347,10 @@ newDepositConfig =
 
 newRedeemConfig =
   CPR.RedeemConfig
-    { poolNft   = AssetClass (currencySymbolNameNft, nftTn)
-    , poolX     = AssetClass (currencySymbolNameX, xTn)
-    , poolY     = AssetClass (currencySymbolNameY, yTn)
-    , poolLp    = AssetClass (currencySymbolNameLq, lpTn)
+    { poolNft   = AssetClass (currencySymbolName, nftTn)
+    , poolX     = AssetClass (currencySymbolName, xTn)
+    , poolY     = AssetClass (currencySymbolName, yTn)
+    , poolLp    = AssetClass (currencySymbolName, lpTn)
     , exFee     = 2
     , rewardPkh = pPubKeyHashReward
     , stakePkh  = Nothing
@@ -372,9 +372,9 @@ newRedeemConfigDatumHex = (T.decodeUtf8 . Hex.encode $ (LBS.toStrict $ CBOR.seri
 
 newSwapConfig =
   CPS.SwapConfig
-    { base          = AssetClass (currencySymbolNameX, xTn)
-    , quote         = AssetClass (currencySymbolNameY, yTn)
-    , poolNft       = AssetClass (currencySymbolNameNft, nftTn)
+    { base          = AssetClass (currencySymbolName, xTn)
+    , quote         = AssetClass (currencySymbolName, yTn)
+    , poolNft       = AssetClass (currencySymbolName, nftTn)
     , feeNum = 995
     , exFeePerTokenNum = 2500000
     , exFeePerTokenDen = 1
@@ -440,13 +440,13 @@ currencySymbolNameLq :: CurrencySymbol
 currencySymbolNameLq = "6c71"
 
 xTn :: TokenName
-xTn = "pool_x"
+xTn = "ergoTestTokenA"
 
 yTn :: TokenName
-yTn = "pool_y"
+yTn = "ergoTestTokenB"
 
 nftTn :: TokenName
-nftTn = "pool_nft"
+nftTn = "321ergoTestNFT321"
 
 lpTn :: TokenName
-lpTn = "pool_lq"
+lpTn = "321ergoTestTokenLP321"
