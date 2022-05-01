@@ -112,6 +112,7 @@ test-suite dex-core-tests
   hs-source-dirs: test
   other-modules:
     Spec.Pool
+    Spec.Redeem 
   build-depends:
     , base== 4.14.1.0
     , HUnit== 1.6.2.0
