@@ -10,6 +10,14 @@ import PlutusTx.Builtins.Internal
 
 import qualified ErgoDex.Contracts.Proxy.Redeem as R
 
+address = Address
+  { addressCredential = PubKeyCredential "addr_test1vpdpn2w843atyy8h6evz3xll5wpsctyujzuewfg9x8qvurq2x2g93"
+  , addressStakingCredential = Nothing
+  }
+
+stablePkh :: P.PubKeyHash
+stablePkh = "d74d26c5029cf290094fce1a0670da7369b9026571dfb977c6fa234f"
+
 defaultCs :: CurrencySymbol
 defaultCs = CurrencySymbol $ BuiltinByteString $ mkByteString $ T.pack "805fe1efcdea11f1e959eff4f422f118aa76dca2d0d797d184e487da"
 
@@ -25,6 +33,15 @@ yTokenName =TokenName $ BuiltinByteString $  mkByteString $ T.pack "425f546f6b65
 nftTokenName :: TokenName
 nftTokenName = TokenName $ BuiltinByteString $ mkByteString $ T.pack "56594649745F414441745F6C70"
 
+coinNft :: Coin Nft
+coinNft = Coint $ AssetClass (defaultCs, nftTokenName)
+
+coinLq :: Coint Liquidity
+cointLq = Coin $ (defaultCs, lqTokenName)
+
+amountLq :: Amount Liquidity
+amountLq = Amount 10
+
 redeemConfig =
   R.RedeemConfig
     (AssetClass (defaultCs, nftTokenName))
@@ -32,6 +49,8 @@ redeemConfig =
     (AssetClass (defaultCs, yTokenName))
     (AssetClass (defaultCs, lqTokenName))
     50000
+
+redeemDatum = mkRedeemConfig x y lq nft fee pkh
 
 mkRedeemConfig :: AssetClass -> AssetClass -> AssetClass -> AssetClass -> Integer -> PubKeyHash -> R.RedeemConfig
 mkRedeemConfig x y lq nft fee pkh =
@@ -44,10 +63,22 @@ genRConfig x y lq nft fee pkh =
     dh     = mkDatumHash $ mkDatum config
   in (toData config, dh)
 
+redeemOrder = 
+  Redeem
+    { redeemPoolId = PoolId $ coinNft
+    , redeemLqIn = amountLq
+    , redeemLq = coinLq
+    , redeemExFee = ExFee 10
+    , redeemRewardPkh = stablePkh
+    , redeemRewardSPkh = Nothing
+    }
+
+confirmedRedeem = Confirmed confirmedRedeemFullTxOut redeemOrder
+
 confirmedRedeemFullTxOut =
   FullTxOut
-    { fullTxOutRef = TxOutRef ("57e339d380597e355fdf8e626cc7be4f56389f31ffdce763436899f564617462", 1)
-    , fullTxOutAddress = ???
-    , fullTxOutValue = Value.singleton (defaultCs, lqTokenName, 10) <> Value.singleton (Ada.adaSymbol, Ada.adaToken, 2500000)
-    , fullTxOutDatum = ???
+    { fullTxOutRef     = TxOutRef ("57e339d380597e355fdf8e626cc7be4f56389f31ffdce763436899f564617462", 1)
+    , fullTxOutAddress = address
+    , fullTxOutValue   = Value.singleton (defaultCs, lqTokenName, 10) <> Value.singleton (Ada.adaSymbol, Ada.adaToken, 2500000)
+    , fullTxOutDatum   = KnownDatum $ mkDatum redeemDatum
     }
