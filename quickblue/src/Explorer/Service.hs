@@ -29,7 +29,7 @@ mkExplorer conf = Explorer
   }
 
 getOutput' :: MonadIO f => ExplorerConfig -> TxOutRef -> f (Maybe FullTxOut)
-getOutput' conf ref = 
+getOutput' conf ref =
   mkGetRequest conf $ "/v1/outputs/" ++ renderTxOutRef ref
 
 getUnspentOutputs' :: MonadIO f => ExplorerConfig -> Gix -> Limit -> f (Items FullTxOut)
@@ -55,4 +55,5 @@ mkGetRequest ExplorerConfig{..} path = do
 
   pure parsedResponse
 
-renderTxOutRef ref = (show . txOutRefId $ ref) ++ "#" ++ (show . txOutRefIdx $ ref)
+renderTxOutRef :: TxOutRef -> [Char]
+renderTxOutRef ref = (show . txOutRefId $ ref) ++ T.unpack txOutRefSep ++ (show . txOutRefIdx $ ref)
