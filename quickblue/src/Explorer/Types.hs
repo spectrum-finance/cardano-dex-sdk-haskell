@@ -12,21 +12,21 @@ import qualified CardanoTx.Address as Core
 
 -- Bech32 encoded and rendered address
 newtype Addr = Addr { unAddr :: Text }
-  deriving (Eq, Show, Generic)
-  deriving newtype FromJSON
+  deriving (Eq, Generic)
+  deriving newtype (Show, FromJSON)
 
 instance ToCardanoTx Addr P.Address where
   toCardanoTx (Addr addr) = fromMaybe (error "Impossible") (Core.readShellyAddress addr)
 
 -- Payment credential encoded as a hex string
 newtype PaymentCred = PaymentCred { unPaymentCred :: Text }
-  deriving (Eq, Show, Generic)
-  deriving newtype FromJSON
+  deriving (Eq, Generic)
+  deriving newtype (Show, FromJSON)
 
 -- Output reference string composed of TxHash and OutIndex : {TxHash}:{OutIndex}
 newtype OutRef = OutRef { unOutRef :: Text }
-  deriving (Eq, Show, Generic)
-  deriving newtype FromJSON
+  deriving (Eq, Generic)
+  deriving newtype (Show, FromJSON)
 
 txOutRefSep :: Text
 txOutRefSep = ":"
@@ -37,29 +37,29 @@ instance ToCardanoTx OutRef P.TxOutRef where
 
 -- A hex-encoded hash of minting policy
 newtype PolicyId = PolicyId { unPolicyId :: Text }
-  deriving (Eq, Show, Generic)
-  deriving newtype FromJSON
+  deriving (Eq, Generic)
+  deriving newtype (Show, FromJSON)
 
 -- Asset name represented as a utf-8 string
 newtype AssetName = AssetName { unAssetName :: Text }
-  deriving (Eq, Show, Generic)
-  deriving newtype FromJSON
+  deriving (Eq, Generic)
+  deriving newtype (Show, FromJSON)
 
 -- 32 bytes hash represented as a hex string
 newtype Hash32 = Hash32 { unHash32 :: Text }
-  deriving (Eq, Show, Generic)
-  deriving newtype FromJSON
+  deriving (Eq, Generic)
+  deriving newtype (Show, FromJSON)
 
 -- TX hash32 represented as a hex string
 newtype TxHash = TxHash { unTxHash :: Text }
-  deriving (Eq, Show, Generic)
-  deriving newtype FromJSON
+  deriving (Eq, Generic)
+  deriving newtype (Show, FromJSON)
 
 -- A global index
 newtype Gix = Gix { unGix :: Integer }
-  deriving (Eq, Show, Generic)
-  deriving newtype FromJSON
+  deriving (Eq, Generic)
+  deriving newtype (Show, FromJSON)
 
 newtype Limit = Limit { unLimit :: Integer }
-  deriving (Eq, Show, Generic)
-  deriving newtype (FromJSON, ToJSON)
+  deriving (Eq, Generic)
+  deriving newtype (Show, FromJSON, ToJSON)
