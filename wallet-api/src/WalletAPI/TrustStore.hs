@@ -79,11 +79,11 @@ mkTrustStore krole file = TrustStore
 -- Mk TrustStore in Cardano format.
 -- Note: In this format secrets are stored unencrypted.
 mkTrustStoreUnsafe
-  :: (MonadIO f, MonadThrow f)
+  :: (MonadIO f, MonadThrow f, MonadThrow m)
   => Crypto.Key krole
   => AsType krole
   -> FilePath
-  -> f (TrustStore f krole)
+  -> f (TrustStore m krole)
 mkTrustStoreUnsafe krole srcFile = do
   sk <- absorbEnvelopeError =<< liftIO (Crypto.readFileTextEnvelope (Crypto.AsSigningKey krole) srcFile)
   let vk = Crypto.getVerificationKey sk
