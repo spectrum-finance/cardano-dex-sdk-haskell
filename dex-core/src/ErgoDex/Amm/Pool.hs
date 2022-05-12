@@ -11,7 +11,12 @@ import PlutusTx.Sqrt
 import PlutusTx.Numeric                (AdditiveMonoid(zero))
 import Plutus.V1.Ledger.Ada            (lovelaceValueOf)
 
-import           CardanoTx.Models
+import CardanoTx.Models
+    ( FullTxOut(FullTxOut, fullTxOutDatum, fullTxOutValue,
+                fullTxOutAddress, fullTxOutRef),
+      TxOutCandidate(TxOutCandidate, txOutCandidateAddress,
+                     txOutCandidateValue, txOutCandidateDatum),
+      TxOutDatum(KnownDatum) )
 import           ErgoDex.Class
 import           ErgoDex.Types
 import           ErgoDex.State
