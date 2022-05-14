@@ -5,6 +5,7 @@ import qualified Data.Set               as Set
 import qualified Data.Map               as Map
 
 import Ledger
+import System.Logging.Hlog
 import CardanoTx.Models
 
 type Store = Map.Map TxOutRef FullTxOut
@@ -16,10 +17,11 @@ data UtxoStore f = UtxoStore
   , containsUtxo :: TxOutRef -> f Bool
   }
 
-mkUtxoStore :: MonadIO f => f (UtxoStore f)
-mkUtxoStore = do
-  storeT <- liftIO $ newTVarIO mempty
-  pure $ UtxoStore
+mkUtxoStore :: (MonadIO i, MonadIO f) => MakeLogging i f -> i (UtxoStore f)
+mkUtxoStore MakeLogging{..} = do
+  logging <- forComponent "UtxoStore"
+  storeT  <- liftIO $ newTVarIO mempty
+  pure $ attachTracing logging UtxoStore
     { putUtxos     = put' storeT
     , getUtxos     = get' storeT
     , dropUtxos    = drop' storeT
@@ -45,3 +47,28 @@ drop' storeT orefs =
 
 contains' :: MonadIO f => TVar Store -> TxOutRef -> f Bool
 contains' storeT ref = liftIO $ atomically $ readTVar storeT <&> Map.member ref
+
+attachTracing :: Monad f => Logging f -> UtxoStore f -> UtxoStore f
+attachTracing Logging{..} UtxoStore{..} =
+  UtxoStore
+    { putUtxos = \utxos -> do
+        debugM $ "putUtxos " <> show utxos
+        r <- putUtxos utxos
+        debugM $ "putUtxos -> " <> show r
+        pure r
+    , getUtxos = do
+        debugM @String "getUtxos"
+        r <- getUtxos
+        debugM $ "getUtxos -> " <> show r
+        pure r
+    , dropUtxos = \outRefs -> do
+        debugM $ "dropUtxos " <> show outRefs
+        r <- dropUtxos outRefs
+        debugM $ "dropUtxos -> " <> show r
+        pure r
+    , containsUtxo = \ref -> do
+        debugM $ "containsUtxo " <> show ref
+        r <- containsUtxo ref
+        debugM $ "containsUtxo -> " <> show r
+        pure r
+    }

@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeOperators #-}
 module WalletAPI.Utxos
   ( WalletOutputs(..)
   , mkWalletOutputs
@@ -8,7 +9,8 @@ import           RIO
 import qualified Data.Set                as Set
 import           Data.ByteArray.Encoding (Base(..), convertToBase)
 import qualified Data.Text.Encoding      as T
-
+import           Control.Retry
+import           Control.Monad.Catch
 
 import           Ledger
 import           Plutus.V1.Ledger.Value
@@ -17,11 +19,15 @@ import           Cardano.Api            hiding (Value)
 import           CardanoTx.Models
 import           WalletAPI.UtxoStore
 import           WalletAPI.Vault
+import           System.Logging.Hlog
 
 import           Explorer.Service
-import qualified Explorer.Types       as Explorer
-import qualified Explorer.Models      as Explorer
-import qualified Explorer.Class       as Explorer
+import qualified Explorer.Types    as Explorer
+import qualified Explorer.Models   as Explorer
+import qualified Explorer.Class    as Explorer
+import           Explorer.Types    (PaymentCred)
+import           Explorer.Models   (Paging, Items)
+import           Algebra.Natural
 
 data WalletOutputs f = WalletOutputs
   -- Select UTxOs satisfying the given minumal Value.
@@ -30,26 +36,28 @@ data WalletOutputs f = WalletOutputs
   , selectUtxosStrict :: Value -> f (Maybe (Set.Set FullTxOut))
   }
 
-mkWalletOutputs :: MonadIO f => Explorer f -> Hash PaymentKey -> f (WalletOutputs f)
-mkWalletOutputs explorer pkh = do
-  ustore <- mkUtxoStore
+mkWalletOutputs :: (MonadIO i, MonadIO f, MonadMask f) => MakeLogging i f -> Explorer f -> Hash PaymentKey -> i (WalletOutputs f)
+mkWalletOutputs mkLogging@MakeLogging{..} explorer pkh = do
+  logging <- forComponent "WalletOutputs"
+  ustore  <- mkUtxoStore mkLogging
   pure $ WalletOutputs
-    { selectUtxos       = selectUtxos'' explorer ustore pkh False
-    , selectUtxosStrict = selectUtxos'' explorer ustore pkh True
+    { selectUtxos       = selectUtxos'' logging explorer ustore pkh False
+    , selectUtxosStrict = selectUtxos'' logging explorer ustore pkh True
     }
 
-mkWalletOutputs' :: MonadIO f => Explorer f -> Vault f -> f (WalletOutputs f)
-mkWalletOutputs' explorer Vault{..} =
-  getPaymentKeyHash >>= mkWalletOutputs explorer
+mkWalletOutputs' :: forall i f. (MonadIO i, MonadIO f, MonadMask f) => (f ~> i) -> MakeLogging i f -> Explorer f -> Vault f -> i (WalletOutputs f)
+mkWalletOutputs' fToI mklogging explorer vaultF = do
+  let Vault{..}  = fmapK fToI vaultF
+  getPaymentKeyHash >>= mkWalletOutputs mklogging explorer
 
-selectUtxos'' :: Monad f => Explorer f -> UtxoStore f -> Hash PaymentKey -> Bool -> Value -> f (Maybe (Set.Set FullTxOut))
-selectUtxos'' explorer@Explorer{..} ustore@UtxoStore{..} pkh strict requiredValue = do
+selectUtxos'' :: (MonadIO f, MonadMask f) => Logging f -> Explorer f -> UtxoStore f -> Hash PaymentKey -> Bool -> Value -> f (Maybe (Set.Set FullTxOut))
+selectUtxos'' logging explorer ustore@UtxoStore{..} pkh strict requiredValue = do
   let
     fetchUtxos offset limit = do
       let
         paging  = Explorer.Paging offset limit
         mkPCred = Explorer.PaymentCred . T.decodeUtf8 . convertToBase Base16 . serialiseToRawBytes
-      utxoBatch <- getUnspentOutputsByPCred (mkPCred pkh) paging
+      utxoBatch <- getUnspentOutputsByPCredWithRetry logging explorer (mkPCred pkh) paging
       putUtxos (Set.fromList $ Explorer.items utxoBatch <&> Explorer.toCardanoTx)
       let entriesLeft = Explorer.total utxoBatch - (offset + limit)
 
@@ -80,5 +88,10 @@ selectUtxos'' explorer@Explorer{..} ustore@UtxoStore{..} pkh strict requiredValu
   utxos <- getUtxos
   case collect [] mempty (Set.elems utxos) of
     Just outs -> pure $ Just $ Set.fromList outs
-    Nothing   -> fetchUtxos 0 batchSize >> selectUtxos'' explorer ustore pkh strict requiredValue
+    Nothing   -> fetchUtxos 0 batchSize >> selectUtxos'' logging explorer ustore pkh strict requiredValue
       where batchSize = 20
+
+getUnspentOutputsByPCredWithRetry :: (MonadIO f, MonadMask f) => Logging f -> Explorer f -> PaymentCred -> Paging -> f (Items Explorer.FullTxOut)
+getUnspentOutputsByPCredWithRetry Logging{..} Explorer{..} cred paging = do
+  let backoff = exponentialBackoff 1000000
+  recoverAll backoff (\rs -> infoM ("RetryStatus for getUnspentOutputsByPCredWithRetry " ++ (show rs)) >> (getUnspentOutputsByPCred cred paging))

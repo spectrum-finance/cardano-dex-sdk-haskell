@@ -111,3 +111,7 @@ library
                  ,  cardano-api
                  ,  text
                  ,  dhall
+                 ,  retry
+                 ,  exceptions
+                 ,  hlog
+                 ,  algebra-core

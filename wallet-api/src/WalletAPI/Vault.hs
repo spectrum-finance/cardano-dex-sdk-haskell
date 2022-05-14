@@ -6,6 +6,7 @@ import qualified PlutusTx.Prelude    as PlutusTx
 import           Ledger              (PubKeyHash(..))
 import qualified Cardano.Api         as C
 import           Cardano.Api.Shelley
+import           Algebra.Natural
 
 import WalletAPI.TrustStore (TrustStore(TrustStore, readSK, readVK), KeyPass)
 
@@ -16,6 +17,13 @@ data Vault f = Vault
   { getSigningKey     :: PubKeyHash -> f (Maybe ShelleyWitnessSigningKey)
   , getPaymentKeyHash :: f (Hash PaymentKey) -- todo: dont mix Cardano.Api with Ledger.Api
   }
+
+instance FunctorK Vault where
+  fmapK xa alg =
+    Vault
+      { getSigningKey      = xa . getSigningKey alg
+      , getPaymentKeyHash  = xa $ getPaymentKeyHash alg
+      }
 
 mkVault :: MonadThrow f => TrustStore f PaymentKey -> KeyPass -> Vault f
 mkVault tstore pass = do

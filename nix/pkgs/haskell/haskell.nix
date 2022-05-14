@@ -39,6 +39,7 @@ let
       "https://github.com/input-output-hk/plutus"."184f27c67dc696f4dfd558e0ccdfef0f054b519b" = "1anjaqivyx0g0r2f2xi57mzs32k6mlwbrzv453xn2c0pxmqk0516";
       "https://github.com/ergolabs/cardano-dex-contracts"."69122d9b4924b63af763d1b7cd11ca616f41b952" = "7NcNSS6MS1g3z0QuF6DypuZMMQo1ybaGCTb9YaRVuMY=";
       "https://github.com/Plutonomicon/plutarch"."473424c89b4457e58e009e65d411ace1efc3ea9e" = "1q7vk7l97zk4rsvvg40qgg33frjli7bdvspcaw0nrccsddzrrxwk";
+      "https://github.com/ergolabs/hlog"."4c1f902a830f4b0fa5303be3991935b92849c22d" = "0b9ahygf9gymxdg2b8b1qhvwja5mbq05l88d9v9arrrrpbpc3f2c";
     };
 
     modules = [
@@ -52,6 +53,7 @@ let
           network-api.package.buildable = false;
           submit-api.package.buildable = false;
           datum-keeper-client.package.buildable = false;
+          algebra-core.package.buildable = false;
 
           # Broken due to haddock errors. Refer to https://github.com/input-output-hk/plutus/blob/master/nix/pkgs/haskell/haskell.nix
           plutus-ledger.doHaddock = false;
