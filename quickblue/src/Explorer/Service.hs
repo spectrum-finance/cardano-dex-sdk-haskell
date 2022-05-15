@@ -12,10 +12,11 @@ import Explorer.Models
 import Explorer.Config
 
 import Ledger ( TxOutRef, txOutRefId, txOutRefIdx )
+import Prelude hiding (Ordering)
 
 data Explorer f = Explorer
   { getOutput                :: TxOutRef -> f (Maybe FullTxOut)
-  , getUnspentOutputs        :: Gix -> Limit -> f (Items FullTxOut)
+  , getUnspentOutputs        :: Gix -> Limit -> Ordering -> f (Items FullTxOut)
   , getUnspentOutputsByPCred :: PaymentCred -> Paging -> f (Items FullTxOut)
   , getSystemEnv             :: f SystemEnv
   }
@@ -32,9 +33,9 @@ getOutput' :: MonadIO f => ExplorerConfig -> TxOutRef -> f (Maybe FullTxOut)
 getOutput' conf ref =
   mkGetRequest conf $ "/v1/outputs/" ++ renderTxOutRef ref
 
-getUnspentOutputs' :: MonadIO f => ExplorerConfig -> Gix -> Limit -> f (Items FullTxOut)
-getUnspentOutputs' conf minIndex limit =
-  mkGetRequest conf $ "/v1/outputs/unspent/indexed?minIndex=" ++ show minIndex ++ "&limit=" ++ show limit
+getUnspentOutputs' :: MonadIO f => ExplorerConfig -> Gix -> Limit -> Ordering -> f (Items FullTxOut)
+getUnspentOutputs' conf minIndex limit ordering =
+  mkGetRequest conf $ "/v1/outputs/unspent/indexed?minIndex=" ++ show minIndex ++ "&limit=" ++ show limit ++ "&ordering=" ++ show ordering
 
 getUnspentOutputsByPCred' :: MonadIO f => ExplorerConfig -> PaymentCred -> Paging -> f (Items FullTxOut)
 getUnspentOutputsByPCred' conf pcred Paging{..} =
