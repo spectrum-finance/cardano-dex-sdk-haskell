@@ -89,7 +89,7 @@ selectUtxos'' logging explorer ustore@UtxoStore{..} pkh strict requiredValue = d
   case collect [] mempty (Set.elems utxos) of
     Just outs -> pure $ Just $ Set.fromList outs
     Nothing   -> fetchUtxos 0 batchSize >> selectUtxos'' logging explorer ustore pkh strict requiredValue
-      where batchSize = 20
+      where batchSize = 400
 
 getUnspentOutputsByPCredWithRetry :: (MonadIO f, MonadMask f) => Logging f -> Explorer f -> PaymentCred -> Paging -> f (Items Explorer.FullTxOut)
 getUnspentOutputsByPCredWithRetry Logging{..} Explorer{..} cred paging = do
