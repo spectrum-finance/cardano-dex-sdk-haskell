@@ -93,5 +93,5 @@ selectUtxos'' logging explorer ustore@UtxoStore{..} pkh strict requiredValue = d
 
 getUnspentOutputsByPCredWithRetry :: (MonadIO f, MonadMask f) => Logging f -> Explorer f -> PaymentCred -> Paging -> f (Items Explorer.FullTxOut)
 getUnspentOutputsByPCredWithRetry Logging{..} Explorer{..} cred paging = do
-  let backoff = exponentialBackoff 1000000
+  let backoff = constantDelay 1000000
   recoverAll backoff (\rs -> infoM ("RetryStatus for getUnspentOutputsByPCredWithRetry " ++ (show rs)) >> (getUnspentOutputsByPCred cred paging))
