@@ -63,3 +63,6 @@ newtype Gix = Gix { unGix :: Integer }
 newtype Limit = Limit { unLimit :: Integer }
   deriving (Eq, Generic)
   deriving newtype (Show, FromJSON, ToJSON)
+
+data Ordering = Asc | Desc
+  deriving (Eq, Generic, Show, FromJSON, ToJSON)

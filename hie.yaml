@@ -20,3 +20,6 @@ cradle:
       component: "submit-api:test:submit-api-tests"
     - path: "./datum-keeper-client/src"
       component: "datum-keeper-client:lib:datum-keeper-client"
+    - path: "./algebra-core/src"
+      component: "algebra-core:lib:algebra-core"
+

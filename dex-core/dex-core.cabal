@@ -117,7 +117,7 @@ test-suite dex-core-tests
     , HUnit== 1.6.2.0
     , tasty
     , tasty-hunit
-    , text== 1.2.4.1
+    , text== 1.2.5.0
     , base16-bytestring==1.0.1.0
     , bytestring==0.10.12.0
     , plutus-ledger-api==0.1.0.0

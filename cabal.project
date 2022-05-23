@@ -9,6 +9,7 @@ packages:
   network-api
   submit-api
   datum-keeper-client
+  algebra-core
 
 -- You never, ever, want this.
 write-ghc-environment-files: never
@@ -275,3 +276,8 @@ source-repository-package
   type: git
   location: https://github.com/ergolabs/cardano-dex-contracts
   tag: 69122d9b4924b63af763d1b7cd11ca616f41b952
+
+source-repository-package
+  type: git
+  location: https://github.com/ergolabs/hlog
+  tag: 19dfa3a6e696a3f63fc3539cd6b7a3fc4d999853
