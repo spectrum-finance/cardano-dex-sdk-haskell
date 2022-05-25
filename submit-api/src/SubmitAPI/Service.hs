@@ -14,8 +14,8 @@ import qualified CardanoTx.Models               as Sdk
 import           SubmitAPI.Config
 import qualified SubmitAPI.Internal.Transaction as Internal
 import           SubmitAPI.Internal.Transaction (TxAssemblyError(..))
-import           NetworkAPI.Service             hiding (submitTx)
-import qualified NetworkAPI.Service             as Network
+import           NetworkAPI.NetworkService      hiding (submitTx)
+import qualified NetworkAPI.NetworkService      as Network
 import           NetworkAPI.Types
 import           WalletAPI.Utxos
 import           WalletAPI.Vault
@@ -28,7 +28,7 @@ data Transactions f era = Transactions
 
 mkTransactions
   :: (MonadThrow f, MonadIO f)
-  => Network f C.AlonzoEra
+  => NetworkService f C.AlonzoEra
   -> C.NetworkId
   -> WalletOutputs f
   -> Vault f
@@ -43,26 +43,26 @@ mkTransactions network networkId utxos wallet conf = Transactions
 estimateTxFee'
   :: MonadThrow f
   => MonadIO f
-  => Network f C.AlonzoEra
+  => NetworkService f C.AlonzoEra
   -> C.NetworkId
   -> Set.Set Sdk.FullCollateralTxIn
   -> Sdk.TxCandidate
   -> f C.Lovelace
-estimateTxFee' Network{..} network collateral txc = do
+estimateTxFee' NetworkService{..} network collateral txc = do
   SystemEnv{pparams} <- getSystemEnv
   Internal.estimateTxFee pparams network collateral txc 
 
 finalizeTx'
   :: MonadThrow f
   => MonadIO f
-  => Network f C.AlonzoEra
+  => NetworkService f C.AlonzoEra
   -> C.NetworkId
   -> WalletOutputs f
   -> Vault f
   -> TxAssemblyConfig
   -> Sdk.TxCandidate
   -> f (C.Tx C.AlonzoEra)
-finalizeTx' Network{..} network utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
+finalizeTx' NetworkService{..} network utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   sysenv      <- getSystemEnv
   collaterals <- selectCollaterals utxos sysenv network conf txc
 
@@ -76,8 +76,8 @@ finalizeTx' Network{..} network utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sd
   signers <- mapM (\pkh -> getSigningKey pkh >>= maybe (throwM $ SignerNotFound pkh) pure) signatories
   pure $ Internal.signTx txb signers
 
-submitTx' :: Monad f => Network f C.AlonzoEra -> C.Tx C.AlonzoEra -> f C.TxId
-submitTx' Network{submitTx} tx = do
+submitTx' :: Monad f => NetworkService f C.AlonzoEra -> C.Tx C.AlonzoEra -> f C.TxId
+submitTx' NetworkService{submitTx} tx = do
   submitTx tx
   pure . C.getTxId . C.getTxBody $ tx
 

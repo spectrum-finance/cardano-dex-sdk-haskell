@@ -122,7 +122,7 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{.
       | isAda poolCoinY = (inX, inY - retagAmount exFee - retagAmount adaCollateral)
       | otherwise       = (inX, inY)
 
-    (unlockedLq, (Amount changeX, Amount changeY)) = rewardLp pool (inX, inY)
+    (unlockedLq, (Amount changeX, Amount changeY)) = rewardLp pool (netInX, netInY)
 
     alignmentValue =
          assetClassValue (unCoin poolCoinY) changeY
