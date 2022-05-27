@@ -55,6 +55,7 @@ common project-config
                         TypeFamilies
                         TypeSynonymInstances
                         ViewPatterns
+                        TypeApplications
 
   ghc-options:          -Wall
                         -Wcompat
@@ -72,9 +73,9 @@ library
     hs-source-dirs: src
 
     exposed-modules: NetworkAPI.Types
-                     NetworkAPI.Service
+                     NetworkAPI.NetworkService
                      NetworkAPI.Config.NodeConfig
-                     NetworkAPI.Node.Service
+                     NetworkAPI.Node.NodeClient
 
     build-depends:
         rio==0.1.21.0,
@@ -102,4 +103,8 @@ library
         cardano-api,
         text,
         dhall,
-        quickblue
+        quickblue,
+        retry,
+        hlog,
+        network-mux,
+        exceptions

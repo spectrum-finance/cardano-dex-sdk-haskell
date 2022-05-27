@@ -1,13 +1,13 @@
-module NetworkAPI.Node.Service
+module NetworkAPI.Node.NodeClient
   ( NodeError(..)
-  , Network(..)
-  , mkNetwork
+  , NodeClient(..)
+  , mkNodeClient
   ) where
 
 import           RIO
-import qualified Data.Text as Text
+import qualified Data.Text            as Text
+import           System.Logging.Hlog
 
-import NetworkAPI.Service (Network(..))
 import NetworkAPI.Types   (SocketPath(..), SystemEnv(..))
 
 import           Cardano.Api
@@ -20,18 +20,25 @@ data NodeError
   | TxSubmissionFailed Text
   deriving (Show, Exception)
 
-mkNetwork
-  :: (MonadIO f, MonadThrow f)
-  => CardanoEra era
+data NodeClient f era = NodeClient
+  { getSystemEnv :: f SystemEnv
+  , submitTx     :: Tx era -> f ()
+  }
+
+mkNodeClient
+  :: (Monad i, MonadIO f, MonadThrow f)
+  => MakeLogging i f
+  -> CardanoEra era
   -> ConsensusModeParams CardanoMode
   -> NetworkId
   -> SocketPath
-  -> Network f era
-mkNetwork cera cModeParams networkId (SocketPath sockPath) =
+  -> i (NodeClient f era)
+mkNodeClient MakeLogging{..} cera cModeParams networkId (SocketPath sockPath) = do
+  logging <- forComponent "nodeClient"
   let conn = LocalNodeConnectInfo cModeParams networkId sockPath
-  in Network
+  pure $ NodeClient
     { getSystemEnv = getSystemEnv' cera conn
-    , submitTx     = submitTx' cera conn
+    , submitTx     = submitTx' logging cera conn
     }
 
 getSystemEnv'
@@ -59,17 +66,18 @@ getSystemEnv' era conn =
 
 submitTx'
   :: (MonadIO f, MonadThrow f)
-  => CardanoEra era
+  => Logging f
+  -> CardanoEra era
   -> LocalNodeConnectInfo CardanoMode
   -> Tx era
   -> f ()
-submitTx' era conn tx =
+submitTx' Logging{..} era conn tx =
   case toEraInMode era CardanoMode of
     Just eraInMode -> do
       let txInMode = TxInMode tx eraInMode
       res <- liftIO $ submitTxToNodeLocal conn txInMode
       case res of
-        Net.Tx.SubmitSuccess     -> liftIO $ putStrLn "Transaction successfully submitted."
+        Net.Tx.SubmitSuccess     -> infoM @String "Transaction successfully submitted."
         Net.Tx.SubmitFail reason ->
           case reason of
             TxValidationErrorInMode err _ -> throwM $ TxSubmissionFailed $ Text.pack $ show err

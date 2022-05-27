@@ -7,7 +7,7 @@ import           Data.Aeson (decode)
 import qualified Data.Map   as Map
 import           Data.Maybe (fromMaybe)
 
-import NetworkAPI.Service
+import NetworkAPI.NetworkService
 import NetworkAPI.Types
 
 import qualified Cardano.Api         as C
@@ -28,8 +28,8 @@ import           Ouroboros.Consensus.BlockchainTime.WallClock.Types
 import           Ouroboros.Consensus.Block
 import           Ouroboros.Consensus.Util.Counting
 
-mkMockNetwork :: Applicative f => Network f era
-mkMockNetwork = Network
+mkMockNetwork :: Applicative f => NetworkService f era
+mkMockNetwork = NetworkService
   { getSystemEnv = pure staticSystemEnv
   , submitTx     = const $ pure ()
   }
