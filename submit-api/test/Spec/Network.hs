@@ -7,7 +7,7 @@ import           Data.Aeson (decode)
 import qualified Data.Map   as Map
 import           Data.Maybe (fromMaybe)
 
-import NetworkAPI.NetworkService
+import NetworkAPI.Service
 import NetworkAPI.Types
 
 import qualified Cardano.Api         as C

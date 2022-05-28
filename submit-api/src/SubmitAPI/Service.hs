@@ -12,10 +12,10 @@ import qualified Plutus.V1.Ledger.Credential as P
 
 import qualified CardanoTx.Models               as Sdk
 import           SubmitAPI.Config
-import qualified SubmitAPI.Internal.Transaction as Internal
-import           SubmitAPI.Internal.Transaction (TxAssemblyError(..))
-import           NetworkAPI.NetworkService      hiding (submitTx)
-import qualified NetworkAPI.NetworkService      as Network
+import qualified SubmitAPI.Internal.Transaction  as Internal
+import           SubmitAPI.Internal.Transaction  (TxAssemblyError(..))
+import           NetworkAPI.Service  hiding (submitTx)
+import qualified NetworkAPI.Service  as Network
 import           NetworkAPI.Types
 import           WalletAPI.Utxos
 import           WalletAPI.Vault

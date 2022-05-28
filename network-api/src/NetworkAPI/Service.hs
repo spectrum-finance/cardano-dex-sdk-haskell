@@ -1,7 +1,7 @@
-module NetworkAPI.Node.NodeClient
+module NetworkAPI.Service
   ( NodeError(..)
-  , NodeClient(..)
-  , mkNodeClient
+  , NetworkService(..)
+  , mkNetworkService
   ) where
 
 import           RIO
@@ -20,24 +20,25 @@ data NodeError
   | TxSubmissionFailed Text
   deriving (Show, Exception)
 
-data NodeClient f era = NodeClient
+data NetworkService f era = NetworkService
   { getSystemEnv :: f SystemEnv
   , submitTx     :: Tx era -> f ()
   }
 
-mkNodeClient
-  :: (Monad i, MonadIO f, MonadThrow f)
+mkNetworkService
+  :: (Monad i, MonadThrow f, MonadUnliftIO f, MonadIO i)
   => MakeLogging i f
   -> CardanoEra era
   -> ConsensusModeParams CardanoMode
   -> NetworkId
   -> SocketPath
-  -> i (NodeClient f era)
-mkNodeClient MakeLogging{..} cera cModeParams networkId (SocketPath sockPath) = do
-  logging <- forComponent "nodeClient"
+  -> i (NetworkService f era)
+mkNetworkService MakeLogging{..} cera cModeParams networkId (SocketPath sockPath) = do
+  logging <- forComponent "NetworkService"
   let conn = LocalNodeConnectInfo cModeParams networkId sockPath
-  pure $ NodeClient
-    { getSystemEnv = getSystemEnv' cera conn
+  emptyMVar <- newEmptyMVar
+  pure $ NetworkService
+    { getSystemEnv = withAsyncCache (getSystemEnv' cera conn) emptyMVar
     , submitTx     = submitTx' logging cera conn
     }
 
@@ -83,3 +84,24 @@ submitTx' Logging{..} era conn tx =
             TxValidationErrorInMode err _ -> throwM $ TxSubmissionFailed $ Text.pack $ show err
             TxValidationEraMismatch _     -> throwM EraMismatch
     _ -> throwM WrongMode
+
+withAsyncCache
+   :: (MonadIO f, MonadUnliftIO f)
+   => f a
+   -> MVar a
+   -> f a
+withAsyncCache fa mVar = do
+  mVarReadResult <- liftIO $ tryTakeMVar mVar
+  case mVarReadResult of
+    Nothing -> do
+      a  <- fa
+      _  <- liftIO $ tryPutMVar mVar a
+      return a
+    Just env -> async (updateAsyncCache' fa mVar) >> pure env
+
+updateAsyncCache'
+  :: (MonadIO f, MonadUnliftIO f)
+  => f a
+  -> MVar a
+  -> f ()
+updateAsyncCache' fa mVar = fa >>= (void . liftIO . tryPutMVar mVar)
