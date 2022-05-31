@@ -8,6 +8,7 @@ import           Control.Exception.Base
 import           Control.Monad          (when)
 import qualified Data.Set               as Set
 import qualified Data.List               as L
+import qualified Debug.Trace            as D
 import           Data.Bifunctor
 import           Data.Tuple
 
@@ -67,7 +68,7 @@ mkOrderInputs action orderValidator (PoolIn poolOut) (OrderIn orderOut) =
     orderIn   = mkScriptTxIn orderOut orderValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer poolIx orderIx 1 O.Apply)
 
 runSwap' :: PaymentPubKeyHash -> Confirmed Swap -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
+runSwap' executorPkh (Confirmed swapOut swap@Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
   let
     inputs = mkOrderInputs P.Swap swapValidator (PoolIn poolOut) (OrderIn swapOut)
 
@@ -105,13 +106,16 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
       , txCandidateValidRange   = Interval.always
       , txCandidateSigners      = mempty
       }
-
+  _ <- D.traceM ("swap:" ++ show swap)
+  _ <- D.traceM ("swapOut:" ++ show swapOut)
+  _ <- D.traceM ("quoteOutput:" ++ show quoteOutput)
+  _ <- D.traceM ("rewardOut:" ++ show rewardOut)
   case checkOuputsForNegativeValue [nextPoolOut, rewardOut] of
     Nothing -> Right (txCandidate, pp)
     Just err -> Left err
 
 runDeposit' :: PaymentPubKeyHash -> Confirmed Deposit -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{..}) = do
+runDeposit' executorPkh (Confirmed depositOut deposit@Deposit{..}) (poolOut, pool@Pool{..}) = do
   when (depositPoolId /= poolId) (Left $ PoolMismatch depositPoolId poolId)
   let
     inputs = mkOrderInputs P.Deposit depositValidator (PoolIn poolOut) (OrderIn depositOut)
@@ -129,6 +133,12 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{.
       | isAda poolCoinX = (inX - retagAmount exFee - retagAmount adaCollateral, inY)
       | isAda poolCoinY = (inX, inY - retagAmount exFee - retagAmount adaCollateral)
       | otherwise       = (inX, inY)
+
+    lq = unAmount poolLiquidity
+    poolX  = unAmount poolReservesX
+    poolY  = unAmount poolReservesY
+    minByX = (unAmount netInX) * lq `div` poolX
+    minByY = (unAmount netInY) * lq `div` poolY
 
     (unlockedLq, (Amount changeX, Amount changeY)) = rewardLp pool (netInX, netInY)
 
@@ -166,12 +176,23 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{.
       , txCandidateSigners      = mempty
       }
 
+  _ <- D.traceM ("lq:" ++ show lq)
+  _ <- D.traceM ("poolX:" ++ show poolX)
+  _ <- D.traceM ("poolY:" ++ show poolY)
+  _ <- D.traceM ("minByX:" ++ show minByX)
+  _ <- D.traceM ("minByY:" ++ show minByY)
+  _ <- D.traceM ("unlockedLq:" ++ show unlockedLq)
+  _ <- D.traceM ("minByX == minByY:" ++ show (minByX == minByY))
+  _ <- D.traceM ("alignmentValue:" ++ show alignmentValue)
+  _ <- D.traceM ("depositOut:" ++ show (depositOut))
+  _ <- D.traceM ("deposit:" ++ show deposit)
+
   case checkOuputsForNegativeValue [nextPoolOut, rewardOut] of
     Nothing -> Right (txCandidate, pp)
     Just err -> Left err
 
 runRedeem' :: PaymentPubKeyHash -> Confirmed Redeem -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (poolOut, pool@Pool{..}) = do
+runRedeem' executorPkh (Confirmed redeemOut redeem@Redeem{..}) (poolOut, pool@Pool{..}) = do
   when (redeemPoolId /= poolId) (Left $ PoolMismatch redeemPoolId poolId)
   let
     inputs = mkOrderInputs P.Redeem redeemValidator (PoolIn poolOut) (OrderIn redeemOut)
@@ -204,6 +225,11 @@ runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (poolOut, pool@Pool{..})
       , txCandidateValidRange   = Interval.always
       , txCandidateSigners      = mempty
       }
+
+  _ <- D.traceM ("redeemOut:" ++ show redeemOut)
+  _ <- D.traceM ("redeem:" ++ show redeem)
+  _ <- D.traceM ("rewardOut:" ++ show rewardOut)
+  _ <- D.traceM ("rewardOut:" ++ show nextPoolOut)
 
   case checkOuputsForNegativeValue [nextPoolOut, rewardOut] of
     Nothing -> Right (txCandidate, pp)
