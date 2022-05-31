@@ -50,7 +50,7 @@ mkWalletOutputs' fToI mklogging explorer vaultF = do
   let Vault{..}  = fmapK fToI vaultF
   getPaymentKeyHash >>= mkWalletOutputs mklogging explorer
 
-selectUtxos'' :: (MonadIO f, MonadMask f) => Logging f -> Explorer f -> UtxoStore f -> Hash PaymentKey -> Bool -> Value -> f (Maybe (Set.Set FullTxOut))
+selectUtxos'' :: forall f. (MonadIO f, MonadMask f) => Logging f -> Explorer f -> UtxoStore f -> Hash PaymentKey -> Bool -> Value -> f (Maybe (Set.Set FullTxOut))
 selectUtxos'' logging explorer ustore@UtxoStore{..} pkh strict requiredValue = do
   let
     fetchUtxos offset limit = do
@@ -58,7 +58,10 @@ selectUtxos'' logging explorer ustore@UtxoStore{..} pkh strict requiredValue = d
         paging  = Explorer.Paging offset limit
         mkPCred = Explorer.PaymentCred . T.decodeUtf8 . convertToBase Base16 . serialiseToRawBytes
       utxoBatch <- getUnspentOutputsByPCredWithRetry logging explorer (mkPCred pkh) paging
-      putUtxos (Set.fromList $ Explorer.items utxoBatch <&> Explorer.toCardanoTx)
+      let 
+        candidatesToPut = Set.fromList $ Explorer.items utxoBatch <&> Explorer.toCardanoTx
+      filtered <- filterForExisting candidatesToPut
+      putUtxos filtered
       let entriesLeft = Explorer.total utxoBatch - (offset + limit)
 
       if entriesLeft > 0
@@ -87,7 +90,7 @@ selectUtxos'' logging explorer ustore@UtxoStore{..} pkh strict requiredValue = d
 
   utxos <- getUtxos
   case collect [] mempty (Set.elems utxos) of
-    Just outs -> pure $ Just $ Set.fromList outs
+    Just outs -> dropUtxos (Set.fromList $ outs <&> fullTxOutRef) >> (pure $ Just $ Set.fromList outs)
     Nothing   -> fetchUtxos 0 batchSize >> selectUtxos'' logging explorer ustore pkh strict requiredValue
       where batchSize = 400
 

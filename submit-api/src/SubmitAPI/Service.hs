@@ -19,11 +19,12 @@ import qualified NetworkAPI.Service  as Network
 import           NetworkAPI.Types
 import           WalletAPI.Utxos
 import           WalletAPI.Vault
+import ErgoDex.Amm.Pool (Pool)
 
 data Transactions f era = Transactions
   { estimateTxFee :: Set.Set Sdk.FullCollateralTxIn -> Sdk.TxCandidate -> f C.Lovelace
   , finalizeTx    :: Sdk.TxCandidate -> f (C.Tx era)
-  , submitTx      :: C.Tx era -> f C.TxId
+  , submitTx      :: Pool -> C.Tx era -> f C.TxId
   }
 
 mkTransactions
@@ -76,9 +77,9 @@ finalizeTx' CardanoNetwork{..} network utxos Vault{..} conf@TxAssemblyConfig{..}
   signers <- mapM (\pkh -> getSigningKey pkh >>= maybe (throwM $ SignerNotFound pkh) pure) signatories
   pure $ Internal.signTx txb signers
 
-submitTx' :: Monad f => CardanoNetwork f C.AlonzoEra -> C.Tx C.AlonzoEra -> f C.TxId
-submitTx' CardanoNetwork{submitTx} tx = do
-  submitTx tx
+submitTx' :: Monad f => CardanoNetwork f C.AlonzoEra -> Pool -> C.Tx C.AlonzoEra -> f C.TxId
+submitTx' CardanoNetwork{submitTx} pool tx = do
+  _ <- submitTx pool tx
   pure . C.getTxId . C.getTxBody $ tx
 
 selectCollaterals
