@@ -1,17 +1,19 @@
-module NetworkAPI.Node.NodeClient
+module NetworkAPI.Service
   ( NodeError(..)
-  , NodeClient(..)
-  , mkNodeClient
+  , CardanoNetwork(..)
+  , mkCardanoNetwork
   ) where
 
-import           RIO
-import qualified Data.Text            as Text
-import           System.Logging.Hlog
+import RIO
 
-import NetworkAPI.Types   (SocketPath(..), SystemEnv(..))
+import qualified Data.Text as Text
+
+import System.Logging.Hlog (Logging(..), MakeLogging(..))
 
 import           Cardano.Api
 import qualified Ouroboros.Network.Protocol.LocalTxSubmission.Client as Net.Tx
+
+import NetworkAPI.Types (SocketPath(..), SystemEnv(..))
 
 data NodeError
   = NodeConnectionFailed
@@ -20,24 +22,25 @@ data NodeError
   | TxSubmissionFailed Text
   deriving (Show, Exception)
 
-data NodeClient f era = NodeClient
+data CardanoNetwork f era = CardanoNetwork
   { getSystemEnv :: f SystemEnv
   , submitTx     :: Tx era -> f ()
   }
 
-mkNodeClient
-  :: (Monad i, MonadIO f, MonadThrow f)
+mkCardanoNetwork
+  :: (MonadIO i, MonadThrow f, MonadUnliftIO f)
   => MakeLogging i f
   -> CardanoEra era
   -> ConsensusModeParams CardanoMode
   -> NetworkId
   -> SocketPath
-  -> i (NodeClient f era)
-mkNodeClient MakeLogging{..} cera cModeParams networkId (SocketPath sockPath) = do
-  logging <- forComponent "nodeClient"
+  -> i (CardanoNetwork f era)
+mkCardanoNetwork MakeLogging{..} cera cModeParams networkId (SocketPath sockPath) = do
+  logging <- forComponent "CardanoNetwork"
   let conn = LocalNodeConnectInfo cModeParams networkId sockPath
-  pure $ NodeClient
-    { getSystemEnv = getSystemEnv' cera conn
+  emptyMVar <- newEmptyMVar
+  pure $ CardanoNetwork
+    { getSystemEnv = withAsyncCache emptyMVar $ getSystemEnv' cera conn
     , submitTx     = submitTx' logging cera conn
     }
 
@@ -83,3 +86,24 @@ submitTx' Logging{..} era conn tx =
             TxValidationErrorInMode err _ -> throwM $ TxSubmissionFailed $ Text.pack $ show err
             TxValidationEraMismatch _     -> throwM EraMismatch
     _ -> throwM WrongMode
+
+withAsyncCache
+   :: (MonadIO f, MonadUnliftIO f)
+   => MVar a
+   -> f a
+   -> f a
+withAsyncCache mVar fa = do
+  mVarReadResult <- liftIO $ tryTakeMVar mVar
+  case mVarReadResult of
+    Nothing -> do
+      a  <- fa
+      _  <- liftIO $ tryPutMVar mVar a
+      return a
+    Just env -> async (updateAsyncCache' mVar fa) >> pure env
+
+updateAsyncCache'
+  :: (MonadIO f, MonadUnliftIO f)
+  => MVar a
+  -> f a
+  -> f ()
+updateAsyncCache' mVar fa = fa >>= (void . liftIO . tryPutMVar mVar)

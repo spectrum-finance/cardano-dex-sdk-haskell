@@ -73,9 +73,8 @@ library
     hs-source-dirs: src
 
     exposed-modules: NetworkAPI.Types
-                     NetworkAPI.NetworkService
                      NetworkAPI.Config.NodeConfig
-                     NetworkAPI.Node.NodeClient
+                     NetworkAPI.Service
 
     build-depends:
         rio==0.1.21.0,
