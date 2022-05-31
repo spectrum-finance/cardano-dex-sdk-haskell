@@ -1,6 +1,6 @@
 module NetworkAPI.Service
   ( NodeError(..)
-  , NetworkService(..)
+  , CardanoNetwork(..)
   , mkNetworkService
   ) where
 
@@ -22,7 +22,7 @@ data NodeError
   | TxSubmissionFailed Text
   deriving (Show, Exception)
 
-data NetworkService f era = NetworkService
+data CardanoNetwork f era = CardanoNetwork
   { getSystemEnv :: f SystemEnv
   , submitTx     :: Tx era -> f ()
   }
@@ -34,12 +34,12 @@ mkNetworkService
   -> ConsensusModeParams CardanoMode
   -> NetworkId
   -> SocketPath
-  -> i (NetworkService f era)
+  -> i (CardanoNetwork f era)
 mkNetworkService MakeLogging{..} cera cModeParams networkId (SocketPath sockPath) = do
-  logging <- forComponent "NetworkService"
+  logging <- forComponent "CardanoNetwork"
   let conn = LocalNodeConnectInfo cModeParams networkId sockPath
   emptyMVar <- newEmptyMVar
-  pure $ NetworkService
+  pure $ CardanoNetwork
     { getSystemEnv = withAsyncCache emptyMVar $ getSystemEnv' cera conn
     , submitTx     = submitTx' logging cera conn
     }

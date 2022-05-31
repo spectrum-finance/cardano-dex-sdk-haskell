@@ -28,7 +28,7 @@ data Transactions f era = Transactions
 
 mkTransactions
   :: (MonadThrow f, MonadIO f)
-  => NetworkService f C.AlonzoEra
+  => CardanoNetwork f C.AlonzoEra
   -> C.NetworkId
   -> WalletOutputs f
   -> Vault f
@@ -43,26 +43,26 @@ mkTransactions network networkId utxos wallet conf = Transactions
 estimateTxFee'
   :: MonadThrow f
   => MonadIO f
-  => NetworkService f C.AlonzoEra
+  => CardanoNetwork f C.AlonzoEra
   -> C.NetworkId
   -> Set.Set Sdk.FullCollateralTxIn
   -> Sdk.TxCandidate
   -> f C.Lovelace
-estimateTxFee' NetworkService{..} network collateral txc = do
+estimateTxFee' CardanoNetwork{..} network collateral txc = do
   SystemEnv{pparams} <- getSystemEnv
   Internal.estimateTxFee pparams network collateral txc 
 
 finalizeTx'
   :: MonadThrow f
   => MonadIO f
-  => NetworkService f C.AlonzoEra
+  => CardanoNetwork f C.AlonzoEra
   -> C.NetworkId
   -> WalletOutputs f
   -> Vault f
   -> TxAssemblyConfig
   -> Sdk.TxCandidate
   -> f (C.Tx C.AlonzoEra)
-finalizeTx' NetworkService{..} network utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
+finalizeTx' CardanoNetwork{..} network utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   sysenv      <- getSystemEnv
   collaterals <- selectCollaterals utxos sysenv network conf txc
 
@@ -76,8 +76,8 @@ finalizeTx' NetworkService{..} network utxos Vault{..} conf@TxAssemblyConfig{..}
   signers <- mapM (\pkh -> getSigningKey pkh >>= maybe (throwM $ SignerNotFound pkh) pure) signatories
   pure $ Internal.signTx txb signers
 
-submitTx' :: Monad f => NetworkService f C.AlonzoEra -> C.Tx C.AlonzoEra -> f C.TxId
-submitTx' NetworkService{submitTx} tx = do
+submitTx' :: Monad f => CardanoNetwork f C.AlonzoEra -> C.Tx C.AlonzoEra -> f C.TxId
+submitTx' CardanoNetwork{submitTx} tx = do
   submitTx tx
   pure . C.getTxId . C.getTxBody $ tx
 
