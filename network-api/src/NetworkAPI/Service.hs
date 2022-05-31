@@ -1,7 +1,7 @@
 module NetworkAPI.Service
   ( NodeError(..)
   , CardanoNetwork(..)
-  , mkNetworkService
+  , mkCardanoNetwork
   ) where
 
 import RIO
@@ -27,7 +27,7 @@ data CardanoNetwork f era = CardanoNetwork
   , submitTx     :: Tx era -> f ()
   }
 
-mkNetworkService
+mkCardanoNetwork
   :: (MonadIO i, MonadThrow f, MonadUnliftIO f)
   => MakeLogging i f
   -> CardanoEra era
@@ -35,7 +35,7 @@ mkNetworkService
   -> NetworkId
   -> SocketPath
   -> i (CardanoNetwork f era)
-mkNetworkService MakeLogging{..} cera cModeParams networkId (SocketPath sockPath) = do
+mkCardanoNetwork MakeLogging{..} cera cModeParams networkId (SocketPath sockPath) = do
   logging <- forComponent "CardanoNetwork"
   let conn = LocalNodeConnectInfo cModeParams networkId sockPath
   emptyMVar <- newEmptyMVar
