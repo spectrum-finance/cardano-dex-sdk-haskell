@@ -4,14 +4,16 @@ module NetworkAPI.Service
   , mkNetworkService
   ) where
 
-import           RIO
-import qualified Data.Text            as Text
-import           System.Logging.Hlog
+import RIO
 
-import NetworkAPI.Types   (SocketPath(..), SystemEnv(..))
+import qualified Data.Text as Text
+
+import System.Logging.Hlog (Logging(..), MakeLogging(..))
 
 import           Cardano.Api
 import qualified Ouroboros.Network.Protocol.LocalTxSubmission.Client as Net.Tx
+
+import NetworkAPI.Types (SocketPath(..), SystemEnv(..))
 
 data NodeError
   = NodeConnectionFailed
@@ -26,7 +28,7 @@ data NetworkService f era = NetworkService
   }
 
 mkNetworkService
-  :: (Monad i, MonadThrow f, MonadUnliftIO f, MonadIO i)
+  :: (MonadIO i, MonadThrow f, MonadUnliftIO f)
   => MakeLogging i f
   -> CardanoEra era
   -> ConsensusModeParams CardanoMode
@@ -38,7 +40,7 @@ mkNetworkService MakeLogging{..} cera cModeParams networkId (SocketPath sockPath
   let conn = LocalNodeConnectInfo cModeParams networkId sockPath
   emptyMVar <- newEmptyMVar
   pure $ NetworkService
-    { getSystemEnv = withAsyncCache (getSystemEnv' cera conn) emptyMVar
+    { getSystemEnv = withAsyncCache emptyMVar $ getSystemEnv' cera conn
     , submitTx     = submitTx' logging cera conn
     }
 
@@ -87,21 +89,21 @@ submitTx' Logging{..} era conn tx =
 
 withAsyncCache
    :: (MonadIO f, MonadUnliftIO f)
-   => f a
-   -> MVar a
+   => MVar a
    -> f a
-withAsyncCache fa mVar = do
+   -> f a
+withAsyncCache mVar fa = do
   mVarReadResult <- liftIO $ tryTakeMVar mVar
   case mVarReadResult of
     Nothing -> do
       a  <- fa
       _  <- liftIO $ tryPutMVar mVar a
       return a
-    Just env -> async (updateAsyncCache' fa mVar) >> pure env
+    Just env -> async (updateAsyncCache' mVar fa) >> pure env
 
 updateAsyncCache'
   :: (MonadIO f, MonadUnliftIO f)
-  => f a
-  -> MVar a
+  => MVar a
+  -> f a
   -> f ()
-updateAsyncCache' fa mVar = fa >>= (void . liftIO . tryPutMVar mVar)
+updateAsyncCache' mVar fa = fa >>= (void . liftIO . tryPutMVar mVar)
