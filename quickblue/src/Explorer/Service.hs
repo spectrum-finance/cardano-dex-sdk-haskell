@@ -19,7 +19,7 @@ data Explorer f = Explorer
   , getUnspentOutputs        :: Gix -> Limit -> Ordering -> f (Items FullTxOut)
   , getUnspentOutputsByPCred :: PaymentCred -> Paging -> f (Items FullTxOut)
   , getSystemEnv             :: f SystemEnv
-  , getTxs                   :: Paging -> f (Items FullTx)
+  , getTxs                   :: Paging -> Ordering -> f (Items FullTx)
   }
 
 mkExplorer :: MonadIO f => ExplorerConfig -> Explorer f
@@ -46,9 +46,9 @@ getUnspentOutputsByPCred' conf pcred Paging{..} =
 getSystemEnv' :: MonadIO f => ExplorerConfig -> f SystemEnv
 getSystemEnv' conf = mkGetRequest conf "/networkParams"
 
-getTxs' :: MonadIO f => ExplorerConfig -> Paging -> f (Items FullTx)
-getTxs' conf Paging{..} =
-  mkGetRequest conf $ "/v1/transactions/?offset=" ++ show offset ++ "&limit=" ++ show limit
+getTxs' :: MonadIO f => ExplorerConfig -> Paging -> Ordering -> f (Items FullTx)
+getTxs' conf Paging{..} ordering =
+  mkGetRequest conf $ "/v1/transactions/?offset=" ++ show offset ++ "&limit=" ++ show limit ++ "&ordering=" ++ show ordering
 
 mkGetRequest :: (MonadIO f, FromJSON a, Show a) => ExplorerConfig -> String -> f a
 mkGetRequest ExplorerConfig{..} path = do

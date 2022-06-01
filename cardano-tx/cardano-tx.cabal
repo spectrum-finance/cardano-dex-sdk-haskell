@@ -77,7 +77,6 @@ library
                      CardanoTx.ToPlutus
                      CardanoTx.Value
                      CardanoTx.Interop
-                     CardanoTx.Operation
 
     build-depends:
         mtl==2.2.2,

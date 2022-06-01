@@ -85,17 +85,22 @@ data FullTx = FullTx
 
 data FullTxIn = FullTxIn
   { out      :: FullTxOut
-  , redeemer :: Maybe P.Redeemer
+  , redeemer :: Maybe FullRedeemer
+  } deriving (Show, Generic, FromJSON)
+
+data FullRedeemer = FullRedeemer
+  { redeemer   :: Maybe P.Redeemer
+  , scriptHash :: Hash28
   } deriving (Show, Generic)
 
-instance FromJSON FullTxIn where
-  parseJSON = withObject "quickblueFullTxIn" $ \o -> do
-    out          <- o .: "out"
-    rawRedeemerM <- o .:? "redeemer"
+instance FromJSON FullRedeemer where
+  parseJSON = withObject "quickblueFullRedeemer" $ \o -> do
+    rawData    <- o .:? "data"
+    scriptHash <- Hash28 <$> o .: "scriptHash"
     let
-      jsonDataM = rawRedeemerM >>= (EC.rightToMaybe . Api.scriptDataFromJson Api.ScriptDataJsonDetailedSchema)
-      redeemer' = fmap (P.Redeemer . BI.dataToBuiltinData . toPlutusData) jsonDataM
-    return FullTxIn{..} 
+      jsonData = rawData >>= (EC.rightToMaybe . Api.scriptDataFromJson Api.ScriptDataJsonDetailedSchema)
+      redeemer = fmap (P.Redeemer . BI.dataToBuiltinData . toPlutusData) jsonData
+    return FullRedeemer{..} 
 
 data FullTxOut = FullTxOut
   { ref           :: OutRef
