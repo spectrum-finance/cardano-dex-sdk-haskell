@@ -55,6 +55,11 @@ newtype TxHash = TxHash { unTxHash :: Text }
   deriving (Eq, Generic)
   deriving newtype (Show, FromJSON)
 
+-- Block hash32 represented as a hex string
+newtype BlockHash = BlockHash { unBlockHash :: Text }
+  deriving (Eq, Generic)
+  deriving newtype (Show, FromJSON)
+
 -- A global index
 newtype Gix = Gix { unGix :: Integer }
   deriving (Eq, Generic)

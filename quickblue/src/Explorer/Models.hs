@@ -74,6 +74,29 @@ data Items a = Items
   , total :: Int
   } deriving (Show, Generic, FromJSON)
 
+data FullTx = FullTx
+  { blockHash   :: BlockHash
+  , blockIndex  :: Int
+  , globalIndex :: Gix
+  , hash        :: TxHash
+  , inputs      :: [FullTxIn]
+  , outputs     :: [FullTxOut]
+  } deriving (Show, Generic, FromJSON)
+
+data FullTxIn = FullTxIn
+  { out      :: FullTxOut
+  , redeemer :: Maybe P.Redeemer
+  } deriving (Show, Generic)
+
+instance FromJSON FullTxIn where
+  parseJSON = withObject "quickblueFullTxIn" $ \o -> do
+    out          <- o .: "out"
+    rawRedeemerM <- o .:? "redeemer"
+    let
+      jsonDataM = rawRedeemerM >>= (EC.rightToMaybe . Api.scriptDataFromJson Api.ScriptDataJsonDetailedSchema)
+      redeemer' = fmap (P.Redeemer . BI.dataToBuiltinData . toPlutusData) jsonDataM
+    return FullTxIn{..} 
+
 data FullTxOut = FullTxOut
   { ref           :: OutRef
   , txHash        :: TxHash
