@@ -32,6 +32,7 @@ common project-config
                         DeriveGeneric
                         DeriveTraversable
                         DoAndIfThenElse
+                        DuplicateRecordFields
                         EmptyDataDecls
                         ExistentialQuantification
                         FlexibleContexts

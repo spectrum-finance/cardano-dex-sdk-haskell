@@ -77,21 +77,43 @@ data Items a = Items
 data FullTx = FullTx
   { blockHash   :: BlockHash
   , blockIndex  :: Int
-  , globalIndex :: Gix
   , hash        :: TxHash
   , inputs      :: [FullTxIn]
   , outputs     :: [FullTxOut]
   } deriving (Show, Generic, FromJSON)
 
+instance ToCardanoTx FullTx Tx.CompletedTx where
+  toCardanoTx FullTx{..} =
+    Tx.CompletedTx
+      { blockHash  = Tx.BlockHash $ unBlockHash blockHash
+      , blockIndex = blockIndex
+      , hash       = Tx.TxHash $ unTxHash hash
+      , inputs     = fmap toCardanoTx inputs
+      , outputs    = fmap toCardanoTx outputs
+      }   
 data FullTxIn = FullTxIn
   { out      :: FullTxOut
   , redeemer :: Maybe FullRedeemer
   } deriving (Show, Generic, FromJSON)
 
+instance ToCardanoTx FullTxIn Tx.CompletedTxIn where
+  toCardanoTx FullTxIn{..} =
+    Tx.CompletedTxIn
+      { out      = toCardanoTx out
+      , redeemer = fmap toCardanoTx redeemer
+      }
+
 data FullRedeemer = FullRedeemer
   { redeemer   :: Maybe P.Redeemer
   , scriptHash :: Hash28
   } deriving (Show, Generic)
+
+instance ToCardanoTx FullRedeemer Tx.CompletedRedeemer where
+  toCardanoTx FullRedeemer{..} =
+    Tx.CompletedRedeemer
+      { redeemer   = redeemer
+      , scriptHash = Tx.Hash28 $ unHash28 scriptHash
+      }
 
 instance FromJSON FullRedeemer where
   parseJSON = withObject "quickblueFullRedeemer" $ \o -> do
