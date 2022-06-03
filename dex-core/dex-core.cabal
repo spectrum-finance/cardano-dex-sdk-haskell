@@ -81,6 +81,7 @@ library
                      ErgoDex.Amm.Scripts
                      ErgoDex.Amm.Constants
                      ErgoDex.Types
+                     ErgoDex.Index.ExecutedOrder
 
     build-depends:
         plutarch==1.1.0,

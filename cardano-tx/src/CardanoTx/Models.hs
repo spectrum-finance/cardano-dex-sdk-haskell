@@ -173,6 +173,6 @@ data CompletedTx = CompletedTx
   { blockHash  :: BlockHash
   , blockIndex :: Int
   , hash       :: TxHash
-  , inputs     :: [CompletedTxIn]
+  , inputs     :: [FullTxIn]
   , outputs    :: [FullTxOut]
   } deriving (Show, Eq, Generic, FromJSON)
