@@ -15,6 +15,7 @@ import           Explorer.Types
 import           Explorer.Class
 import qualified CardanoTx.Models           as Tx
 import           CardanoTx.Value
+import qualified CardanoTx.Types            as Tx
 
 import qualified Cardano.Api as Api
 import           Cardano.Api.Shelley   (ProtocolParameters(..), PoolId, toPlutusData)
