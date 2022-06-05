@@ -146,9 +146,9 @@ data TxCandidate = TxCandidate
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 data CompletedTx = CompletedTx
-  { blockHash  :: BlockHash
-  , blockIndex :: Int
-  , hash       :: TxHash
-  , inputs     :: [FullTxIn]
-  , outputs    :: [FullTxOut]
+  { blockHash :: BlockHash
+  , txIndex   :: Int
+  , hash      :: TxHash
+  , inputs    :: [FullTxIn]
+  , outputs   :: [FullTxOut]
   } deriving (Show, Eq, Generic, FromJSON)
