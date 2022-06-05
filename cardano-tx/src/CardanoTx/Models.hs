@@ -3,7 +3,7 @@ module CardanoTx.Models where
 import           Data.Aeson (FromJSON, ToJSON)
 import qualified Data.Set   as Set
 import qualified Data.Map   as Map
-import qualified Data.Text               as T
+import qualified Data.Text  as T
 
 import           Ledger                      hiding (TxIn)
 import           Plutus.V1.Ledger.Credential (Credential (..))
@@ -12,6 +12,7 @@ import qualified Ledger.Constraints.OffChain as P
 import           GHC.Generics                (Generic)
 
 import CardanoTx.ToPlutus (ToPlutus(..))
+import CardanoTx.Types
 
 newtype ChangeAddress = ChangeAddress { getAddress :: Address }
   deriving (Eq, Generic)
@@ -144,35 +145,10 @@ data TxCandidate = TxCandidate
   , txCandidateSigners      :: [PaymentPubKeyHash]
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
--- 28 bytes hash represented as a hex string
-newtype Hash28 = Hash28 { unHash28 :: T.Text }
-  deriving (Eq, Generic)
-  deriving newtype (Show, FromJSON)
-
--- TX hash32 represented as a hex string
-newtype TxHash = TxHash { unTxHash :: T.Text }
-  deriving (Eq, Generic)
-  deriving newtype (Show, FromJSON)
-
--- Block hash32 represented as a hex string
-newtype BlockHash = BlockHash { unBlockHash :: T.Text }
-  deriving (Eq, Generic)
-  deriving newtype (Show, FromJSON)
-
-data CompletedRedeemer = CompletedRedeemer
-  { redeemer   :: Maybe Redeemer
-  , scriptHash :: Hash28
-  } deriving (Show, Eq, Generic, FromJSON)
-
-data CompletedTxIn = CompletedTxIn
-  { out      :: FullTxOut
-  , redeemer :: Maybe CompletedRedeemer
-  } deriving (Show, Eq, Generic, FromJSON)
-
 data CompletedTx = CompletedTx
   { blockHash  :: BlockHash
   , blockIndex :: Int
   , hash       :: TxHash
-  , inputs     :: [CompletedTxIn]
+  , inputs     :: [FullTxIn]
   , outputs    :: [FullTxOut]
   } deriving (Show, Eq, Generic, FromJSON)

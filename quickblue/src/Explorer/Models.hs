@@ -9,11 +9,13 @@ import           GHC.Generics
 
 import qualified Ledger                     as P
 import qualified Plutus.V1.Ledger.Value     as Value
+import qualified Plutus.V1.Ledger.Tx        as Tx
 import qualified PlutusTx.Builtins.Internal as BI
 import           Explorer.Types
 import           Explorer.Class
 import qualified CardanoTx.Models           as Tx
 import           CardanoTx.Value
+import qualified CardanoTx.Types            as Tx
 
 import qualified Cardano.Api as Api
 import           Cardano.Api.Shelley   (ProtocolParameters(..), PoolId, toPlutusData)
@@ -90,39 +92,19 @@ instance ToCardanoTx FullTx Tx.CompletedTx where
       , hash       = Tx.TxHash $ unTxHash hash
       , inputs     = fmap toCardanoTx inputs
       , outputs    = fmap toCardanoTx outputs
-      }   
+      } 
+
 data FullTxIn = FullTxIn
-  { out      :: FullTxOut
-  , redeemer :: Maybe FullRedeemer
+  { out :: FullTxOut
   } deriving (Show, Generic, FromJSON)
 
-instance ToCardanoTx FullTxIn Tx.CompletedTxIn where
+instance ToCardanoTx FullTxIn Tx.FullTxIn where
   toCardanoTx FullTxIn{..} =
-    Tx.CompletedTxIn
-      { out      = toCardanoTx out
-      , redeemer = fmap toCardanoTx redeemer
+    Tx.FullTxIn
+      { fullTxInTxOut = toCardanoTx out
+      -- actually, we don't need this field att all, so we keep it default
+      , fullTxInType  = Tx.ConsumeSimpleScriptAddress
       }
-
-data FullRedeemer = FullRedeemer
-  { redeemer   :: Maybe P.Redeemer
-  , scriptHash :: Hash28
-  } deriving (Show, Generic)
-
-instance ToCardanoTx FullRedeemer Tx.CompletedRedeemer where
-  toCardanoTx FullRedeemer{..} =
-    Tx.CompletedRedeemer
-      { redeemer   = redeemer
-      , scriptHash = Tx.Hash28 $ unHash28 scriptHash
-      }
-
-instance FromJSON FullRedeemer where
-  parseJSON = withObject "quickblueFullRedeemer" $ \o -> do
-    rawData    <- o .:? "data"
-    scriptHash <- Hash28 <$> o .: "scriptHash"
-    let
-      jsonData = rawData >>= (EC.rightToMaybe . Api.scriptDataFromJson Api.ScriptDataJsonDetailedSchema)
-      redeemer = fmap (P.Redeemer . BI.dataToBuiltinData . toPlutusData) jsonData
-    return FullRedeemer{..} 
 
 data FullTxOut = FullTxOut
   { ref           :: OutRef
