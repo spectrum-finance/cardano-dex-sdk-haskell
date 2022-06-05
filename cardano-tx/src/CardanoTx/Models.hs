@@ -159,16 +159,6 @@ newtype BlockHash = BlockHash { unBlockHash :: T.Text }
   deriving (Eq, Generic)
   deriving newtype (Show, FromJSON)
 
-data CompletedRedeemer = CompletedRedeemer
-  { redeemer   :: Maybe Redeemer
-  , scriptHash :: Hash28
-  } deriving (Show, Eq, Generic, FromJSON)
-
-data CompletedTxIn = CompletedTxIn
-  { out      :: FullTxOut
-  , redeemer :: Maybe CompletedRedeemer
-  } deriving (Show, Eq, Generic, FromJSON)
-
 data CompletedTx = CompletedTx
   { blockHash  :: BlockHash
   , blockIndex :: Int

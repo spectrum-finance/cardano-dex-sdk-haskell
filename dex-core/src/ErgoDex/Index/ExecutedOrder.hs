@@ -2,71 +2,105 @@ module ErgoDex.Index.ExecutedOrder where
 
 import ErgoDex.Amm.Orders
 import ErgoDex.Contracts.Types as Currencies
-import Data.Text               as T
-import           Ledger           
-import           PlutusTx.Prelude as P    
-import CardanoTx.Models
 import ErgoDex.State
-import ErgoDex.Class
 import ErgoDex.Amm.Pool
+import ErgoDex.Class
 
-import           Ledger          (Redeemer(..), PaymentPubKeyHash(..), pubKeyHashAddress)
--- data OrderType = Swap | Redeem | Deposit
+import CardanoTx.Models
 
-class FromExplorer a b where
-  parseFromExplorer :: a -> b
+import qualified PlutusTx.Prelude as P    
+import           Ledger           
 
 data ExecutedSwap = ExecutedSwap
-  { swapCfg     :: Swap
-  , actualQuote :: Amount Quote
-  , swapOrderInputId    :: Text
-  , swapUserOutputId    :: Text
-  , poolAfterSwapId :: Text
-  , prevPoolId :: Text
+  { swapCfg          :: Swap
+  , actualQuote      :: Amount Quote
+  , swapOrderInputId :: String
+  , swapUserOutputId :: String
+  , currPool         :: String
+  , prevPoolId       :: String
   }
 
--- class FromExplorer CompletedTx (Maybe ExecutedSwap) where
---   parseFromExplorer CompletedTx{..} =
---     let
---       maybeSwap = getOutputV outputs :: (Maybe (OnChain Swap))
---       maybePool = getOutputV outputs
---     in
+instance FromExplorer CompletedTx ExecutedSwap where
+  parseFromExplorer CompletedTx{..} = do
+    (OnChain swapOut swap@Swap{..}) <- findInput inputs :: Maybe (OnChain Swap)
+    (OnChain prevPool _)            <- findInput inputs :: Maybe (OnChain Pool)
+    (OnChain currPool _)            <- findOutput outputs :: Maybe (OnChain Pool)
+    userOutput                      <- findUserOutput swapRewardPkh swapRewardSPkh outputs
+    let
+      quote = amountOf (fullTxOutValue userOutput) swapQuote
+    return 
+      ExecutedSwap
+        { swapCfg          = swap
+        , actualQuote      = quote
+        , swapOrderInputId = show P.$ fullTxOutRef swapOut
+        , swapUserOutputId = show P.$ fullTxOutRef userOutput
+        , currPool         = show P.$ fullTxOutRef currPool
+        , prevPoolId       = show P.$ fullTxOutRef prevPool
+        }
 
-fromExplorer :: CompletedTx -> () -- ExecutedSwap
-fromExplorer CompletedTx{..} =
-  let
-      maybeSwap = getInputV inputs :: (Maybe (OnChain Swap)) -- we have to find it in inputs!
-      maybeOutPool = getOutputV outputs :: (Maybe (OnChain Pool))
-      maybeUserOutput =
-        maybeSwap >>= (\(OnChain out Swap{..}) ->
-            getUserOutput swapRewardPkh swapRewardSPkh outputs
-          )
-      maybeInPool = getInputV inputs :: (Maybe (OnChain Pool)) -- we have to find it in inputs!
-  in ()
+data ExecutedDeposit = ExecutedDeposit
+  { depositCfg          :: Deposit
+  , depositOrderInputId :: String
+  , depositUserOutputId :: String
+  , currPool            :: String
+  , prevPoolId          :: String
+  }
 
-getInputV :: forall a . (FromLedger a) => [FullTxIn] -> Maybe (OnChain a)
-getInputV (FullTxIn{..}:xs) =
-  let
-    maybeSwap = parseFromLedger fullTxInTxOut :: Maybe (OnChain a)
-  in case maybeSwap of
+instance FromExplorer CompletedTx ExecutedDeposit where
+  parseFromExplorer CompletedTx{..} = do
+    (OnChain depositOut cfg@Deposit{..}) <- findInput inputs :: Maybe (OnChain Deposit)
+    (OnChain prevPool _)                 <- findInput inputs :: Maybe (OnChain Pool)
+    (OnChain currPool _)                 <- findOutput outputs :: Maybe (OnChain Pool)
+    userOutput                           <- findUserOutput depositRewardPkh depositRewardSPkh outputs
+    return 
+      ExecutedDeposit
+        { depositCfg          = cfg
+        , depositOrderInputId = show P.$ fullTxOutRef depositOut
+        , depositUserOutputId = show P.$ fullTxOutRef userOutput
+        , currPool            = show P.$ fullTxOutRef currPool
+        , prevPoolId          = show P.$ fullTxOutRef prevPool
+        }
+
+data ExecutedRedeem = ExecutedRedeem
+  { redeemCfg          :: Redeem
+  , redeemOrderInputId :: String
+  , redeemUserOutputId :: String
+  , currPool           :: String
+  , prevPoolId         :: String
+  }
+
+instance FromExplorer CompletedTx ExecutedRedeem where
+  parseFromExplorer CompletedTx{..} = do
+    (OnChain redeemOut cfg@Redeem{..}) <- findInput inputs :: Maybe (OnChain Redeem)
+    (OnChain prevPool _)               <- findInput inputs :: Maybe (OnChain Pool)
+    (OnChain currPool _)               <- findOutput outputs :: Maybe (OnChain Pool)
+    userOutput                         <- findUserOutput redeemRewardPkh redeemRewardSPkh outputs
+    return 
+      ExecutedRedeem
+        { redeemCfg          = cfg
+        , redeemOrderInputId = show P.$ fullTxOutRef redeemOut
+        , redeemUserOutputId = show P.$ fullTxOutRef userOutput
+        , currPool           = show P.$ fullTxOutRef currPool
+        , prevPoolId         = show P.$ fullTxOutRef prevPool
+        }
+
+findInput :: forall a . (FromLedger a) => [FullTxIn] -> Maybe (OnChain a)
+findInput (FullTxIn{..}:xs) =
+  case parseFromLedger fullTxInTxOut of
       Just r -> Just r
-      _ -> getInputV xs
-getInputV [] = Nothing
+      _      -> findInput xs
+findInput [] = Nothing
 
-
-
-getOutputV :: forall a . (FromLedger a) => [FullTxOut] -> Maybe (OnChain a)
-getOutputV (x:xs) =
-  let
-    maybeSwap = parseFromLedger x :: Maybe (OnChain a)
-  in case maybeSwap of
+findOutput :: forall a . (FromLedger a) => [FullTxOut] -> Maybe (OnChain a)
+findOutput (x:xs) =
+  case parseFromLedger x of
       Just r -> Just r
-      _ -> getOutputV xs
-getOutputV [] = Nothing
+      _      -> findOutput xs
+findOutput [] = Nothing
 
-getUserOutput :: PubKeyHash -> Maybe StakePubKeyHash -> [FullTxOut] -> Maybe FullTxOut
-getUserOutput key pkh (x@FullTxOut{..}:xs) =
+findUserOutput :: PubKeyHash -> Maybe StakePubKeyHash -> [FullTxOut] -> Maybe FullTxOut
+findUserOutput key pkh (x@FullTxOut{..}:xs) =
     if (fullTxOutAddress P.== pubKeyHashAddress (PaymentPubKeyHash key) pkh) 
       then Just x 
-      else (getUserOutput key pkh xs)
-getUserOutput key pkh [] = Nothing
+      else (findUserOutput key pkh xs)
+findUserOutput _ _ [] = Nothing
