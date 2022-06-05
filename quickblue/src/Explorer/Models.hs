@@ -102,6 +102,7 @@ instance ToCardanoTx FullTxIn Tx.FullTxIn where
   toCardanoTx FullTxIn{..} =
     Tx.FullTxIn
       { fullTxInTxOut = toCardanoTx out
+      -- actually, we don't need this field att all, so we keep it default
       , fullTxInType  = Tx.ConsumeSimpleScriptAddress
       }
 
