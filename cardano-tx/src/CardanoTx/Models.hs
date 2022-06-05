@@ -144,11 +144,6 @@ data TxCandidate = TxCandidate
   , txCandidateSigners      :: [PaymentPubKeyHash]
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
--- 28 bytes hash represented as a hex string
-newtype Hash28 = Hash28 { unHash28 :: T.Text }
-  deriving (Eq, Generic)
-  deriving newtype (Show, FromJSON)
-
 -- TX hash32 represented as a hex string
 newtype TxHash = TxHash { unTxHash :: T.Text }
   deriving (Eq, Generic)
