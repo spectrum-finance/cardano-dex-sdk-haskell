@@ -8,8 +8,10 @@ import ErgoDex.Class
 
 import CardanoTx.Models
 
+import           Data.Aeson (FromJSON, ToJSON)
 import qualified PlutusTx.Prelude as P    
 import           Ledger           
+import           GHC.Generics                (Generic)
 
 data ExecutedSwap = ExecutedSwap
   { swapCfg          :: Swap
@@ -18,7 +20,7 @@ data ExecutedSwap = ExecutedSwap
   , swapUserOutputId :: String
   , currPool         :: String
   , prevPoolId       :: String
-  }
+  } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 instance FromExplorer CompletedTx ExecutedSwap where
   parseFromExplorer CompletedTx{..} = do
@@ -44,7 +46,7 @@ data ExecutedDeposit = ExecutedDeposit
   , depositUserOutputId :: String
   , currPool            :: String
   , prevPoolId          :: String
-  }
+  } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 instance FromExplorer CompletedTx ExecutedDeposit where
   parseFromExplorer CompletedTx{..} = do
@@ -67,7 +69,7 @@ data ExecutedRedeem = ExecutedRedeem
   , redeemUserOutputId :: String
   , currPool           :: String
   , prevPoolId         :: String
-  }
+  } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 instance FromExplorer CompletedTx ExecutedRedeem where
   parseFromExplorer CompletedTx{..} = do
