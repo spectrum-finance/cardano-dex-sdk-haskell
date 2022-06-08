@@ -77,11 +77,11 @@ data Items a = Items
   } deriving (Show, Generic, FromJSON)
 
 data FullTx = FullTx
-  { blockHash :: BlockHash
-  , txIndex   :: Int
-  , hash      :: TxHash
-  , inputs    :: [FullTxIn]
-  , outputs   :: [FullTxOut]
+  { blockHash  :: BlockHash
+  , blockIndex :: Int
+  , hash       :: TxHash
+  , inputs     :: [FullTxIn]
+  , outputs    :: [FullTxOut]
   } deriving (Show, Generic, FromJSON)
 
 instance ToCardanoTx FullTx Tx.CompletedTx where
@@ -108,7 +108,7 @@ instance ToCardanoTx FullTxIn Tx.FullTxIn where
 
 data FullTxOut = FullTxOut
   { ref           :: OutRef
-  , blockIndex    :: TxHash
+  , txHash        :: TxHash
   , index         :: Int
   , globalIndex   :: Gix
   , addr          :: Addr
