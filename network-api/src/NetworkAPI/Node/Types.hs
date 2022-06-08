@@ -4,8 +4,11 @@ module NetworkAPI.Node.Types where
 import Cardano.Api hiding (NetworkId)
 import NetworkAPI.Types
 import qualified RIO.Prelude as Int
+import Control.Exception (Exception)
 
 newtype NetworkId = NetworkId Int deriving (Eq,Show,Ord)
+
+data NetworkNotFound = NetworkNotFound NetworkId deriving (Show, Exception)
 
 instance Num NetworkId where
   (+) = \ (NetworkId a) (NetworkId b) -> NetworkId (a + b)

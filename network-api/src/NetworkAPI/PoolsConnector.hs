@@ -3,7 +3,7 @@ module NetworkAPI.PoolsConnector where
 import ErgoDex.Amm.Pool (Pool (Pool, poolId), PoolId)
 import Data.Sequence
 import Data.Map as Map
-import RIO ( MonadThrow, MonadIO, MVar, MonadUnliftIO, Chan, newChan, newMVar, newEmptyMVar, (<&>), writeList2Chan, readMVar, modifyMVar_, readChan, writeChan, async, tryTakeMVar, fromMaybe, isEmptyMVar, putMVar, takeMVar)
+import RIO ( MonadThrow (throwM), MonadIO, MVar, MonadUnliftIO, Chan, newChan, newMVar, newEmptyMVar, (<&>), writeList2Chan, readMVar, modifyMVar_, readChan, writeChan, async, tryTakeMVar, fromMaybe, isEmptyMVar, putMVar, takeMVar)
 import qualified NetworkAPI.Node.Types as NT
 import NetworkAPI.Config.NodesSocketsConfig (NodesSocketsConfig (NodesSocketsConfig, nodes))
 import Cardano.Api
@@ -33,7 +33,7 @@ mkPoolsConnector mkLogging@MakeLogging{..} NodesSocketsConfig{..} cMode networkI
   _ <- writeList2Chan rotationChan (Map.keys networksWithId)
   pure $ PoolsConnector
     { runAsyncWithPoolConnection = runAsyncWithPoolConnection' logging poolsLinks networkLinks rotationChan
-    , runWithPoolConnection = runWithPoolConnection' poolsLinks networkLinks rotationChan
+    , runWithPoolConnection = runWithPoolConnection' logging poolsLinks networkLinks rotationChan
     , runOnRandomConnection = runOnRandomConnection' networkLinks
     }
 
@@ -67,32 +67,32 @@ runAsyncWithPoolConnection' Logging{..} connectionsMap networksMap rotationChan 
     Just Network{..} -> infoM ("Newtork for pool " ++ show poolId ++ " exists") >> runAsync fa) >> pure ()
 
 runWithPoolConnection' :: (MonadThrow f, MonadUnliftIO f)
-  => MVar (Map.Map PoolId NT.NetworkId)
+  => Logging f
+  -> MVar (Map.Map PoolId NT.NetworkId)
   -> MVar (Map.Map NT.NetworkId (Network f))
   -> Chan NT.NetworkId -- for networks rotation
   -> Pool
   -> (LocalNodeConnectInfo CardanoMode -> f NT.OpearationResult)
   -> f NT.OpearationResult
-runWithPoolConnection' connectionsMap networksMap rotationChan Pool{..} fa = do
-  infoM ("Going to run action with pool " ++ show poolId) >> async ( do
-  _ <- infoM @String "Going to read connections map "
+runWithPoolConnection' Logging{..} connectionsMap networksMap rotationChan Pool{..} fa = do
+  _ <- infoM ("Going to run action with pool " ++ show poolId)
   connections <- readMVar connectionsMap
-  _ <- infoM @String ("Current connection map is " ++ show connections)
+  _ <- infoM ("Current connection map is " ++ show connections)
   networks    <- readMVar networksMap
   let networkM = Map.lookup poolId connections >>= (`Map.lookup` networks)
   case networkM of
     Nothing -> do
       nextNetworkId <- readChan rotationChan
-      _             <- infoM @String ("No network for pool " ++ show poolId ++ ". Going to use newtwork under id:" ++ show nextNetworkId)
+      _             <- infoM ("No network for pool " ++ show poolId ++ ". Going to use newtwork under id:" ++ show nextNetworkId)
       _             <- writeChan rotationChan nextNetworkId
       case Map.lookup nextNetworkId networks of
-        Nothing -> infoM @String ("No network under id " ++ show nextNetworkId)
+        Nothing -> throwM (NT.NetworkNotFound nextNetworkId)
         Just Network{..} -> do
           _ <- infoM ("New Newtork for pool " ++ show poolId ++ " is " ++ show nextNetworkId)
           _ <- takeMVar connectionsMap >>= (putMVar connectionsMap . Map.insert poolId nextNetworkId)
           _ <- infoM ("Going to run action with pool " ++ show poolId ++ " on network " ++ show nextNetworkId)
           run fa
-    Just Network{..} -> infoM ("Newtork for pool " ++ show poolId ++ " exists") >> run fa) >> pure ()
+    Just Network{..} -> infoM ("Newtork for pool " ++ show poolId ++ " exists") >> run fa
 
 runOnRandomConnection' :: (MonadThrow f, MonadUnliftIO f)
   => MVar (Map.Map NT.NetworkId (Network f))
