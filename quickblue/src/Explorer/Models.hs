@@ -88,7 +88,7 @@ instance ToCardanoTx FullTx Tx.CompletedTx where
   toCardanoTx FullTx{..} =
     Tx.CompletedTx
       { blockHash = Tx.BlockHash $ unBlockHash blockHash
-      , txIndex   = txIndex
+      , txIndex   = blockIndex
       , hash      = Tx.TxHash $ unTxHash hash
       , inputs    = fmap toCardanoTx inputs
       , outputs   = fmap toCardanoTx outputs
