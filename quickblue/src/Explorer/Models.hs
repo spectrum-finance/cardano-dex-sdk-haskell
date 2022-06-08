@@ -108,7 +108,7 @@ instance ToCardanoTx FullTxIn Tx.FullTxIn where
 
 data FullTxOut = FullTxOut
   { ref           :: OutRef
-  , txHash        :: TxHash
+  , blockIndex    :: TxHash
   , index         :: Int
   , globalIndex   :: Gix
   , addr          :: Addr
