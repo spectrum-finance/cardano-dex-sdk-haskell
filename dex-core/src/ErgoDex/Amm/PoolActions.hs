@@ -106,6 +106,8 @@ runSwap' executorPkh (Confirmed swapOut swap@Swap{swapExFee=ExFeePerToken{..}, .
       , txCandidateValidRange   = Interval.always
       , txCandidateSigners      = mempty
       }
+  _ <- D.traceM ("pool" ++ show pool)
+  _ <- D.traceM ("poolOut" ++ show poolOut)
   _ <- D.traceM ("swap:" ++ show swap)
   _ <- D.traceM ("swapOut:" ++ show swapOut)
   _ <- D.traceM ("quoteOutput:" ++ show quoteOutput)
