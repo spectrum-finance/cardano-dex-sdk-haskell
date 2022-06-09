@@ -43,6 +43,7 @@ instance FromExplorer CompletedTx ExecutedSwap where
 
 data ExecutedDeposit = ExecutedDeposit
   { depositCfg          :: Deposit
+  , lqReward            :: AssetAmount Liquidity
   , depositOrderInputId :: String
   , depositUserOutputId :: String
   , currPool            :: String
@@ -52,12 +53,15 @@ data ExecutedDeposit = ExecutedDeposit
 instance FromExplorer CompletedTx ExecutedDeposit where
   parseFromExplorer CompletedTx{..} = do
     (OnChain depositOut cfg@Deposit{..}) <- findInput inputs :: Maybe (OnChain Deposit)
-    (OnChain prevPool _)                 <- findInput inputs :: Maybe (OnChain Pool)
+    (OnChain prevPool Pool{..})          <- findInput inputs :: Maybe (OnChain Pool)
     (OnChain currPool _)                 <- findOutput outputs :: Maybe (OnChain Pool)
     userOutput                           <- findUserOutput depositRewardPkh depositRewardSPkh outputs
+    let
+      lqReward = assetAmountOfCoin (fullTxOutValue userOutput) poolCoinLq
     return 
       ExecutedDeposit
         { depositCfg          = cfg
+        , lqReward            = lqReward
         , depositOrderInputId = show P.$ fullTxOutRef depositOut
         , depositUserOutputId = show P.$ fullTxOutRef userOutput
         , currPool            = show P.$ fullTxOutRef currPool
