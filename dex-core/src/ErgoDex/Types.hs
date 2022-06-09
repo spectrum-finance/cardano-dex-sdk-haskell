@@ -13,7 +13,8 @@ import qualified PlutusTx.AssocMap as Map
 import ErgoDex.Contracts.Types as Currencies
 
 newtype AssetEntry = AssetEntry { unAssetEntry :: (AssetClass, Integer) }
-  deriving (Show, Eq, Generic, ToJSON, FromJSON)
+  deriving (Show, Eq, Generic)
+  deriving newtype (ToJSON, FromJSON)
 
 assetEntryClass :: AssetEntry -> AssetClass
 assetEntryClass (AssetEntry (cls, _)) = cls
