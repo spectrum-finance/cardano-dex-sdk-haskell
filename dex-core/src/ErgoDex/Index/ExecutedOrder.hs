@@ -5,6 +5,7 @@ import ErgoDex.Contracts.Types as Currencies
 import ErgoDex.State
 import ErgoDex.Amm.Pool
 import ErgoDex.Class
+import ErgoDex.Types
 
 import CardanoTx.Models
 
@@ -65,6 +66,8 @@ instance FromExplorer CompletedTx ExecutedDeposit where
 
 data ExecutedRedeem = ExecutedRedeem
   { redeemCfg          :: Redeem
+  , xReward            :: AssetAmount X
+  , yReward            :: AssetAmount Y
   , redeemOrderInputId :: String
   , redeemUserOutputId :: String
   , currPool           :: String
@@ -74,12 +77,17 @@ data ExecutedRedeem = ExecutedRedeem
 instance FromExplorer CompletedTx ExecutedRedeem where
   parseFromExplorer CompletedTx{..} = do
     (OnChain redeemOut cfg@Redeem{..}) <- findInput inputs :: Maybe (OnChain Redeem)
-    (OnChain prevPool _)               <- findInput inputs :: Maybe (OnChain Pool)
+    (OnChain prevPool Pool{..})        <- findInput inputs :: Maybe (OnChain Pool)
     (OnChain currPool _)               <- findOutput outputs :: Maybe (OnChain Pool)
     userOutput                         <- findUserOutput redeemRewardPkh redeemRewardSPkh outputs
+    let
+      assetAmountX = assetAmountOfCoin (fullTxOutValue userOutput) poolCoinX
+      assetAmountY = assetAmountOfCoin (fullTxOutValue userOutput) poolCoinY
     return 
       ExecutedRedeem
         { redeemCfg          = cfg
+        , xReward            = assetAmountX
+        , yReward            = assetAmountY
         , redeemOrderInputId = show P.$ fullTxOutRef redeemOut
         , redeemUserOutputId = show P.$ fullTxOutRef userOutput
         , currPool           = show P.$ fullTxOutRef currPool

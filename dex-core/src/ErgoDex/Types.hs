@@ -24,7 +24,7 @@ assetEntry cs tn v = AssetEntry (AssetClass (cs, tn), v)
 data AssetAmount a = AssetAmount
   { getAsset  :: Coin a
   , getAmount :: Amount a
-  } deriving (Show, Eq)
+  } deriving (Generic, Show, Eq, ToJSON, FromJSON)
 
 instance AdditiveSemigroup (AssetAmount a) where
   a0 + a1 = a0 { getAmount = (getAmount a0) + (getAmount a1) }
