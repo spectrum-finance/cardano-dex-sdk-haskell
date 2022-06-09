@@ -56,24 +56,26 @@ feeDen = 1000
 instance FromLedger Pool where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(KnownDatum (Datum d)), ..} =
     case fromBuiltinData d of
-      (Just PoolConfig{..}) ->
-          Just $ OnChain fout Pool
-            { poolId        = PoolId $ Coin  poolNft
-            , poolReservesX = rx
-            , poolReservesY = ry
-            , poolLiquidity = lq
-            , poolCoinX     = Coin poolX
-            , poolCoinY     = Coin poolY
-            , poolCoinLq    = Coin poolLq
-            , poolFee       = PoolFee poolFeeNum feeDen
-            , outCollateral = collateral
-            }
-        where
+      (Just PoolConfig{..}) -> do
+        let
           rx         = Amount $ assetClassValueOf fullTxOutValue poolX
           ry         = Amount $ assetClassValueOf fullTxOutValue poolY
           rlq        = Amount $ assetClassValueOf fullTxOutValue poolLq
+          nft        = Amount $ assetClassValueOf fullTxOutValue poolNft
           lq         = maxLqCapAmount - rlq -- actual LQ emission
           collateral = if W.isAda poolX || W.isAda poolY then zero else minSafeOutputAmount
+        when (rx == 0 || ry == 0 || rlq == 0 || nft /= 1) Nothing
+        Just $ OnChain fout Pool
+          { poolId        = PoolId $ Coin  poolNft
+          , poolReservesX = rx
+          , poolReservesY = ry
+          , poolLiquidity = lq
+          , poolCoinX     = Coin poolX
+          , poolCoinY     = Coin poolY
+          , poolCoinLq    = Coin poolLq
+          , poolFee       = PoolFee poolFeeNum feeDen
+          , outCollateral = collateral
+          }          
       _ -> Nothing
   parseFromLedger _ = Nothing
 
