@@ -79,6 +79,8 @@ import Plutarch.Api.V1 (mkMintingPolicy, PMintingPolicy(..), mintingPolicySymbol
 import Plutarch.Api.V1.Value (PCurrencySymbol(..), PValue(..))
 import Plutarch.Lift
 import Plutarch.Api.V1.Contexts
+import           Ledger.Value           (AssetClass(..), assetClassValueOf, flattenValue)
+import qualified Ledger.Ada             as Ada
 -- (CurrencySymbol, TokenName)
 -- liquidityMintingPolicyInstancePrint :: IO ()
 -- liquidityMintingPolicyInstancePrint = print $ 
@@ -296,12 +298,39 @@ swapAddressC = scriptAddress PSc.swapValidator
 newRedeemAddress = renderToShellyAddress (Testnet (NetworkMagic 1097911063)) redeemValidatorM
 redeemAddressC = scriptAddress PSc.redeemValidator
 
+currencySymbolName :: CurrencySymbol
+currencySymbolName = "805fe1efcdea11f1e959eff4f422f118aa76dca2d0d797d184e487da"
+
+currencySymbolNameX :: CurrencySymbol
+currencySymbolNameX = "b8aa6f60b48ad4cb0f623edc96eb4dffb652b3a2384287b22c8814ac"
+
+currencySymbolNameY :: CurrencySymbol
+currencySymbolNameY = "b8aa6f60b48ad4cb0f623edc96eb4dffb652b3a2384287b22c8814ac"
+
+currencySymbolNameNft :: CurrencySymbol
+currencySymbolNameNft = "a39d736ae4a74b9a7cadf3e2f3b842ea8e4b4f0acee1d39e0af66520"
+
+currencySymbolNameLq :: CurrencySymbol
+currencySymbolNameLq = "d09d97d958ab52e8b28578128921325131c3714ee9cfa14ac150208e"
+
+xTn :: TokenName
+xTn = "C3t"
+
+yTn :: TokenName
+yTn = "ergoTestTokenB"
+
+nftTn :: TokenName
+nftTn = "C3t_ADAt_nft"
+
+lpTn :: TokenName
+lpTn = "C3t_ADAt_lp"
+
 newPoolConfig =
   ECP.PoolConfig
-    { poolNft = AssetClass (currencySymbolName, nftTn)
-    , poolX = AssetClass (currencySymbolName, xTn)
-    , poolY = AssetClass (currencySymbolName, yTn)
-    , poolLq = AssetClass (currencySymbolName, lpTn)
+    { poolNft = AssetClass (currencySymbolNameNft, nftTn)
+    , poolX = AssetClass (currencySymbolNameX, xTn)
+    , poolY = AssetClass (Ada.adaSymbol, Ada.adaToken)
+    , poolLq = AssetClass (currencySymbolNameLq, lpTn)
     , poolFeeNum = 995
     }
 
@@ -424,29 +453,4 @@ newOrderRedeemerJson = (Json.encode
                               . fromPlutusData
                               . PlutusTx.toData $ orderRedeemer)
 
-currencySymbolName :: CurrencySymbol
-currencySymbolName = "805fe1efcdea11f1e959eff4f422f118aa76dca2d0d797d184e487da"
 
-currencySymbolNameX :: CurrencySymbol
-currencySymbolNameX = "78"
-
-currencySymbolNameY :: CurrencySymbol
-currencySymbolNameY = "79"
-
-currencySymbolNameNft :: CurrencySymbol
-currencySymbolNameNft = "6e6674"
-
-currencySymbolNameLq :: CurrencySymbol
-currencySymbolNameLq = "6c71"
-
-xTn :: TokenName
-xTn = "ergoTestTokenA"
-
-yTn :: TokenName
-yTn = "ergoTestTokenB"
-
-nftTn :: TokenName
-nftTn = "321ergoTestNFT321"
-
-lpTn :: TokenName
-lpTn = "321ergoTestTokenLP321"

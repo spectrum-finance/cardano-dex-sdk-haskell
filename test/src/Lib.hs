@@ -22,30 +22,33 @@ runApp = do
 --  ts <- importTrustStoreFromCardano Crypto.AsPaymentKey (SecretFile "/Users/aleksandr/test123/cardano-dex-sdk-haskell/test/ts.json") "/Users/aleksandr/test123/cardano-dex-sdk-haskell/test/src/wallet3.skey" (KeyPass "secret")
   -- _ <- (WalletAPI.TrustStore.init ts) (KeyPass "secret")
   -- print someDatum
-  _ <- print (readShellyAddress "addr_test1qrmzenza7gnsk3zsu40rnwmqes93nmmynzkzsr8g2j3a4fzvqenn455uh4r4e740drhycwlssxgnam4tjwf7uqfta4xqjhwx2c")
-  _ <- print (readShellyAddress "addr_test1vrmzenza7gnsk3zsu40rnwmqes93nmmynzkzsr8g2j3a4fqdg2mex")
+  -- _ <- print (readShellyAddress "addr_test1qrmzenza7gnsk3zsu40rnwmqes93nmmynzkzsr8g2j3a4fzvqenn455uh4r4e740drhycwlssxgnam4tjwf7uqfta4xqjhwx2c")
+  -- _ <- print (readShellyAddress "addr_test1vrmzenza7gnsk3zsu40rnwmqes93nmmynzkzsr8g2j3a4fqdg2mex")
   _ <- print "============="
-  _ <- print poolAddr
+  -- _ <- print poolAddr
   _ <- print newPoolAddress
   _ <- print poolConfigDatumHash
 --  _ <- print poolConfigJson
   _ <- print poolConfigRaw
   _ <- print "============="
-  _ <- print newDepositAddress
-  _ <- print depositAddressC
-  _ <- print newDepositConfigDatumHash
-  _ <- print newDepositConfigDatumHex
-  _ <- print "============="
-  _ <- print newSwapAddress
-  _ <- print swapAddressC
-  _ <- print newSwapConfigDatumHash
-  _ <- print newSwapConfigDatumHex
-  _ <- print "============="
-  _ <- print newRedeemAddress
-  _ <- print redeemAddressC
-  _ <- print newRedeemConfigDatumHash
-  _ <- print newRedeemConfigDatumHex
-  _ <- print newRedeemConfigDatum
+  let
+    a = sqrt $ 1000000000 * 1000000000
+  _ <- print $ 9223372036854775807 - 1000000000
+  -- _ <- print newDepositAddress
+  -- _ <- print depositAddressC
+  -- _ <- print newDepositConfigDatumHash
+  -- _ <- print newDepositConfigDatumHex
+  -- _ <- print "============="
+  -- _ <- print newSwapAddress
+  -- _ <- print swapAddressC
+  -- _ <- print newSwapConfigDatumHash
+  -- _ <- print newSwapConfigDatumHex
+  -- _ <- print "============="
+  -- _ <- print newRedeemAddress
+  -- _ <- print redeemAddressC
+  -- _ <- print newRedeemConfigDatumHash
+  -- _ <- print newRedeemConfigDatumHex
+  -- _ <- print newRedeemConfigDatum
   pure ()
 --  _ <- print redeemAddressC
 --  _ <- print newDepositConfigDatumHash
