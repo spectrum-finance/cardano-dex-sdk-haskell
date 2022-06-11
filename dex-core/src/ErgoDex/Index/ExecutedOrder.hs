@@ -15,12 +15,12 @@ import           Ledger
 import           GHC.Generics                (Generic)
 
 data ExecutedSwap = ExecutedSwap
-  { swapCfg          :: Swap
-  , actualQuote      :: Amount Quote
-  , swapOrderInputId :: String
-  , swapUserOutputId :: String
-  , currPool         :: String
-  , prevPoolId       :: String
+  { config       :: Swap
+  , actualQuote  :: Amount Quote
+  , orderInputId :: String
+  , userOutputId :: String
+  , poolOutputId :: String
+  , poolInputId  :: String
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 instance FromExplorer CompletedTx ExecutedSwap where
@@ -33,21 +33,21 @@ instance FromExplorer CompletedTx ExecutedSwap where
       quote = amountOf (fullTxOutValue userOutput) swapQuote
     return 
       ExecutedSwap
-        { swapCfg          = swap
-        , actualQuote      = quote
-        , swapOrderInputId = show P.$ fullTxOutRef swapOut
-        , swapUserOutputId = show P.$ fullTxOutRef userOutput
-        , currPool         = show P.$ fullTxOutRef currPool
-        , prevPoolId       = show P.$ fullTxOutRef prevPool
+        { config       = swap
+        , actualQuote  = quote
+        , orderInputId = show P.$ fullTxOutRef swapOut
+        , userOutputId = show P.$ fullTxOutRef userOutput
+        , poolOutputId = show P.$ fullTxOutRef currPool
+        , poolInputId  = show P.$ fullTxOutRef prevPool
         }
 
 data ExecutedDeposit = ExecutedDeposit
-  { depositCfg          :: Deposit
-  , lqReward            :: AssetAmount Liquidity
-  , depositOrderInputId :: String
-  , depositUserOutputId :: String
-  , currPool            :: String
-  , prevPoolId          :: String
+  { config       :: Deposit
+  , rewardLq     :: AssetAmount Liquidity
+  , orderInputId :: String
+  , userOutputId :: String
+  , poolOutputId :: String
+  , poolInputId  :: String
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 instance FromExplorer CompletedTx ExecutedDeposit where
@@ -60,22 +60,22 @@ instance FromExplorer CompletedTx ExecutedDeposit where
       lqReward = assetAmountOfCoin (fullTxOutValue userOutput) poolCoinLq
     return 
       ExecutedDeposit
-        { depositCfg          = cfg
-        , lqReward            = lqReward
-        , depositOrderInputId = show P.$ fullTxOutRef depositOut
-        , depositUserOutputId = show P.$ fullTxOutRef userOutput
-        , currPool            = show P.$ fullTxOutRef currPool
-        , prevPoolId          = show P.$ fullTxOutRef prevPool
+        { config       = cfg
+        , rewardLq     = lqReward
+        , orderInputId = show P.$ fullTxOutRef depositOut
+        , userOutputId = show P.$ fullTxOutRef userOutput
+        , poolOutputId = show P.$ fullTxOutRef currPool
+        , poolInputId  = show P.$ fullTxOutRef prevPool
         }
 
 data ExecutedRedeem = ExecutedRedeem
-  { redeemCfg          :: Redeem
-  , xReward            :: AssetAmount X
-  , yReward            :: AssetAmount Y
-  , redeemOrderInputId :: String
-  , redeemUserOutputId :: String
-  , currPool           :: String
-  , prevPoolId         :: String
+  { config       :: Redeem
+  , rewardX      :: AssetAmount X
+  , rewardY      :: AssetAmount Y
+  , orderInputId :: String
+  , userOutputId :: String
+  , poolOutputId :: String
+  , poolInputId  :: String
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 instance FromExplorer CompletedTx ExecutedRedeem where
@@ -89,13 +89,13 @@ instance FromExplorer CompletedTx ExecutedRedeem where
       assetAmountY = assetAmountOfCoin (fullTxOutValue userOutput) poolCoinY
     return 
       ExecutedRedeem
-        { redeemCfg          = cfg
-        , xReward            = assetAmountX
-        , yReward            = assetAmountY
-        , redeemOrderInputId = show P.$ fullTxOutRef redeemOut
-        , redeemUserOutputId = show P.$ fullTxOutRef userOutput
-        , currPool           = show P.$ fullTxOutRef currPool
-        , prevPoolId         = show P.$ fullTxOutRef prevPool
+        { config       = cfg
+        , rewardX      = assetAmountX
+        , rewardY      = assetAmountY
+        , orderInputId = show P.$ fullTxOutRef redeemOut
+        , userOutputId = show P.$ fullTxOutRef userOutput
+        , poolOutputId = show P.$ fullTxOutRef currPool
+        , poolInputId  = show P.$ fullTxOutRef prevPool
         }
 
 findInput :: forall a . (FromLedger a) => [FullTxIn] -> Maybe (OnChain a)
