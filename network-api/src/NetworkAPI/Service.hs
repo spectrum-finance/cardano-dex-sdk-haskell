@@ -42,7 +42,7 @@ mkCardanoNetwork MakeLogging{..} cera PoolsConnector{..} = do
   emptyMVar <- newMVar Nothing
   pure $ CardanoNetwork
     { getSystemEnv = withAsyncCache logging emptyMVar (runOnRandomConnection (getSystemEnv' cera) >>= extractSystemEnv)
-    , submitTx     = \pool tx -> runAsyncWithPoolConnection pool (\conn -> submitTx' logging cera conn tx) >> pure ()
+    , submitTx     = \pool tx -> runWithPoolConnection pool (\conn -> submitTx' logging cera conn tx) >> pure ()
     }
 
 getSystemEnv'
