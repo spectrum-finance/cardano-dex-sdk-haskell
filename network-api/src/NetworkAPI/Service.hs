@@ -16,7 +16,7 @@ import qualified Ouroboros.Network.Protocol.LocalTxSubmission.Client as Net.Tx
 import NetworkAPI.Types (SystemEnv(..))
 import NetworkAPI.PoolsConnector (PoolsConnector(PoolsConnector, runWithPoolConnection, runAsyncWithPoolConnection, runOnRandomConnection))
 import ErgoDex.Amm.Pool (Pool)
-import NetworkAPI.Node.Types (SystemEnvResult (SuccessResult), OpearationResult (SystemEnvResult, TxSubmitionResult), TxSubmitionResult (Success))
+import NetworkAPI.Node.Types (SystemEnvResult (SuccessResult), OpearationResult (SystemEnvResult, TxSubmitionResult), TxSubmitionResult (Success), extractSystemEnv)
 import Data.Aeson (Value(String))
 
 data NodeError
@@ -79,9 +79,10 @@ submitTx' Logging{..} era conn tx =
   case toEraInMode era CardanoMode of
     Just eraInMode -> do
       let txInMode = TxInMode tx eraInMode
+      _ <- infoM ("Going send tx with id" ++ show (getTxId . getTxBody $ tx))
       res <- liftIO $ submitTxToNodeLocal conn txInMode
       case res of
-        Net.Tx.SubmitSuccess     -> pure $ TxSubmitionResult Success --infoM @String "Transaction successfully submitted."
+        Net.Tx.SubmitSuccess     -> pure $ TxSubmitionResult (Success (getTxId . getTxBody $ tx)) --infoM @String "Transaction successfully submitted."
         Net.Tx.SubmitFail reason ->
           case reason of
             TxValidationErrorInMode err _ -> throwM $ TxSubmissionFailed $ Text.pack $ show err
@@ -113,11 +114,3 @@ updateAsyncCache'
 updateAsyncCache' mVar fa = fa >>= (void . swapMVar mVar . Just)
 
 --todo: only for test
-
-data ExtractError = ExtractError String deriving (Show)
-
-instance Exception ExtractError
-
-extractSystemEnv :: (MonadThrow f) => OpearationResult -> f SystemEnv
-extractSystemEnv (SystemEnvResult (SuccessResult res)) = pure res
-extractSystemEnv _ = throwM (ExtractError "Error with extracting sys env")

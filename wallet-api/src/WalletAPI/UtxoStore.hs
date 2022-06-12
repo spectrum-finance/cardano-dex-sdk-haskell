@@ -15,7 +15,6 @@ data UtxoStore f = UtxoStore
   , getUtxos          :: f (Set.Set FullTxOut)
   , dropUtxos         :: Set.Set TxOutRef -> f ()
   , containsUtxo      :: TxOutRef -> f Bool
-  , filterForExisting :: Set.Set FullTxOut -> f (Set.Set FullTxOut)
   }
 
 mkUtxoStore :: (MonadIO i, MonadIO f) => MakeLogging i f -> i (UtxoStore f)
@@ -27,7 +26,6 @@ mkUtxoStore MakeLogging{..} = do
     , getUtxos          = get' storeT
     , dropUtxos         = drop' storeT
     , containsUtxo      = contains' storeT
-    , filterForExisting = filterForExisting' storeT
     }
 
 put' :: MonadIO f => TVar Store -> Set.Set FullTxOut -> f ()
@@ -49,11 +47,6 @@ drop' storeT orefs =
 
 contains' :: MonadIO f => TVar Store -> TxOutRef -> f Bool
 contains' storeT ref = liftIO $ atomically $ readTVar storeT <&> Map.member ref
-
-filterForExisting' :: MonadIO f => TVar Store -> Set.Set FullTxOut -> f (Set.Set FullTxOut)
-filterForExisting' storeT refs = do
-  currentRefs <- liftIO $ readTVarIO storeT
-  pure $ Set.filter (\txOut -> Map.notMember (fullTxOutRef txOut) currentRefs) refs
 
 attachTracing :: Monad f => Logging f -> UtxoStore f -> UtxoStore f
 attachTracing Logging{..} UtxoStore{..} =
@@ -77,10 +70,5 @@ attachTracing Logging{..} UtxoStore{..} =
         debugM $ "containsUtxo " <> show ref
         r <- containsUtxo ref
         debugM $ "containsUtxo -> " <> show r
-        pure r
-    , filterForExisting = \refs -> do
-        debugM $ "filterForExisting -> " <> show refs
-        r <- filterForExisting refs
-        debugM $ "filterForExisting -> " <> show r
         pure r
     }

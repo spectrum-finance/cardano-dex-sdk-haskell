@@ -115,7 +115,8 @@ library
         strict-containers,
         transformers,
         array,
-        dex-core
+        dex-core,
+        hlog
         -- free-er==0.1.0.0
 
 test-suite submit-api-tests
