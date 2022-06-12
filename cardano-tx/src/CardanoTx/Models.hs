@@ -3,7 +3,6 @@ module CardanoTx.Models where
 import           Data.Aeson (FromJSON, ToJSON)
 import qualified Data.Set   as Set
 import qualified Data.Map   as Map
-import qualified Data.Text  as T
 
 import           Ledger                      hiding (TxIn)
 import           Plutus.V1.Ledger.Credential (Credential (..))
@@ -144,11 +143,3 @@ data TxCandidate = TxCandidate
   , txCandidateValidRange   :: SlotRange
   , txCandidateSigners      :: [PaymentPubKeyHash]
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
-
-data SettledTx = SettledTx
-  { blockHash :: BlockHash
-  , txIndex   :: Int
-  , hash      :: TxHash
-  , inputs    :: [FullTxIn]
-  , outputs   :: [FullTxOut]
-  } deriving (Show, Eq, Generic, FromJSON)

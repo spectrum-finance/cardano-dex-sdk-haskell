@@ -77,22 +77,13 @@ data Items a = Items
   } deriving (Show, Generic, FromJSON)
 
 data FullTx = FullTx
-  { blockHash  :: BlockHash
-  , blockIndex :: Int
-  , hash       :: TxHash
-  , inputs     :: [FullTxIn]
-  , outputs    :: [FullTxOut]
+  { blockHash   :: BlockHash
+  , blockIndex  :: Int
+  , globalIndex :: Gix
+  , hash        :: TxHash
+  , inputs      :: [FullTxIn]
+  , outputs     :: [FullTxOut]
   } deriving (Show, Generic, FromJSON)
-
-instance ToCardanoTx FullTx Tx.SettledTx where
-  toCardanoTx FullTx{..} =
-    Tx.SettledTx
-      { blockHash = Tx.BlockHash $ unBlockHash blockHash
-      , txIndex   = blockIndex
-      , hash      = Tx.TxHash $ unTxHash hash
-      , inputs    = fmap toCardanoTx inputs
-      , outputs   = fmap toCardanoTx outputs
-      } 
 
 data FullTxIn = FullTxIn
   { out :: FullTxOut
