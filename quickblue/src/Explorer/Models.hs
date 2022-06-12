@@ -84,9 +84,9 @@ data FullTx = FullTx
   , outputs    :: [FullTxOut]
   } deriving (Show, Generic, FromJSON)
 
-instance ToCardanoTx FullTx Tx.CompletedTx where
+instance ToCardanoTx FullTx Tx.SettledTx where
   toCardanoTx FullTx{..} =
-    Tx.CompletedTx
+    Tx.SettledTx
       { blockHash = Tx.BlockHash $ unBlockHash blockHash
       , txIndex   = blockIndex
       , hash      = Tx.TxHash $ unTxHash hash

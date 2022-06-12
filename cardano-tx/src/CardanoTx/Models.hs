@@ -145,7 +145,7 @@ data TxCandidate = TxCandidate
   , txCandidateSigners      :: [PaymentPubKeyHash]
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
-data CompletedTx = CompletedTx
+data SettledTx = SettledTx
   { blockHash :: BlockHash
   , txIndex   :: Int
   , hash      :: TxHash

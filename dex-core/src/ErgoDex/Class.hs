@@ -8,6 +8,3 @@ class FromLedger a where
 
 class ToLedger a where
   toLedger :: a -> TxOutCandidate
-
-class FromExplorer a b where
-  parseFromExplorer :: a -> Maybe b
