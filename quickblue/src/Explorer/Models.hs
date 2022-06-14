@@ -83,6 +83,7 @@ data FullTx = FullTx
   , hash        :: TxHash
   , inputs      :: [FullTxIn]
   , outputs     :: [FullTxOut]
+  , timestamp   :: Integer
   } deriving (Show, Generic, FromJSON)
 
 data FullTxIn = FullTxIn
