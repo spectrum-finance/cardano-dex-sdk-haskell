@@ -13,7 +13,8 @@ import qualified PlutusTx.AssocMap as Map
 import ErgoDex.Contracts.Types as Currencies
 
 newtype AssetEntry = AssetEntry { unAssetEntry :: (AssetClass, Integer) }
-  deriving (Show, Eq, Generic, ToJSON, FromJSON)
+  deriving (Show, Eq, Generic)
+  deriving newtype (ToJSON, FromJSON)
 
 assetEntryClass :: AssetEntry -> AssetClass
 assetEntryClass (AssetEntry (cls, _)) = cls
@@ -24,7 +25,7 @@ assetEntry cs tn v = AssetEntry (AssetClass (cs, tn), v)
 data AssetAmount a = AssetAmount
   { getAsset  :: Coin a
   , getAmount :: Amount a
-  } deriving (Show, Eq)
+  } deriving (Generic, Show, Eq, ToJSON, FromJSON)
 
 instance AdditiveSemigroup (AssetAmount a) where
   a0 + a1 = a0 { getAmount = (getAmount a0) + (getAmount a1) }

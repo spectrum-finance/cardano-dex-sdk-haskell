@@ -50,8 +50,18 @@ newtype Hash32 = Hash32 { unHash32 :: Text }
   deriving (Eq, Generic)
   deriving newtype (Show, FromJSON)
 
+-- 28 bytes hash represented as a hex string
+newtype Hash28 = Hash28 { unHash28 :: Text }
+  deriving (Eq, Generic)
+  deriving newtype (Show, FromJSON)
+
 -- TX hash32 represented as a hex string
 newtype TxHash = TxHash { unTxHash :: Text }
+  deriving (Eq, Generic)
+  deriving newtype (Show, FromJSON)
+
+-- Block hash32 represented as a hex string
+newtype BlockHash = BlockHash { unBlockHash :: Text }
   deriving (Eq, Generic)
   deriving newtype (Show, FromJSON)
 

@@ -11,6 +11,7 @@ import qualified Ledger.Constraints.OffChain as P
 import           GHC.Generics                (Generic)
 
 import CardanoTx.ToPlutus (ToPlutus(..))
+import CardanoTx.Types
 
 newtype ChangeAddress = ChangeAddress { getAddress :: Address }
   deriving (Eq, Generic)

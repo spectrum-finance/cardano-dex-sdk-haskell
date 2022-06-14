@@ -55,6 +55,8 @@ common project-config
                         TypeSynonymInstances
                         ViewPatterns
                         DerivingStrategies
+                        DuplicateRecordFields
+                        RecordWildCards
 
   ghc-options:          -Wall
                         -Wcompat

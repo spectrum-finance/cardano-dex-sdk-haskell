@@ -9,11 +9,13 @@ import           GHC.Generics
 
 import qualified Ledger                     as P
 import qualified Plutus.V1.Ledger.Value     as Value
+import qualified Plutus.V1.Ledger.Tx        as Tx
 import qualified PlutusTx.Builtins.Internal as BI
 import           Explorer.Types
 import           Explorer.Class
 import qualified CardanoTx.Models           as Tx
 import           CardanoTx.Value
+import qualified CardanoTx.Types            as Tx
 
 import qualified Cardano.Api as Api
 import           Cardano.Api.Shelley   (ProtocolParameters(..), PoolId, toPlutusData)
@@ -73,6 +75,27 @@ data Items a = Items
   { items :: [a]
   , total :: Int
   } deriving (Show, Generic, FromJSON)
+
+data FullTx = FullTx
+  { blockHash   :: BlockHash
+  , blockIndex  :: Int
+  , globalIndex :: Gix
+  , hash        :: TxHash
+  , inputs      :: [FullTxIn]
+  , outputs     :: [FullTxOut]
+  } deriving (Show, Generic, FromJSON)
+
+data FullTxIn = FullTxIn
+  { out :: FullTxOut
+  } deriving (Show, Generic, FromJSON)
+
+instance ToCardanoTx FullTxIn Tx.FullTxIn where
+  toCardanoTx FullTxIn{..} =
+    Tx.FullTxIn
+      { fullTxInTxOut = toCardanoTx out
+      -- actually, we don't need this field att all, so we keep it default
+      , fullTxInType  = Tx.ConsumeSimpleScriptAddress
+      }
 
 data FullTxOut = FullTxOut
   { ref           :: OutRef
