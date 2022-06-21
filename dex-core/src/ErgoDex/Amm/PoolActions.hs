@@ -32,6 +32,7 @@ data OrderExecErr
   = PriceTooHigh
   | PoolMismatch PoolId PoolId
   | EmptyPool PoolId
+  | PoolNotFoundInFinalTx PoolId
   deriving (Show)
 
 instance Exception OrderExecErr
