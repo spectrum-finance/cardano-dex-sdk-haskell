@@ -47,7 +47,7 @@ mkCardanoNetwork MakeLogging{..} cera PoolsConnector{..} = do
 
 getSystemEnv'
   :: (MonadIO f, MonadThrow f)
-  => CardanoEra era
+ => CardanoEra era
   -> LocalNodeConnectInfo CardanoMode
   -> f OpearationResult
 getSystemEnv' era conn =
