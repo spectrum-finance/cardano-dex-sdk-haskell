@@ -88,4 +88,4 @@ library
         cardano-api,
         text,
         http-conduit,
-        rio==0.1.21.0
+        rio

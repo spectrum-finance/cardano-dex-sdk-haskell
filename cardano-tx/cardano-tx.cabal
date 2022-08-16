@@ -81,10 +81,10 @@ library
                      CardanoTx.Types
 
     build-depends:
-        mtl==2.2.2,
-        plutus-chain-index==0.1.0.0,
-        plutus-chain-index-core==0.1.0.0,
-        plutus-ledger-constraints==0.1.0.0,
+        mtl,
+        plutus-chain-index,
+        plutus-chain-index-core,
+        plutus-ledger-constraints,
         plutus-ledger,
         plutus-tx,
         plutus-ledger-api,
