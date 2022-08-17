@@ -84,9 +84,8 @@ library
                      ErgoDex.Types
 
     build-depends:
-        plutarch==1.1.0,
-        cardano-tx==0.1.0.0,
-        ergo-hs-common==0.1.0.0,
+        cardano-tx,
+        ergo-hs-common,
         plutus-ledger,
         plutus-tx,
         plutus-ledger-api,
@@ -94,7 +93,7 @@ library
         aeson,
         servant,
         plutus-contract,
-        cardano-dex-contracts,
+        cardano-dex-contracts-offchain,
         singletons,
         either,
         aeson-gadt-th,
@@ -114,22 +113,21 @@ test-suite dex-core-tests
   other-modules:
     Spec.Pool
   build-depends:
-    , base== 4.14.1.0
-    , HUnit== 1.6.2.0
+    , base
+    , HUnit
     , tasty
     , tasty-hunit
-    , text== 1.2.5.0
-    , base16-bytestring==1.0.1.0
-    , bytestring==0.10.12.0
-    , plutus-ledger-api==0.1.0.0
-    , random==1.2.1
-    , plutus-tx==0.1.0.0
-    , cardano-dex-contracts==0.1.0.0
+    , text
+    , base16-bytestring
+    , bytestring
+    , plutus-ledger-api
+    , random
+    , plutus-tx
+    , cardano-dex-contracts-offchain
     , plutus-ledger-api
     , plutus-ledger
-    , containers==0.6.2.1
+    , containers
     , random-strings
     , plutus-core
-    , plutarch
-    , dex-core==0.1.0.0
-    , cardano-tx==0.1.0.0
+    , dex-core
+    , cardano-tx

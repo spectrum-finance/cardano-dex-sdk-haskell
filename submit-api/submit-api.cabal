@@ -146,7 +146,6 @@ test-suite submit-api-tests
     , containers
     , random-strings
     , plutus-core
-    , plutarch
     , submit-api
     , cardano-tx
     , network-api

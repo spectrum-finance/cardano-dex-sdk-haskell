@@ -22,6 +22,16 @@
       flake = false;
     };
 
+    hlog = {
+      url = "github:ergolabs/hlog/231ff5f0a12841174cf6d92a932f45fea4552bae";
+      flake = false;
+    };
+
+    quickcheck-dynamic = {
+      url = "github:input-output-hk/quickcheck-dynamic/c272906361471d684440f76c297e29ab760f6a1e";
+      flake = false;
+    };
+
     ouroboros-network = {
       url = "github:input-output-hk/ouroboros-network/cb9eba406ceb2df338d8384b35c8addfe2067201";
       flake = false;
@@ -44,6 +54,11 @@
 
     io-sim = {
       url = "github:input-output-hk/io-sim/57e888b1894829056cb00b7b5785fdf6a74c3271";
+      flake = false;
+    };
+
+    cardano-addresses = {
+      url = "github:input-output-hk/cardano-addresses/b7273a5d3c21f1a003595ebf1e1f79c28cd72513";
       flake = false;
     };
 
@@ -84,6 +99,11 @@
 
     cardano-crypto = {
       url = "github:input-output-hk/cardano-crypto/f73079303f663e028288f9f4a9e08bcca39a923e";
+      flake = false;
+    };
+
+    contracts-offchain = {
+      url = "github:ergolabs/cardano-dex-contracts/973e1a48dd7ae59eb4d8d2076dff22417103ba8a";
       flake = false;
     };
 
@@ -229,6 +249,7 @@
             "${inputs.cardano-base}/slotting"
             "${inputs.cardano-base}/strict-containers"
             "${inputs.cardano-ledger}/eras/alonzo/impl"
+            "${inputs.cardano-ledger}/eras/alonzo/test-suite"
             "${inputs.cardano-ledger}/eras/byron/chain/executable-spec"
             "${inputs.cardano-ledger}/eras/byron/crypto"
             "${inputs.cardano-ledger}/eras/byron/crypto/test"
@@ -236,6 +257,7 @@
             "${inputs.cardano-ledger}/eras/byron/ledger/impl"
             "${inputs.cardano-ledger}/eras/byron/ledger/impl/test"
             "${inputs.cardano-ledger}/eras/shelley-ma/impl"
+            "${inputs.cardano-ledger}/eras/shelley-ma/test-suite"
             "${inputs.cardano-ledger}/eras/shelley/impl"
             "${inputs.cardano-ledger}/eras/shelley/test-suite"
             "${inputs.cardano-ledger}/eras/babbage/impl"
@@ -293,6 +315,8 @@
             "${inputs.typed-protocols}/typed-protocols"
             "${inputs.typed-protocols}/typed-protocols-cborg"
             "${inputs.typed-protocols}/typed-protocols-examples"
+            "${inputs.cardano-addresses}/command-line"
+            "${inputs.cardano-addresses}/core"
             "${inputs.ouroboros-network}/monoidal-synchronisation"
             "${inputs.ouroboros-network}/network-mux"
             "${inputs.ouroboros-network}/ntp-client"
@@ -309,7 +333,10 @@
             "${inputs.flat}"
             "${inputs.goblins}"
             "${inputs.ekg-json}"
+            "${inputs.hlog}"
+            "${inputs.contracts-offchain}/cardano-dex-contracts-offchain"
             "${inputs.hedgehog-extras}"
+            "${inputs.quickcheck-dynamic}"
           ];
 
         projectFor = system:
@@ -325,13 +352,10 @@
               inherit compiler-nix-name;
               inherit (hackages) extra-hackages extra-hackage-tarballs modules;
 
-              index-state = "2021-10-20T00:00:00Z";
+              index-state = "2022-05-18T00:00:00Z";
 
               cabalProjectFileName = "cabal.project";
               cabalProjectLocal = ''
-                package ply-core
-                  flags: -new-ledger-namespace
-
                 allow-newer:
                     *:aeson
                   , size-based:template-haskell

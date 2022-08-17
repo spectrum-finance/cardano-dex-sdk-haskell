@@ -268,6 +268,23 @@
         "type": "github"
       }
     },
+    "cardano-addresses": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1660105670,
+        "narHash": "sha256-91F9+ckA3lBCE4dAVLDnMSpwRLa7zRUEEBYEHv0sOYk=",
+        "owner": "input-output-hk",
+        "repo": "cardano-addresses",
+        "rev": "b7273a5d3c21f1a003595ebf1e1f79c28cd72513",
+        "type": "github"
+      },
+      "original": {
+        "owner": "input-output-hk",
+        "repo": "cardano-addresses",
+        "rev": "b7273a5d3c21f1a003595ebf1e1f79c28cd72513",
+        "type": "github"
+      }
+    },
     "cardano-base": {
       "flake": false,
       "locked": {
@@ -614,6 +631,23 @@
         "owner": "input-output-hk",
         "repo": "cardano-wallet",
         "rev": "18a931648550246695c790578d4a55ee2f10463e",
+        "type": "github"
+      }
+    },
+    "contracts-offchain": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1660602405,
+        "narHash": "sha256-AlIS3LV2g+Tij3+6xexQ5jh3p5d16e/YWWZ0sTYlZqI=",
+        "owner": "ergolabs",
+        "repo": "cardano-dex-contracts",
+        "rev": "973e1a48dd7ae59eb4d8d2076dff22417103ba8a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ergolabs",
+        "repo": "cardano-dex-contracts",
+        "rev": "973e1a48dd7ae59eb4d8d2076dff22417103ba8a",
         "type": "github"
       }
     },
@@ -1661,6 +1695,23 @@
       "original": {
         "owner": "hercules-ci",
         "repo": "hercules-ci-effects",
+        "type": "github"
+      }
+    },
+    "hlog": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1653572629,
+        "narHash": "sha256-vjqo/cd8eGQ03PsISJrkAizMYouGMc4vZsMl+ozSQ5Y=",
+        "owner": "ergolabs",
+        "repo": "hlog",
+        "rev": "231ff5f0a12841174cf6d92a932f45fea4552bae",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ergolabs",
+        "repo": "hlog",
+        "rev": "231ff5f0a12841174cf6d92a932f45fea4552bae",
         "type": "github"
       }
     },
@@ -3236,14 +3287,33 @@
         "type": "github"
       }
     },
+    "quickcheck-dynamic": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1656927450,
+        "narHash": "sha256-TioJQASNrQX6B3n2Cv43X2olyT67//CFQqcpvNW7N60=",
+        "owner": "input-output-hk",
+        "repo": "quickcheck-dynamic",
+        "rev": "c272906361471d684440f76c297e29ab760f6a1e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "input-output-hk",
+        "repo": "quickcheck-dynamic",
+        "rev": "c272906361471d684440f76c297e29ab760f6a1e",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
+        "cardano-addresses": "cardano-addresses",
         "cardano-base": "cardano-base",
         "cardano-crypto": "cardano-crypto",
         "cardano-ledger": "cardano-ledger",
         "cardano-node": "cardano-node",
         "cardano-prelude": "cardano-prelude",
         "cardano-wallet": "cardano-wallet",
+        "contracts-offchain": "contracts-offchain",
         "ekg-json": "ekg-json",
         "flat": "flat",
         "goblins": "goblins",
@@ -3253,6 +3323,7 @@
         ],
         "haskell-nix-extra-hackage": "haskell-nix-extra-hackage",
         "hedgehog-extras": "hedgehog-extras",
+        "hlog": "hlog",
         "hw-aeson": "hw-aeson",
         "io-sim": "io-sim",
         "iohk-monitoring-framework": "iohk-monitoring-framework",
@@ -3269,6 +3340,7 @@
         "plutus-apps": "plutus-apps",
         "ply": "ply",
         "pre-commit-hooks": "pre-commit-hooks",
+        "quickcheck-dynamic": "quickcheck-dynamic",
         "typed-protocols": "typed-protocols",
         "win32-network": "win32-network"
       }
