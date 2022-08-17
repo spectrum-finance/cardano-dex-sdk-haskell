@@ -9,13 +9,12 @@ import           GHC.Generics
 
 import qualified Ledger                     as P
 import qualified Plutus.V1.Ledger.Value     as Value
-import qualified Plutus.V1.Ledger.Tx        as Tx
+import           Ledger                     hiding (TxIn)
 import qualified PlutusTx.Builtins.Internal as BI
 import           Explorer.Types
 import           Explorer.Class
 import qualified CardanoTx.Models           as Tx
 import           CardanoTx.Value
-import qualified CardanoTx.Types            as Tx
 
 import qualified Cardano.Api as Api
 import           Cardano.Api.Shelley   (ProtocolParameters(..), PoolId, toPlutusData)
@@ -95,7 +94,7 @@ instance ToCardanoTx FullTxIn Tx.FullTxIn where
     Tx.FullTxIn
       { fullTxInTxOut = toCardanoTx out
       -- actually, we don't need this field att all, so we keep it default
-      , fullTxInType  = Tx.ConsumeSimpleScriptAddress
+      , fullTxInType  = ConsumeSimpleScriptAddress
       }
 
 data FullTxOut = FullTxOut

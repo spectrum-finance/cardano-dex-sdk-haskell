@@ -37,7 +37,7 @@ data TxAssemblyConfig = TxAssemblyConfig
 
 instance D.FromDhall TxAssemblyConfig
 
-newtype DefaultChangeAddress = DefaultChangeAddress { getChangeAddr :: ChangeAddress}
+newtype DefaultChangeAddress = DefaultChangeAddress { getChangeAddr :: ChangeAddress }
 
 unwrapChangeAddress :: DefaultChangeAddress -> Address
 unwrapChangeAddress (DefaultChangeAddress (ChangeAddress addr)) = addr
@@ -48,7 +48,7 @@ instance D.FromDhall DefaultChangeAddress where
       extract (TextLit (Chunks [] t)) =
         maybe (D.extractError "Invalid Shelly Address") (pure . DefaultChangeAddress . ChangeAddress) (do
           caddr <- C.deserialiseAddress (C.AsAddress C.AsShelleyAddr) t 
-          either (const Nothing) pure (Interop.fromCardanoAddress (C.AddressInEra (C.ShelleyAddressInEra C.ShelleyBasedEraAlonzo) caddr)))
+          either (const Nothing) pure (Interop.fromCardanoAddressInEra (C.shelleyAddressInEra caddr :: C.AddressInEra C.BabbageEra)))
       extract  expr = D.typeError expected expr
 
       expected = pure Text

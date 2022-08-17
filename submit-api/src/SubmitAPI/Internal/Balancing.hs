@@ -5,11 +5,13 @@ import Prelude
 import           Data.Bifunctor (first)
 import           Data.Map       (Map)
 import qualified Data.Map       as Map
-import           Data.Maybe     (fromMaybe)
+import           Data.Maybe     (fromMaybe, catMaybes)
 import           Data.Set       (Set)
+import           Data.Ratio
 
 import Cardano.Api
-import Cardano.Api.Shelley   (ProtocolParameters(..), PoolId)
+import Cardano.Api.Shelley   (ProtocolParameters(..), PoolId, ReferenceScript (..), fromShelleyLovelace)
+import qualified Cardano.Ledger.Coin as Ledger
 import Cardano.Slotting.Time (SystemStart)
 
 makeTransactionBodyAutoBalance
@@ -37,7 +39,7 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
     txbody0 <-
       first TxBodyError $ makeTransactionBody txbodycontent
         { txOuts =
-            txOuts txbodycontent ++ [TxOut changeaddr (lovelaceToTxOutValue 0) TxOutDatumNone]
+            txOuts txbodycontent ++ [TxOut changeaddr (lovelaceToTxOutValue 0) TxOutDatumNone ReferenceScriptNone]
             --TODO: think about the size of the change output
             -- 1,2,4 or 8 bytes?
         }
@@ -59,7 +61,7 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
             failures
             exUnitsMap'
 
-    let txbodycontent1 = substituteExecutionUnits exUnitsMap' txbodycontent
+    txbodycontent1 <- substituteExecutionUnits exUnitsMap' txbodycontent
 
     explicitTxFees <- first (const TxBodyErrorByronEraNotSupported) $
                         txFeesExplicitInEra era'
@@ -72,19 +74,26 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
     -- output and fee. Yes this means this current code will only work for
     -- final fee of less than around 4000 ada (2^32-1 lovelace) and change output
     -- of less than around 18 trillion ada  (2^64-1 lovelace).
+    let (dummyCollRet, dummyTotColl) = maybeDummyTotalCollAndCollReturnOutput txbodycontent changeaddr
     txbody1 <- first TxBodyError $ -- TODO: impossible to fail now
                makeTransactionBody txbodycontent1 {
                  txFee  = TxFeeExplicit explicitTxFees $ Lovelace (2^(32 :: Integer) - 1),
                  txOuts = txOuts txbodycontent ++
                             [TxOut changeaddr
                               (lovelaceToTxOutValue $ Lovelace (2^(64 :: Integer)) - 1)
-                              TxOutDatumNone
-                            ]
+                              TxOutDatumNone ReferenceScriptNone
+                            ],
+                 txReturnCollateral = dummyCollRet,
+                 txTotalCollateral = dummyTotColl
                }
 
     let nkeys = fromMaybe (estimateTransactionKeyWitnessCount txbodycontent1)
                           mnkeys
         fee   = evaluateTransactionFee pparams txbody1 nkeys 0 --TODO: byron keys
+        (retColl, reqCol) = calcReturnAndTotalCollateral
+                              fee pparams (txInsCollateral txbodycontent)
+                              (txReturnCollateral txbodycontent)
+                              (txTotalCollateral txbodycontent) changeaddr utxo
 
     -- Make a txbody for calculating the balance. For this the size of the tx
     -- does not matter, instead it's just the values of the fee and outputs.
@@ -121,10 +130,12 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
         makeTransactionBody txbodycontent1 {
           txFee  = TxFeeExplicit explicitTxFees fee,
           txOuts = accountForNoChange
-                     (TxOut changeaddr balance TxOutDatumNone)
-                     (txOuts txbodycontent)
+                     (TxOut changeaddr balance TxOutDatumNone ReferenceScriptNone)
+                     (txOuts txbodycontent),
+          txReturnCollateral = retColl,
+          txTotalCollateral = reqCol
         }
-    return (BalancedTxBody txbody3 (TxOut changeaddr balance TxOutDatumNone) fee)
+    return (BalancedTxBody txbody3 (TxOut changeaddr balance TxOutDatumNone ReferenceScriptNone) fee)
  where
    era :: ShelleyBasedEra era
    era = shelleyBasedEra
@@ -132,16 +143,91 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
    era' :: CardanoEra era
    era' = cardanoEra
 
+   calcReturnAndTotalCollateral
+     :: Lovelace -- ^ Fee
+     -> ProtocolParameters
+     -> TxInsCollateral era -- ^ From the initial TxBodyContent
+     -> TxReturnCollateral CtxTx era -- ^ From the initial TxBodyContent
+     -> TxTotalCollateral era -- ^ From the initial TxBodyContent
+     -> AddressInEra era -- ^ Change address
+     -> UTxO era
+     -> (TxReturnCollateral CtxTx era, TxTotalCollateral era)
+   calcReturnAndTotalCollateral _ _ TxInsCollateralNone _ _ _ _= (TxReturnCollateralNone, TxTotalCollateralNone)
+   calcReturnAndTotalCollateral _ _ _ rc@TxReturnCollateral{} tc@TxTotalCollateral{} _ _ = (rc,tc)
+   calcReturnAndTotalCollateral fee pp (TxInsCollateral _ collIns) txReturnCollateral txTotalCollateral cAddr (UTxO utxo') = do
+
+    case totalAndReturnCollateralSupportedInEra era' of
+      Nothing -> (TxReturnCollateralNone, TxTotalCollateralNone)
+      Just retColSup ->
+        case protocolParamCollateralPercent pp of
+          Nothing -> (TxReturnCollateralNone, TxTotalCollateralNone)
+          Just colPerc -> do
+            -- We must first figure out how much lovelace we have committed
+            -- as collateral and we must determine if we have enough lovelace at our
+            -- collateral tx inputs to cover the tx
+            let txOuts = catMaybes [ Map.lookup txin utxo' | txin <- collIns]
+                totalCollateralLovelace = mconcat $ map (\(TxOut _ txOutVal _ _) -> txOutValueToLovelace txOutVal) txOuts
+                requiredCollateral@(Lovelace reqAmt) = fromIntegral colPerc * fee
+                totalCollateral = TxTotalCollateral retColSup . fromShelleyLovelace
+                                                              . Ledger.rationalToCoinViaCeiling
+                                                              $ reqAmt % 100
+                -- Why * 100? requiredCollateral is the product of the collateral percentage and the tx fee
+                -- We choose to multiply 100 rather than divide by 100 to make the calculation
+                -- easier to manage. At the end of the calculation we then use % 100 to perform our division
+                -- and round up.
+                enoughCollateral = totalCollateralLovelace * 100 >= requiredCollateral
+                Lovelace amt = totalCollateralLovelace * 100 - requiredCollateral
+                returnCollateral = fromShelleyLovelace . Ledger.rationalToCoinViaFloor $ amt % 100
+
+            case (txReturnCollateral, txTotalCollateral) of
+              (rc@TxReturnCollateral{}, tc@TxTotalCollateral{}) ->
+                (rc, tc)
+              (rc@TxReturnCollateral{}, TxTotalCollateralNone) ->
+                (rc, TxTotalCollateralNone)
+              (TxReturnCollateralNone, tc@TxTotalCollateral{}) ->
+                (TxReturnCollateralNone, tc)
+              (TxReturnCollateralNone, TxTotalCollateralNone) ->
+                if enoughCollateral
+                then
+                  ( TxReturnCollateral
+                      retColSup
+                      (TxOut cAddr (lovelaceToTxOutValue returnCollateral) TxOutDatumNone ReferenceScriptNone)
+                  , totalCollateral
+                  )
+                else (TxReturnCollateralNone, TxTotalCollateralNone)
+
    -- In the event of spending the exact amount of lovelace in
    -- the specified input(s), this function excludes the change
    -- output. Note that this does not save any fees because by default
    -- the fee calculation includes a change address for simplicity and
    -- we make no attempt to recalculate the tx fee without a change address.
    accountForNoChange :: TxOut CtxTx era -> [TxOut CtxTx era] -> [TxOut CtxTx era]
-   accountForNoChange change@(TxOut _ balance _) rest =
+   accountForNoChange change@(TxOut _ balance _ _) rest =
      case txOutValueToLovelace balance of
        Lovelace 0 -> rest
-       _          -> rest ++ [change]
+       -- We append change at the end so a client can predict the indexes
+       -- of the outputs
+       _ -> rest ++ [change]
+
+   maybeDummyTotalCollAndCollReturnOutput
+     :: TxBodyContent BuildTx era -> AddressInEra era -> (TxReturnCollateral CtxTx era, TxTotalCollateral era)
+   maybeDummyTotalCollAndCollReturnOutput TxBodyContent{txInsCollateral, txReturnCollateral, txTotalCollateral} cAddr =
+     case txInsCollateral of
+       TxInsCollateralNone -> (TxReturnCollateralNone, TxTotalCollateralNone)
+       TxInsCollateral{} ->
+         case totalAndReturnCollateralSupportedInEra era' of
+           Nothing -> (TxReturnCollateralNone, TxTotalCollateralNone)
+           Just retColSup ->
+             let dummyRetCol = TxReturnCollateral
+                                 retColSup
+                                 (TxOut cAddr (lovelaceToTxOutValue $ Lovelace (2^(64 :: Integer)) - 1)
+                                 TxOutDatumNone ReferenceScriptNone)
+                 dummyTotCol = TxTotalCollateral retColSup (Lovelace (2^(32 :: Integer) - 1))
+             in case (txReturnCollateral, txTotalCollateral) of
+                  (rc@TxReturnCollateral{}, tc@TxTotalCollateral{}) -> (rc, tc)
+                  (rc@TxReturnCollateral{},TxTotalCollateralNone) -> (rc, dummyTotCol)
+                  (TxReturnCollateralNone,tc@TxTotalCollateral{}) -> (dummyRetCol, tc)
+                  (TxReturnCollateralNone, TxTotalCollateralNone) -> (dummyRetCol, dummyTotCol)
 
    balanceCheck :: TxOutValue era -> Either TxBodyErrorAutoBalance ()
    balanceCheck balance
@@ -149,7 +235,7 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
     | txOutValueToLovelace balance < 0 =
         Left . TxBodyErrorAdaBalanceNegative $ txOutValueToLovelace balance
     | otherwise =
-        case checkMinUTxOValue (TxOut changeaddr balance TxOutDatumNone) pparams of
+        case checkMinUTxOValue (TxOut changeaddr balance TxOutDatumNone ReferenceScriptNone) pparams of
           Left (TxBodyErrorMinUTxONotMet txOutAny minUTxO) ->
             Left $ TxBodyErrorAdaBalanceTooSmall txOutAny minUTxO (txOutValueToLovelace balance)
           Left err -> Left err
@@ -159,7 +245,7 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
      :: TxOut CtxTx era
      -> ProtocolParameters
      -> Either TxBodyErrorAutoBalance ()
-   checkMinUTxOValue txout@(TxOut _ v _) pparams' = do
+   checkMinUTxOValue txout@(TxOut _ v _ _) pparams' = do
      minUTxO  <- first TxBodyErrorMinUTxOMissingPParams
                    $ calculateMinimumUTxO era txout pparams'
      if txOutValueToLovelace v >= selectLovelace minUTxO
@@ -168,25 +254,26 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
 
 substituteExecutionUnits :: Map ScriptWitnessIndex ExecutionUnits
                          -> TxBodyContent BuildTx era
-                         -> TxBodyContent BuildTx era
+                         -> Either TxBodyErrorAutoBalance (TxBodyContent BuildTx era)
 substituteExecutionUnits exUnitsMap =
     mapTxScriptWitnesses f
   where
     f :: ScriptWitnessIndex
       -> ScriptWitness witctx era
-      -> ScriptWitness witctx era
-    f _   wit@SimpleScriptWitness{} = wit
-    f idx wit@(PlutusScriptWitness langInEra version script datum redeemer _) =
+      -> Either TxBodyErrorAutoBalance (ScriptWitness witctx era)
+    f _   wit@SimpleScriptWitness{} = Right wit
+    f idx (PlutusScriptWitness langInEra version script datum redeemer _) =
       case Map.lookup idx exUnitsMap of
-        Nothing      -> wit
-        Just exunits -> PlutusScriptWitness langInEra version script
+        Nothing ->
+          Left $ TxBodyErrorScriptWitnessIndexMissingFromExecUnitsMap idx exUnitsMap
+        Just exunits -> Right $ PlutusScriptWitness langInEra version script
                                             datum redeemer exunits
 
-lovelaceToTxOutValue :: IsCardanoEra era => Lovelace -> TxOutValue era
-lovelaceToTxOutValue l =
-    case multiAssetSupportedInEra cardanoEra of
-      Left adaOnly     -> TxOutAdaOnly adaOnly  l
-      Right multiAsset -> TxOutValue multiAsset (lovelaceToValue l)
+-- lovelaceToTxOutValue :: IsCardanoEra era => Lovelace -> TxOutValue era
+-- lovelaceToTxOutValue l =
+--     case multiAssetSupportedInEra cardanoEra of
+--       Left adaOnly     -> TxOutAdaOnly adaOnly  l
+--       Right multiAsset -> TxOutValue multiAsset (lovelaceToValue l)
 
 handleExUnitsErrors ::
      ScriptValidity -- ^ Mark script as expected to pass or fail validation

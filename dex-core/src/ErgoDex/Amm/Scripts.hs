@@ -1,22 +1,27 @@
 module ErgoDex.Amm.Scripts where
 
-import Ledger
-import Ledger.Typed.Scripts.Validators
+import Control.Monad.IO.Class (MonadIO)
+import Data.Functor           ((<&>))
 
-import ErgoDex.Contracts.OffChain
-import ErgoDex.Contracts.Proxy.OffChain
+import           Ledger
+import qualified Plutus.V2.Ledger.Api           as PV2
+import           Plutus.Script.Utils.V2.Address (mkValidatorAddress)
 
-poolScript :: Validator
-poolScript = validatorScript poolInstance
+import ErgoDex.PValidators (poolValidator, swapValidator)
 
-poolAddress :: Address
-poolAddress = validatorAddress poolInstance
+--todo: delete this file
 
-swapScript :: Validator
-swapScript = validatorScript swapInstance
+poolScript :: (MonadIO m) => m PV2.Validator
+poolScript = poolValidator 
 
-depositScript :: Validator
-depositScript = validatorScript depositInstance
+poolAddress :: (MonadIO m) => m Address
+poolAddress = poolScript <&> mkValidatorAddress
 
-redeemScript :: Validator
-redeemScript = validatorScript redeemInstance
+swapScript :: (MonadIO m) => m PV2.Validator
+swapScript = swapValidator 
+
+depositScript :: (MonadIO m) => m PV2.Validator
+depositScript = depositScript
+
+redeemScript :: (MonadIO m) => m PV2.Validator
+redeemScript = redeemScript
