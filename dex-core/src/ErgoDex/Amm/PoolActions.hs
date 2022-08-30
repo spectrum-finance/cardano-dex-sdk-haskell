@@ -30,14 +30,12 @@ import           CardanoTx.Models
 data OrderExecErr
   = PriceTooHigh
   | PoolMismatch PoolId PoolId
-  deriving (Show)
-
-instance Exception OrderExecErr
+  deriving (Eq, Show, Exception)
 
 data PoolActions = PoolActions
-  { runSwap    :: Confirmed Swap    -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
-  , runDeposit :: Confirmed Deposit -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
-  , runRedeem  :: Confirmed Redeem  -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+  { runSwap    :: OnChain Swap    -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+  , runDeposit :: OnChain Deposit -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+  , runRedeem  :: OnChain Redeem  -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
   }
 
 mkPoolActions :: PaymentPubKeyHash -> PoolActions
@@ -60,8 +58,8 @@ mkOrderInputs action orderValidator (PoolIn poolOut) (OrderIn orderOut) =
     poolIn    = mkScriptTxIn poolOut poolValidator   (Redeemer $ toBuiltinData $ P.PoolRedeemer action poolIx)
     orderIn   = mkScriptTxIn orderOut orderValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer poolIx orderIx 1 O.Apply)
 
-runSwap' :: PaymentPubKeyHash -> Confirmed Swap -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
+runSwap' :: PaymentPubKeyHash -> OnChain Swap -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+runSwap' executorPkh (OnChain swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
   let
     inputs = mkOrderInputs P.Swap swapValidator (PoolIn poolOut) (OrderIn swapOut)
 
@@ -102,8 +100,8 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
 
   Right (txCandidate, pp)
 
-runDeposit' :: PaymentPubKeyHash -> Confirmed Deposit -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{..}) = do
+runDeposit' :: PaymentPubKeyHash -> OnChain Deposit -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+runDeposit' executorPkh (OnChain depositOut Deposit{..}) (poolOut, pool@Pool{..}) = do
   when (depositPoolId /= poolId) (Left $ PoolMismatch depositPoolId poolId)
   let
     inputs = mkOrderInputs P.Deposit depositValidator (PoolIn poolOut) (OrderIn depositOut)
@@ -160,8 +158,8 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{.
 
   Right (txCandidate, pp)
 
-runRedeem' :: PaymentPubKeyHash -> Confirmed Redeem -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (poolOut, pool@Pool{..}) = do
+runRedeem' :: PaymentPubKeyHash -> OnChain Redeem -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+runRedeem' executorPkh (OnChain redeemOut Redeem{..}) (poolOut, pool@Pool{..}) = do
   when (redeemPoolId /= poolId) (Left $ PoolMismatch redeemPoolId poolId)
   let
     inputs = mkOrderInputs P.Redeem redeemValidator (PoolIn poolOut) (OrderIn redeemOut)

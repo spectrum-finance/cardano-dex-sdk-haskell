@@ -1,9 +1,12 @@
+{-# LANGUAGE TypeApplications #-}
+
 module ErgoDex.Amm.Orders where
 
 import           Data.Tuple.Extra
 import           Data.Bifunctor
 import           Control.Monad    (when)
 import           Data.Function
+import           Data.Functor     ((<&>))
 import           Data.Aeson       (FromJSON(..), ToJSON(..), object, (.=), (.:))
 import qualified Data.Aeson       as JSON
 import           GHC.Generics     (Generic)
@@ -106,16 +109,15 @@ data Redeem = Redeem
 instance FromLedger Redeem where
   parseFromLedger fout@FullTxOut{fullTxOutDatum=(KnownDatum (Datum d)), ..} =
     case fromBuiltinData d of
-      (Just cfg@RedeemConfig{..}) -> do
-        let adaIn = Ada.getLovelace $ Ada.fromValue fullTxOutValue
+      (Just cfg@RedeemConfig{..}) ->
         case extractLpToken fullTxOutValue cfg of
           Just (ac, tn, v) ->
               Just $ OnChain fout Redeem
-                { redeemPoolId    = PoolId $ Coin poolNft
-                , redeemLqIn      = Amount v
-                , redeemLq        = Coin $ AssetClass (ac, tn)
-                , redeemExFee     = ExFee $ Amount exFee
-                , redeemRewardPkh = rewardPkh
+                { redeemPoolId     = PoolId $ Coin poolNft
+                , redeemLqIn       = Amount v
+                , redeemLq         = Coin $ AssetClass (ac, tn)
+                , redeemExFee      = ExFee $ Amount exFee
+                , redeemRewardPkh  = rewardPkh
                 , redeemRewardSPkh = fmap StakePubKeyHash stakePkh
                 }
           _ -> Nothing
@@ -124,7 +126,7 @@ instance FromLedger Redeem where
 
 extractLpToken :: Value -> RedeemConfig -> Maybe (CurrencySymbol, TokenName, Integer)
 extractLpToken inputValue RedeemConfig{..} =
-    if (lpValue <= 0) then Nothing else Just (lpCs, lpTn, lpValue)
+    if lpValue <= 0 then Nothing else Just (lpCs, lpTn, lpValue)
   where
     (lpCs, lpTn) = unAssetClass poolLp
     lpValue = V.assetClassValueOf inputValue poolLp
@@ -191,8 +193,8 @@ instance FromJSON AnyOrder where
     let actionP = v .: "action"
 
     case kind of
-      SwapK    -> actionP >>= JSON.parseJSON & fmap (AnyOrder poolId . SwapAction)
-      DepositK -> actionP >>= JSON.parseJSON & fmap (AnyOrder poolId . DepositAction)
-      RedeemK  -> actionP >>= JSON.parseJSON & fmap (AnyOrder poolId . RedeemAction)
+      SwapK    -> actionP >>= JSON.parseJSON <&> (AnyOrder poolId . SwapAction)
+      DepositK -> actionP >>= JSON.parseJSON <&> (AnyOrder poolId . DepositAction)
+      RedeemK  -> actionP >>= JSON.parseJSON <&> (AnyOrder poolId . RedeemAction)
 
   parseJSON _ = fail "expected an object"

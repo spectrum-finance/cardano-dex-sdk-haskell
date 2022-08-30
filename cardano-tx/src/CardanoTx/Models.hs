@@ -16,7 +16,7 @@ newtype ChangeAddress = ChangeAddress { getAddress :: Address }
   deriving (Eq, Generic)
   deriving newtype (Show, FromJSON, ToJSON)
 
--- Defines how a residual value (if any) should be handled
+-- | Defines how a residual value (if any) should be handled
 data ChangePolicy = ReturnTo Address
   deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
@@ -41,7 +41,7 @@ asTxOutDatum :: TxOutDatum -> Maybe Datum
 asTxOutDatum (KnownDatum dt) = Just dt
 asTxOutDatum _               = Nothing
 
--- TX output template
+-- | TX output template
 data TxOutCandidate = TxOutCandidate
   { txOutCandidateAddress :: Address
   , txOutCandidateValue   :: Value
@@ -130,9 +130,14 @@ instance Monoid MintInputs where
 
 mkMintInputs :: [(MintingPolicy, Redeemer)] -> MintInputs
 mkMintInputs xs = MintInputs mps rs
-  where (mps, rs) = foldr (\ (ix, (mp, r)) (mpsa, rsa) -> (Set.insert mp mpsa, Map.insert ix r rsa)) (mempty, mempty) (zip [0..] xs)
+  where
+    (mps, rs) =
+      foldr
+        (\ (ix, (mp, r)) (mpsa, rsa) -> (Set.insert mp mpsa, Map.insert ix r rsa))
+        (mempty, mempty)
+        (zip [0..] xs)
 
--- TX template without collaterals, fees, change etc.
+-- | TX template without collaterals, fees, change etc.
 data TxCandidate = TxCandidate
   { txCandidateInputs       :: Set.Set FullTxIn
   , txCandidateOutputs      :: [TxOutCandidate]
