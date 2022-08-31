@@ -74,14 +74,14 @@ library
     hs-source-dirs: src
     
     exposed-modules: ErgoDex.Class
+                     ErgoDex.Types
+                     ErgoDex.Validators
                      ErgoDex.State
                      ErgoDex.Amm.Orders
                      ErgoDex.Amm.Pool
                      ErgoDex.Amm.PoolActions
                      ErgoDex.Amm.PoolSetup
-                     ErgoDex.Amm.Scripts
                      ErgoDex.Amm.Constants
-                     ErgoDex.Types
 
     build-depends:
         rio,

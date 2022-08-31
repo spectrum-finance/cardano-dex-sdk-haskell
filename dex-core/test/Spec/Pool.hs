@@ -32,6 +32,7 @@ import qualified ErgoDex.Contracts.Typed as S
 import           ErgoDex.Contracts.Types
 import           ErgoDex.Types
 import           ErgoDex.State
+import           ErgoDex.Validators
 import           ErgoDex.Amm.PoolSetup   (burnLqInitial)
 import           ErgoDex.Class           (ToLedger(toLedger), FromLedger(parseFromLedger))
 import           ErgoDex.Amm.Constants   (minSafeOutputAmount)
@@ -108,18 +109,22 @@ initPoolTests = testGroup "NonNativePoolInit"
 
 initNonNativePoolInsufficientLiquidity :: Property
 initNonNativePoolInsufficientLiquidity = property $ do
-  pool <- initPool poolConf burnLqInitial (insufficientInitDepositX, initDepositY)
+  pv <- fetchPoolValidatorV1
+  let pool = initPool pv poolConf burnLqInitial (insufficientInitDepositX, initDepositY)
   pool === Left (InsufficientInitialLiqudity $ Amount 1000)
 
 initNonNativePoolSufficientLiquidity :: Property
 initNonNativePoolSufficientLiquidity = property $ do
-  res <- initPool poolConf burnLqInitial (sufficientInitDepositX, initDepositY)
-  nativePoolToLedger <- toLedger nativePool
+  pv <- fetchPoolValidatorV1
+  let
+    res = initPool pv poolConf burnLqInitial (sufficientInitDepositX, initDepositY)
+    nativePoolToLedger = toLedger pv nativePool
   res === Right (Predicted nativePoolToLedger nativePool, releasedLq)
 
-fromLedgerPool :: (MonadIO m) => m (Maybe Pool)
+fromLedgerPool :: MonadIO m => m (Maybe Pool)
 fromLedgerPool = do
-  nativePoolToLedger <- toLedger nativePool
+  pv <- fetchPoolValidatorV1
+  let nativePoolToLedger = toLedger pv nativePool
   pure $ case parseFromLedger $ mkFullTxOut (TxOutRef "test" 1) nativePoolToLedger of
     Just (OnChain _ pool) -> Just pool
     _ -> Nothing
@@ -147,8 +152,10 @@ checkDeposit = testGroup "CheckDeposit"
 
 correctApplyDeposit :: Property
 correctApplyDeposit = property $ do
-  deposit <- applyDeposit nativePool (Amount 80, Amount 200)
-  depositedPPToLedger <- toLedger depositedPP
+  pv <- fetchPoolValidatorV1
+  let
+    deposit = applyDeposit pv nativePool (Amount 80, Amount 200)
+    depositedPPToLedger = toLedger pv depositedPP
   deposit === Predicted depositedPPToLedger depositedPP
 
 redeemedPP = nativePool
@@ -166,8 +173,10 @@ checkRedeem = testGroup "CheckRedeem"
 
 correctApplyRedeem :: Property
 correctApplyRedeem = property $ do
-  redeem <- applyRedeem depositedPP (Amount 26)
-  redeemPPToLedger <- toLedger redeemedPP
+  pv <- fetchPoolValidatorV1
+  let
+    redeem = applyRedeem pv depositedPP (Amount 26)
+    redeemPPToLedger = toLedger pv redeemedPP
   redeem === Predicted redeemPPToLedger redeemedPP
 
 swapXPP = nativePool
@@ -193,12 +202,16 @@ checkSwap = testGroup "SwapCheck"
 
 correctApplySwapXBase :: Property
 correctApplySwapXBase = property $ do
-  swap <- applySwap nativePool (assetAmountCoinOf baseX 20)
-  swapXPPToLedger <- toLedger swapXPP
+  pv <- fetchPoolValidatorV1
+  let
+    swap = applySwap pv nativePool (assetAmountCoinOf baseX 20)
+    swapXPPToLedger = toLedger pv swapXPP
   swap === Predicted swapXPPToLedger swapXPP
 
 correctApplySwapYBase :: Property
 correctApplySwapYBase = property $ do
-  swap <- applySwap nativePool (assetAmountCoinOf baseY 80)
-  swapYPPToLedger <- toLedger swapYPP
+  pv <- fetchPoolValidatorV1
+  let
+    swap = applySwap pv nativePool (assetAmountCoinOf baseY 80)
+    swapYPPToLedger = toLedger pv swapYPP
   swap === Predicted swapYPPToLedger swapYPP

@@ -11,6 +11,7 @@ import           Ledger.Value    (AssetClass)
 
 import           ErgoDex.Types
 import           ErgoDex.State
+import           ErgoDex.Validators
 import           ErgoDex.Amm.Pool        (Pool(..), initPool)
 import           ErgoDex.Amm.Constants
 import qualified ErgoDex.Contracts.Typed as P
@@ -26,38 +27,43 @@ data SetupExecError =
   | InsufficientInputs
   deriving Show
 
-data PoolSetup m = PoolSetup
-  { poolDeploy :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> P.PoolConfig -> [FullTxOut] -> m (Either SetupExecError TxCandidate)
+data PoolSetup = PoolSetup
+  { poolDeploy
+      :: PaymentPubKeyHash
+      -> Maybe StakePubKeyHash
+      -> P.PoolConfig
+      -> [FullTxOut]
+      -> Either SetupExecError TxCandidate
   }
 
 burnLqInitial :: Amount Liquidity
 burnLqInitial = Amount 1000 -- todo: aggregate protocol constants
 
-mkPoolSetup :: (MonadIO m) => Address -> PoolSetup m
-mkPoolSetup changeAddr = PoolSetup
-  { poolDeploy = poolDeploy' burnLqInitial changeAddr
+mkPoolSetup :: PoolValidatorV1 -> Address -> PoolSetup
+mkPoolSetup pv changeAddr = PoolSetup
+  { poolDeploy = poolDeploy' pv burnLqInitial changeAddr
   }
 
 poolDeploy'
-  :: forall m. (MonadIO m)
-  => Amount Liquidity 
+  :: PoolValidatorV1
+  -> Amount Liquidity 
   -> Address
   -> PaymentPubKeyHash
   -> Maybe StakePubKeyHash
   -> P.PoolConfig
   -> [FullTxOut]
-  -> m (Either SetupExecError TxCandidate)
-poolDeploy' burnLq changeAddr rewardPkh stakePkh pp@P.PoolConfig{..} utxosIn = runEitherT $ do
-  inNft <- hoistEither $ overallAmountOf utxosIn poolNft
-  inLq  <- hoistEither $ overallAmountOf utxosIn poolLq
-  inX   <- hoistEither $ overallAmountOf utxosIn poolX
-  inY   <- hoistEither $ overallAmountOf utxosIn poolY
+  -> Either SetupExecError TxCandidate
+poolDeploy' pv burnLq changeAddr rewardPkh stakePkh pp@P.PoolConfig{..} utxosIn = do
+  inNft <- overallAmountOf utxosIn poolNft
+  inLq  <- overallAmountOf utxosIn poolLq
+  inX   <- overallAmountOf utxosIn poolX
+  inY   <- overallAmountOf utxosIn poolY
 
-  unless (amountEq inNft 1) (hoistEither $ Left InvalidNft) -- make sure valid NFT is provided
-  unless (getAmount inLq == maxLqCapAmount) (hoistEither $ Left InvalidLiquidity) -- make sure valid amount of LQ tokens is provided
+  unless (amountEq inNft 1) (Left InvalidNft) -- make sure valid NFT is provided
+  unless (getAmount inLq == maxLqCapAmount) (Left InvalidLiquidity) -- make sure valid amount of LQ tokens is provided
 
   (Predicted poolOutput nextPool, unlockedLq) <-
-    ExceptT $ initPool pp burnLq (getAmount inX, getAmount inY) <&> (mapLeft (const InvalidLiquidity))
+    mapLeft (const InvalidLiquidity) (initPool pv pp burnLq (getAmount inX, getAmount inY))
 
   let
     mintLqValue  = coinAmountValue (poolCoinLq nextPool) unlockedLq
@@ -73,10 +79,10 @@ poolDeploy' burnLq changeAddr rewardPkh stakePkh pp@P.PoolConfig{..} utxosIn = r
     overallAdaOut = assetAmountOfCoin totalValueIn adaCoin
       where totalValueIn = foldr ( (<>) . txOutCandidateValue) mempty outputs
 
-  overallAdaIn <- hoistEither $ overallAmountOf utxosIn adaCoin
-  unless (overallAdaIn >= overallAdaOut) (hoistEither $ Left InsufficientInputs)
+  overallAdaIn <- overallAmountOf utxosIn adaCoin
+  unless (overallAdaIn >= overallAdaOut) (Left InsufficientInputs)
 
-  hoistEither $ Right $ TxCandidate
+  Right $ TxCandidate
     { txCandidateInputs       = Set.fromList inputs
     , txCandidateOutputs      = [poolOutput, rewardOutput]
     , txCandidateValueMint    = mempty -- todo: mint NFT and LQ right there?
