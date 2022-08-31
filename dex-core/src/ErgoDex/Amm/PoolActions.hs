@@ -46,9 +46,9 @@ data AmmValidators ver = AmmValidators
   }
 
 data PoolActions m = PoolActions
-  { runSwap    :: Confirmed Swap    -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
-  , runDeposit :: Confirmed Deposit -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
-  , runRedeem  :: Confirmed Redeem  -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+  { runSwap    :: OnChain Swap    -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+  , runDeposit :: OnChain Deposit -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+  , runRedeem  :: OnChain Redeem  -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
   }
 
 mkPoolActions :: (MonadIO m) => PaymentPubKeyHash -> AmmValidators V1 -> PoolActions m
@@ -82,10 +82,10 @@ runSwap'
   :: PaymentPubKeyHash
   -> PoolValidator V1
   -> SwapValidator V1
-  -> Confirmed Swap
+  -> OnChain Swap
   -> (FullTxOut, Pool)
   -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runSwap' executorPkh pv sv (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
+runSwap' executorPkh pv sv (OnChain swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
   let 
     inputs = mkOrderInputs P.Swap pv sv (PoolIn poolOut) (OrderIn swapOut)
     pp@(Predicted nextPoolOut _) = applySwap pv pool (AssetAmount swapBase swapBaseIn)
@@ -128,10 +128,10 @@ runDeposit'
   :: PaymentPubKeyHash
   -> PoolValidator V1
   -> DepositValidator V1
-  -> Confirmed Deposit
+  -> OnChain Deposit
   -> (FullTxOut, Pool)
   -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runDeposit' executorPkh pv dv (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{..}) = do
+runDeposit' executorPkh pv dv (OnChain depositOut Deposit{..}) (poolOut, pool@Pool{..}) = do
   when (depositPoolId /= poolId) (Left $ PoolMismatch depositPoolId poolId)
   let
     inputs = mkOrderInputs P.Deposit pv dv (PoolIn poolOut) (OrderIn depositOut)
@@ -192,10 +192,10 @@ runRedeem'
   :: PaymentPubKeyHash
   -> PoolValidator V1
   -> RedeemValidator V1
-  -> Confirmed Redeem
+  -> OnChain Redeem
   -> (FullTxOut, Pool)
   -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runRedeem' executorPkh pv rv (Confirmed redeemOut Redeem{..}) (poolOut, pool@Pool{..}) = do
+runRedeem' executorPkh pv rv (OnChain redeemOut Redeem{..}) (poolOut, pool@Pool{..}) = do
   when (redeemPoolId /= poolId) (Left $ PoolMismatch redeemPoolId poolId)
   let
     inputs = mkOrderInputs P.Redeem pv rv (PoolIn poolOut) (OrderIn redeemOut)
