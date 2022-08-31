@@ -28,12 +28,12 @@ data Transactions f era = Transactions
 
 mkTransactions
   :: (MonadThrow f, MonadIO f)
-  => CardanoNetwork f C.AlonzoEra
+  => CardanoNetwork f C.BabbageEra
   -> C.NetworkId
   -> WalletOutputs f
   -> Vault f
   -> TxAssemblyConfig
-  -> Transactions f C.AlonzoEra
+  -> Transactions f C.BabbageEra
 mkTransactions network networkId utxos wallet conf = Transactions
   { estimateTxFee = estimateTxFee' network networkId
   , finalizeTx    = finalizeTx' network networkId utxos wallet conf
@@ -43,7 +43,7 @@ mkTransactions network networkId utxos wallet conf = Transactions
 estimateTxFee'
   :: MonadThrow f
   => MonadIO f
-  => CardanoNetwork f C.AlonzoEra
+  => CardanoNetwork f C.BabbageEra
   -> C.NetworkId
   -> Set.Set Sdk.FullCollateralTxIn
   -> Sdk.TxCandidate
@@ -55,13 +55,13 @@ estimateTxFee' CardanoNetwork{..} network collateral txc = do
 finalizeTx'
   :: MonadThrow f
   => MonadIO f
-  => CardanoNetwork f C.AlonzoEra
+  => CardanoNetwork f C.BabbageEra
   -> C.NetworkId
   -> WalletOutputs f
   -> Vault f
   -> TxAssemblyConfig
   -> Sdk.TxCandidate
-  -> f (C.Tx C.AlonzoEra)
+  -> f (C.Tx C.BabbageEra)
 finalizeTx' CardanoNetwork{..} network utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   sysenv      <- getSystemEnv
   collaterals <- selectCollaterals utxos sysenv network conf txc
@@ -76,7 +76,7 @@ finalizeTx' CardanoNetwork{..} network utxos Vault{..} conf@TxAssemblyConfig{..}
   signers <- mapM (\pkh -> getSigningKey pkh >>= maybe (throwM $ SignerNotFound pkh) pure) signatories
   pure $ Internal.signTx txb signers
 
-submitTx' :: Monad f => CardanoNetwork f C.AlonzoEra -> C.Tx C.AlonzoEra -> f C.TxId
+submitTx' :: Monad f => CardanoNetwork f C.BabbageEra -> C.Tx C.BabbageEra -> f C.TxId
 submitTx' CardanoNetwork{submitTx} tx = do
   submitTx tx
   pure . C.getTxId . C.getTxBody $ tx

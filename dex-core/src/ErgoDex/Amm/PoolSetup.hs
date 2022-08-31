@@ -1,9 +1,9 @@
 module ErgoDex.Amm.PoolSetup where
 
-import           Control.Monad           (unless)
-import           Data.Functor            ((<&>))
-import qualified Data.Set                as Set
-import           Data.Either.Combinators (mapLeft)
+import qualified Data.Set                   as Set
+import           RIO
+import           Control.Monad.Trans.Either (hoistEither, runEitherT)
+import           Control.Monad.Trans.Except (ExceptT(ExceptT))
 
 import           Ledger          (Address, StakePubKeyHash, PaymentPubKeyHash, pubKeyHashAddress)
 import qualified Ledger.Interval as Interval
@@ -11,6 +11,7 @@ import           Ledger.Value    (AssetClass)
 
 import           ErgoDex.Types
 import           ErgoDex.State
+import           ErgoDex.Validators
 import           ErgoDex.Amm.Pool        (Pool(..), initPool)
 import           ErgoDex.Amm.Constants
 import qualified ErgoDex.Contracts.Typed as P
@@ -27,26 +28,32 @@ data SetupExecError =
   deriving Show
 
 data PoolSetup = PoolSetup
-  { poolDeploy :: PaymentPubKeyHash -> Maybe StakePubKeyHash -> P.PoolConfig -> [FullTxOut] -> Either SetupExecError TxCandidate
+  { poolDeploy
+      :: PaymentPubKeyHash
+      -> Maybe StakePubKeyHash
+      -> P.PoolConfig
+      -> [FullTxOut]
+      -> Either SetupExecError TxCandidate
   }
 
 burnLqInitial :: Amount Liquidity
 burnLqInitial = Amount 1000 -- todo: aggregate protocol constants
 
-mkPoolSetup :: Address -> PoolSetup
-mkPoolSetup changeAddr = PoolSetup
-  { poolDeploy = poolDeploy' burnLqInitial changeAddr
+mkPoolSetup :: PoolValidatorV1 -> Address -> PoolSetup
+mkPoolSetup pv changeAddr = PoolSetup
+  { poolDeploy = poolDeploy' pv burnLqInitial changeAddr
   }
 
 poolDeploy'
-  :: Amount Liquidity 
+  :: PoolValidatorV1
+  -> Amount Liquidity 
   -> Address
   -> PaymentPubKeyHash
   -> Maybe StakePubKeyHash
   -> P.PoolConfig
   -> [FullTxOut]
   -> Either SetupExecError TxCandidate
-poolDeploy' burnLq changeAddr rewardPkh stakePkh pp@P.PoolConfig{..} utxosIn = do
+poolDeploy' pv burnLq changeAddr rewardPkh stakePkh pp@P.PoolConfig{..} utxosIn = do
   inNft <- overallAmountOf utxosIn poolNft
   inLq  <- overallAmountOf utxosIn poolLq
   inX   <- overallAmountOf utxosIn poolX
@@ -56,7 +63,7 @@ poolDeploy' burnLq changeAddr rewardPkh stakePkh pp@P.PoolConfig{..} utxosIn = d
   unless (getAmount inLq == maxLqCapAmount) (Left InvalidLiquidity) -- make sure valid amount of LQ tokens is provided
 
   (Predicted poolOutput nextPool, unlockedLq) <-
-    mapLeft (const InvalidLiquidity) (initPool pp burnLq (getAmount inX, getAmount inY))
+    mapLeft (const InvalidLiquidity) (initPool pv pp burnLq (getAmount inX, getAmount inY))
 
   let
     mintLqValue  = coinAmountValue (poolCoinLq nextPool) unlockedLq

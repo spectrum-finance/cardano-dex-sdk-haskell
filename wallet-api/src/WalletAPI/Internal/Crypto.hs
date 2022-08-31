@@ -12,7 +12,7 @@ import qualified Crypto.Random.Types as CRT
 import           Data.ByteArray          (ByteArray)
 import           Data.ByteString         (ByteString)
 import qualified Data.ByteString.Base16  as Hex
-import           Data.Aeson
+import           Data.Aeson              hiding (Key(..))
 import qualified Data.Text.Encoding      as T
 
 data Key c a where

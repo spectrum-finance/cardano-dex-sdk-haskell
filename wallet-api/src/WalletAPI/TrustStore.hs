@@ -16,7 +16,7 @@ import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Lazy   as BL
 import qualified Data.ByteArray         as BA
 import qualified Data.Text.Encoding     as T
-import           Data.Aeson
+import           Data.Aeson  hiding (Key(..))
 
 import qualified Crypto.Hash         as H
 import           Crypto.Cipher.AES   (AES256)

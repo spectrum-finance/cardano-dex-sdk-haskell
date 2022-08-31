@@ -6,12 +6,11 @@ import qualified Data.Map   as Map
 
 import           Ledger                      hiding (TxIn)
 import           Plutus.V1.Ledger.Credential (Credential (..))
+import           Plutus.Script.Utils.Scripts
 import qualified Ledger                      as P
-import qualified Ledger.Constraints.OffChain as P
 import           GHC.Generics                (Generic)
 
 import CardanoTx.ToPlutus (ToPlutus(..))
-import CardanoTx.Types
 
 newtype ChangeAddress = ChangeAddress { getAddress :: Address }
   deriving (Eq, Generic)
@@ -84,19 +83,14 @@ data FullTxIn = FullTxIn
 instance Ord FullTxIn where
   compare FullTxIn{fullTxInTxOut=foutx} FullTxIn{fullTxInTxOut=fouty} = compare foutx fouty
 
-toScriptOutput :: FullTxIn -> Maybe P.ScriptOutput
-toScriptOutput FullTxIn{fullTxInTxOut=FullTxOut{fullTxOutValue}, fullTxInType=ConsumeScriptAddress v _ d} =
-  Just $ P.ScriptOutput (validatorHash v) fullTxOutValue (datumHash d)
-toScriptOutput _ = Nothing
-
 mkPkhTxIn :: FullTxOut -> FullTxIn
 mkPkhTxIn fout = FullTxIn fout ConsumePublicKeyAddress
 
 mkScriptTxIn :: FullTxOut -> Validator -> Redeemer -> FullTxIn
 mkScriptTxIn fout@FullTxOut{..} v r =
   FullTxIn fout $ case (fullTxOutAddress, fullTxOutDatum) of
-    (Address (ScriptCredential _) _, KnownDatum d) -> ConsumeScriptAddress v r d
-    _                                              -> ConsumeScriptAddress v r unitDatum
+    (Address (ScriptCredential _) _, KnownDatum d) -> ConsumeScriptAddress PlutusV2 v r d
+    _                                              -> ConsumeScriptAddress PlutusV2 v r unitDatum
 
 instance ToPlutus FullTxIn P.TxIn where
   toPlutus FullTxIn{..} =

@@ -11,17 +11,18 @@ import Hedgehog
 import Hedgehog.Gen as Gen
 import Hedgehog.Range as Range
 
-import qualified Ledger.Ada                 as Ada
-import qualified Ledger                     as P
-import qualified Ledger.Value               as P
-import qualified Ledger.Value               as Value
-import qualified PlutusTx.Builtins.Internal as P
-import qualified Plutus.V1.Ledger.Api       as P
-import qualified Ledger.Interval            as Interval
+import qualified Ledger.Ada                  as Ada
+import qualified Ledger                      as P
+import qualified Ledger.Value                as P
+import qualified Ledger.Value                as Value
+import qualified PlutusTx.Builtins.Internal  as P
+import qualified Plutus.Script.Utils.Scripts as P
+import qualified Plutus.V1.Ledger.Api        as P
+import qualified Ledger.Interval             as Interval
+import           Ledger.Ada                  (adaValueOf)
 import qualified PlutusTx
 
 import qualified CardanoTx.Models     as Sdk
-import           Plutus.V1.Ledger.Ada (adaValueOf)
 import           CardanoTx.Models     (TxOutDatum(EmptyDatum))
 
 mkTokenName :: BS.ByteString -> P.TokenName
