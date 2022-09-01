@@ -45,13 +45,13 @@ data AmmValidators ver = AmmValidators
   , redeemV  :: RedeemValidator ver
   }
 
-data PoolActions m = PoolActions
+data PoolActions = PoolActions
   { runSwap    :: OnChain Swap    -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
   , runDeposit :: OnChain Deposit -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
   , runRedeem  :: OnChain Redeem  -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
   }
 
-mkPoolActions :: (MonadIO m) => PaymentPubKeyHash -> AmmValidators V1 -> PoolActions m
+mkPoolActions :: PaymentPubKeyHash -> AmmValidators V1 -> PoolActions
 mkPoolActions executorPkh AmmValidators{..} = PoolActions
   { runSwap    = runSwap' executorPkh poolV swapV
   , runDeposit = runDeposit' executorPkh poolV depositV
