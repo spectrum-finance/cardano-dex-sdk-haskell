@@ -7,7 +7,7 @@ import qualified Data.Map.Strict as Map
 
 import           Codec.Serialise           (serialise)
 import           Data.ByteString.Lazy      (toStrict)
-import           Data.Text.Prettyprint.Doc (Pretty(..))
+import           Prettyprinter             (Pretty(..))
 import qualified Data.Set                  as Set
 
 import           Cardano.Api          hiding (TxBodyError)
