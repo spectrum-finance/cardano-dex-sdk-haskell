@@ -2,13 +2,14 @@ module ErgoDex.Amm.PoolActions
   ( PoolActions(..)
   , OrderExecErr(..)
   , mkPoolActions
+  , AmmValidators(..)
+  , fetchValidatorsV1
   ) where
 
 import           Control.Exception.Base
 import qualified Data.Set                   as Set
 import           Data.Bifunctor
 import           Data.Tuple
-import           Control.Monad.Trans.Either (hoistEither, runEitherT)
 import           RIO
 
 import           Ledger          (Redeemer(..), PaymentPubKeyHash(..), pubKeyHashAddress)
@@ -16,7 +17,6 @@ import qualified Ledger.Interval as Interval
 import qualified Ledger.Ada      as Ada
 import           Ledger.Value    (assetClassValue)
 import           PlutusTx        (toBuiltinData)
-import           Ledger.Scripts  (Validator)
 
 import           ErgoDex.Types
 import           ErgoDex.State
@@ -26,7 +26,6 @@ import           ErgoDex.Validators
 import qualified ErgoDex.Contracts.Pool        as P
 import qualified ErgoDex.Contracts.Proxy.Order as O
 import           ErgoDex.Contracts.Types
-import           ErgoDex.PValidators
 import           CardanoTx.Models
 
 data OrderExecErr
@@ -44,6 +43,14 @@ data AmmValidators ver = AmmValidators
   , depositV :: DepositValidator ver
   , redeemV  :: RedeemValidator ver
   }
+
+fetchValidatorsV1 :: MonadIO m => m (AmmValidators V1)
+fetchValidatorsV1 =
+  AmmValidators
+    <$> fetchPoolValidatorV1
+    <*> fetchSwapValidatorV1
+    <*> fetchDepositValidatorV1
+    <*> fetchRedeemValidatorV1
 
 data PoolActions = PoolActions
   { runSwap    :: OnChain Swap    -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
@@ -76,7 +83,7 @@ mkOrderInputs action (PoolValidator pv) ov' (PoolIn poolOut) (OrderIn orderOut) 
       orderIx   = toInteger $ Set.findIndex orderOut preInputs
       poolIn    = mkScriptTxIn poolOut pv (Redeemer $ toBuiltinData $ P.PoolRedeemer action poolIx)
       orderIn   = mkScriptTxIn orderOut ov (Redeemer $ toBuiltinData $ O.OrderRedeemer poolIx orderIx 1 O.Apply)
-    in Set.fromList [poolIn, orderIn]    
+    in Set.fromList [poolIn, orderIn]
 
 runSwap'
   :: PaymentPubKeyHash
@@ -86,7 +93,7 @@ runSwap'
   -> (FullTxOut, Pool)
   -> Either OrderExecErr (TxCandidate, Predicted Pool)
 runSwap' executorPkh pv sv (OnChain swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
-  let 
+  let
     inputs = mkOrderInputs P.Swap pv sv (PoolIn poolOut) (OrderIn swapOut)
     pp@(Predicted nextPoolOut _) = applySwap pv pool (AssetAmount swapBase swapBaseIn)
     quoteOutput = outputAmount pool (AssetAmount swapBase swapBaseIn)
@@ -135,7 +142,7 @@ runDeposit' executorPkh pv dv (OnChain depositOut Deposit{..}) (poolOut, pool@Po
   when (depositPoolId /= poolId) (Left $ PoolMismatch depositPoolId poolId)
   let
     inputs = mkOrderInputs P.Deposit pv dv (PoolIn poolOut) (OrderIn depositOut)
-    
+
     (inX, inY) =
         bimap entryAmount entryAmount $
           if assetEntryClass (fst depositPair) == unCoin poolCoinX
