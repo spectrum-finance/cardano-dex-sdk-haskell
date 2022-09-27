@@ -112,6 +112,9 @@ library
         cardano-ledger-core,
         cardano-ledger-shelley-ma,
         cardano-ledger-byron,
+        cardano-ledger-babbage,
+        ouroboros-consensus,
+        microlens,
         cardano-binary,
         strict-containers,
         transformers,
@@ -154,3 +157,6 @@ test-suite submit-api-tests
     , cardano-tx
     , network-api
     , wallet-api
+    , serialise
+    , cardano-dex-contracts-offchain
+    , cardano-ledger-alonzo

@@ -43,7 +43,7 @@ let
       "https://github.com/input-output-hk/cardano-ledger"."c7c63dabdb215ebdaed8b63274965966f2bf408f" = "zTQbMOGPD1Oodv6VUsfF6NUiXkbN8SWI98W3Atv4wbI=";
       "https://github.com/input-output-hk/plutus-apps"."593ffafa59dd30ad28cfaf144c526c66328595d2" = "CIuI/Nz7O67ljOHDg7UBbXgWuIE7VPRdPX4VK0/DI3A=";
       "https://github.com/input-output-hk/hedgehog-extras"."714ee03a5a786a05fc57ac5d2f1c2edce4660d85" = "6KQFEzb9g2a0soVvwLKESEbA+a8ygpROcMr6bkatROE=";
-      "https://github.com/ergolabs/cardano-dex-contracts"."7ac8d2801e24ee0817a9ab24ecd96f776c011bb6" = "Nfd6ovKG+A9rblOIecHyQUaXy+KB1FaysWJ2gGad63g=";
+      "https://github.com/ergolabs/cardano-dex-contracts"."c7bdacfdf0f524d41240836e6dbdf3c7ada80c9d" = "xnUTvepJatCzUuGNx/GL4EmEFZPknezvx4O5yPbxnG4=";
       "https://github.com/ergolabs/hlog"."19dfa3a6e696a3f63fc3539cd6b7a3fc4d999853" = "Lvmj1oLuXmktrboXh/BrXqLPf8FxSCXIf99GnBXu0Bk=";
     };
 

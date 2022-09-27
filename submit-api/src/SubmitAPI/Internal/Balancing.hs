@@ -250,7 +250,7 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
                    $ calculateMinimumUTxO era txout pparams'
      if txOutValueToLovelace v >= selectLovelace minUTxO
      then Right ()
-     else Left TxBodyErrorByronEraNotSupported --todo fix: TxOutInAnyEra
+     else Left TxBodyErrorMissingParamMinUTxO --todo fix: TxOutInAnyEra. Current err is incorrect
 
 substituteExecutionUnits :: Map ScriptWitnessIndex ExecutionUnits
                          -> TxBodyContent BuildTx era
