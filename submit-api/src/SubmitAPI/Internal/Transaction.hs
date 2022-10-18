@@ -11,11 +11,14 @@ import           Prettyprinter             (Pretty(..))
 import qualified Data.Set                  as Set
 
 import           Cardano.Api          hiding (TxBodyError)
-import           Cardano.Api.Shelley  (ProtocolParameters(..))
+import           Cardano.Api.Shelley  (ProtocolParameters(..), ReferenceTxInsScriptsInlineDatumsSupportedInEra (ReferenceTxInsScriptsInlineDatumsInBabbageEra))
 import           Plutus.Script.Utils.V1.Scripts
+import qualified Plutus.V2.Ledger.Tx            as PV2
+import           Plutus.V2.Ledger.Api           (Datum(Datum))
 import qualified Ledger                         as P
 import           Ledger                         (ToCardanoError(Tag))
 import qualified Ledger.Tx.CardanoAPI           as Interop
+import qualified CardanoTx.Interop              as Interop
 import qualified Ledger.Ada                     as Ada
 import           Plutus.Script.Utils.Scripts    (datumHash)
 
@@ -119,7 +122,7 @@ buildTxIns =
     mapM translate
   where
     translate Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{..}, ..} = do
-      sWit <- absorbError $ Interop.toCardanoTxInWitness fullTxInType
+      sWit <- absorbError $ Interop.toCardanoTxInWitnessV2 fullTxInType
       txIn <- absorbError $ Interop.toCardanoTxIn fullTxOutRef
 
       pure (txIn, BuildTxWith sWit)
@@ -142,15 +145,17 @@ buildTxOuts
 buildTxOuts network =
     mapM translate
   where
-    datumCast :: (Maybe P.DatumHash -> Either ToCardanoError (TxOutDatum ctx BabbageEra))
+    datumCast :: (PV2.OutputDatum -> Either ToCardanoError (TxOutDatum CtxTx BabbageEra))
     datumCast mDh = 
       case mDh of
-        Nothing -> pure TxOutDatumNone
-        Just dh -> do
-          scData <- Interop.toCardanoScriptDataHash dh
-          pure $ TxOutDatumHash ScriptDataInBabbageEra scData
+        PV2.NoOutputDatum -> pure TxOutDatumNone
+        PV2.OutputDatumHash dh -> do
+          scDataHash <- Interop.toCardanoScriptDataHash dh
+          pure $ TxOutDatumHash ScriptDataInBabbageEra scDataHash
+        PV2.OutputDatum d -> do
+          pure $ TxOutDatumInline ReferenceTxInsScriptsInlineDatumsInBabbageEra (Interop.toCardanoScriptData (P.getDatum d))
 
-    translate sdkOut = absorbError $ Interop.toCardanoTxOut network datumCast $ toPlutus sdkOut
+    translate sdkOut = absorbError $ Interop.toCardanoTxOutV2 network datumCast $ toPlutus sdkOut
 
 buildInputsUTxO
   :: (MonadThrow f)
@@ -160,17 +165,19 @@ buildInputsUTxO
 buildInputsUTxO network inputs =
     mapM (absorbError . translate) inputs <&> UTxO . Map.fromList
   where
-    datumCast :: (Maybe P.DatumHash -> Either ToCardanoError (TxOutDatum ctx BabbageEra))
+    datumCast :: (PV2.OutputDatum -> Either ToCardanoError (TxOutDatum CtxTx BabbageEra))
     datumCast mDh = 
       case mDh of
-        Nothing -> pure TxOutDatumNone
-        Just dh -> do
-          scData <- Interop.toCardanoScriptDataHash dh
-          pure $ TxOutDatumHash ScriptDataInBabbageEra scData
+        PV2.NoOutputDatum -> pure TxOutDatumNone
+        PV2.OutputDatumHash dh -> do
+          scDataHash <- Interop.toCardanoScriptDataHash dh
+          pure $ TxOutDatumHash ScriptDataInBabbageEra scDataHash
+        PV2.OutputDatum d -> do
+          pure $ TxOutDatumInline ReferenceTxInsScriptsInlineDatumsInBabbageEra (Interop.toCardanoScriptData (P.getDatum d))
 
     translate Sdk.FullTxIn{fullTxInTxOut=out@Sdk.FullTxOut{..}} = do
       txIn  <- Interop.toCardanoTxIn fullTxOutRef
-      txOut <- Interop.toCardanoTxOut network datumCast $ toPlutus out
+      txOut <- Interop.toCardanoTxOutV2 network datumCast $ toPlutus out
       pure (txIn, toCtxUTxOTxOut txOut)
 
 buildMintRedeemers :: Sdk.MintInputs -> P.Redeemers

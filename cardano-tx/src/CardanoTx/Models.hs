@@ -8,9 +8,11 @@ import           Ledger                      hiding (TxIn)
 import           Plutus.V1.Ledger.Credential (Credential (..))
 import           Plutus.Script.Utils.Scripts
 import qualified Ledger                      as P
+import qualified Plutus.V2.Ledger.Tx         as PV2
 import           GHC.Generics                (Generic)
 
 import CardanoTx.ToPlutus (ToPlutus(..))
+import Plutus.ChainIndex  (OutputDatum)
 
 newtype ChangeAddress = ChangeAddress { getAddress :: Address }
   deriving (Eq, Generic)
@@ -37,9 +39,9 @@ asTxOutDatumHash (KnownDatum dt)     = Just $ datumHash dt
 asTxOutDatumHash (KnownDatumHash dh) = Just dh
 asTxOutDatumHash _                   = Nothing
 
-asTxOutDatum :: TxOutDatum -> Maybe Datum
-asTxOutDatum (KnownDatum dt) = Just dt
-asTxOutDatum _               = Nothing
+asTxOutDatum :: TxOutDatum -> OutputDatum
+asTxOutDatum (KnownDatum dt) = PV2.OutputDatum dt
+asTxOutDatum _               = PV2.NoOutputDatum
 
 -- TX output template
 data TxOutCandidate = TxOutCandidate
@@ -49,10 +51,10 @@ data TxOutCandidate = TxOutCandidate
   }
   deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
-instance ToPlutus TxOutCandidate P.TxOut where
+instance ToPlutus TxOutCandidate PV2.TxOut where
   toPlutus TxOutCandidate{..} =
-    P.TxOut txOutCandidateAddress txOutCandidateValue dh
-      where dh = asTxOutDatumHash txOutCandidateDatum
+    PV2.TxOut txOutCandidateAddress txOutCandidateValue dh Nothing
+      where dh = asTxOutDatum txOutCandidateDatum
 
 instance Ord TxOutCandidate where
   compare TxOutCandidate{txOutCandidateAddress=rx} TxOutCandidate{txOutCandidateAddress=ry} = compare rx ry
@@ -68,9 +70,9 @@ mkFullTxOut :: TxOutRef -> TxOutCandidate -> FullTxOut
 mkFullTxOut ref TxOutCandidate{..} =
     FullTxOut ref txOutCandidateAddress txOutCandidateValue txOutCandidateDatum
 
-instance ToPlutus FullTxOut P.TxOut where
-  toPlutus FullTxOut{..} = P.TxOut fullTxOutAddress fullTxOutValue dh
-    where dh = asTxOutDatumHash fullTxOutDatum
+instance ToPlutus FullTxOut PV2.TxOut where
+  toPlutus FullTxOut{..} = PV2.TxOut fullTxOutAddress fullTxOutValue dh Nothing
+    where dh = asTxOutDatum fullTxOutDatum
 
 instance Ord FullTxOut where
   compare FullTxOut{fullTxOutRef=rx} FullTxOut{fullTxOutRef=ry} = compare rx ry
