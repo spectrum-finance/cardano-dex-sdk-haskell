@@ -27,6 +27,7 @@ import qualified ErgoDex.Contracts.Pool        as P
 import qualified ErgoDex.Contracts.Proxy.Order as O
 import           ErgoDex.Contracts.Types
 import           CardanoTx.Models
+import           Debug.Trace
 
 data OrderExecErr
   = PriceTooHigh
@@ -92,12 +93,18 @@ runSwap'
   -> OnChain Swap
   -> (FullTxOut, Pool)
   -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runSwap' executorPkh pv sv (OnChain swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
+runSwap' executorPkh pv sv (OnChain swapOut swap@Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
+  Debug.Trace.traceM ("PoolOut: " ++ show poolOut)
+  Debug.Trace.traceM ("SwapOut: " ++ show swapOut)
+  Debug.Trace.traceM ("Pool: " ++ show pool)
+  Debug.Trace.traceM ("Swap: " ++ show swap)
   let
     inputs = mkOrderInputs P.Swap pv sv (PoolIn poolOut) (OrderIn swapOut)
     pp@(Predicted nextPoolOut _) = applySwap pv pool (AssetAmount swapBase swapBaseIn)
     quoteOutput = outputAmount pool (AssetAmount swapBase swapBaseIn)
 
+  Debug.Trace.traceM ("quoteOutput: " ++ show quoteOutput)
+  Debug.Trace.traceM ("swapMinQuoteOut: " ++ show swapMinQuoteOut)
   when (swapPoolId /= poolId pool)               (Left $ PoolMismatch swapPoolId (poolId pool))
   when (getAmount quoteOutput < swapMinQuoteOut) (Left PriceTooHigh)
 
