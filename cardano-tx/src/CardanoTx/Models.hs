@@ -45,9 +45,10 @@ asTxOutDatum _               = PV2.NoOutputDatum
 
 -- TX output template
 data TxOutCandidate = TxOutCandidate
-  { txOutCandidateAddress :: Address
-  , txOutCandidateValue   :: Value
-  , txOutCandidateDatum   :: TxOutDatum
+  { txOutCandidateAddress   :: Address
+  , txOutCandidateValue     :: Value
+  , txOutCandidateDatum     :: TxOutDatum
+  , txOutCandidateRefScript :: Maybe P.ScriptHash
   }
   deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
@@ -60,18 +61,19 @@ instance Ord TxOutCandidate where
   compare TxOutCandidate{txOutCandidateAddress=rx} TxOutCandidate{txOutCandidateAddress=ry} = compare rx ry
 
 data FullTxOut = FullTxOut
-  { fullTxOutRef     :: TxOutRef
-  , fullTxOutAddress :: Address
-  , fullTxOutValue   :: Value
-  , fullTxOutDatum   :: TxOutDatum
+  { fullTxOutRef       :: TxOutRef
+  , fullTxOutAddress   :: Address
+  , fullTxOutValue     :: Value
+  , fullTxOutDatum     :: TxOutDatum
+  , fullTxOutScriptRef :: Maybe P.ScriptHash
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 mkFullTxOut :: TxOutRef -> TxOutCandidate -> FullTxOut
 mkFullTxOut ref TxOutCandidate{..} =
-    FullTxOut ref txOutCandidateAddress txOutCandidateValue txOutCandidateDatum
+    FullTxOut ref txOutCandidateAddress txOutCandidateValue txOutCandidateDatum txOutCandidateRefScript
 
 instance ToPlutus FullTxOut PV2.TxOut where
-  toPlutus FullTxOut{..} = PV2.TxOut fullTxOutAddress fullTxOutValue dh Nothing
+  toPlutus FullTxOut{..} = PV2.TxOut fullTxOutAddress fullTxOutValue dh fullTxOutScriptRef
     where dh = asTxOutDatum fullTxOutDatum
 
 instance Ord FullTxOut where
@@ -132,6 +134,7 @@ mkMintInputs xs = MintInputs mps rs
 -- TX template without collaterals, fees, change etc.
 data TxCandidate = TxCandidate
   { txCandidateInputs       :: Set.Set FullTxIn
+  , txCandidateRefIns       :: [FullTxOut]      -- we are not going to consume those inputs, so they are represented as FullTxOut
   , txCandidateOutputs      :: [TxOutCandidate]
   , txCandidateValueMint    :: MintValue
   , txCandidateMintInputs   :: MintInputs

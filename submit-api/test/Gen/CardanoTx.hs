@@ -85,7 +85,7 @@ genFullTxOutExact :: MonadGen f => P.Value -> f Sdk.FullTxOut
 genFullTxOutExact value = do
   ref   <- genTxOutRef
   addr  <- genPkhAddress
-  pure $ Sdk.FullTxOut ref addr value EmptyDatum
+  pure $ Sdk.FullTxOut ref addr value EmptyDatum Nothing
 
 genFullTxIn :: MonadGen f => f Sdk.FullTxIn
 genFullTxIn = genFullTxOut <&> (`Sdk.FullTxIn` P.ConsumePublicKeyAddress)
@@ -104,7 +104,7 @@ genTxOutCandidate = do
 genTxOutCandidateExact :: MonadGen f => P.Value -> f Sdk.TxOutCandidate
 genTxOutCandidateExact value = do
   addr <- genPkhAddress
-  pure $ Sdk.TxOutCandidate addr value EmptyDatum
+  pure $ Sdk.TxOutCandidate addr value EmptyDatum Nothing
 
 genPlainTxCandidate :: MonadGen f => f Sdk.TxCandidate
 genPlainTxCandidate = do
@@ -119,4 +119,4 @@ genPlainTxCandidate = do
     then genFullTxInExact (Ada.lovelaceValueOf delta) <&> pure
     else pure []
   let updatedInputs = Set.fromList $ inputs ++ extraIn
-  pure $ Sdk.TxCandidate updatedInputs outputs mempty mempty Nothing Interval.always mempty
+  pure $ Sdk.TxCandidate updatedInputs [] outputs mempty mempty Nothing Interval.always mempty

@@ -11,9 +11,12 @@ module CardanoTx.Interop
   , toCardanoTxOutV2
   , fromCardanoTxOutV2
   , toCardanoTxInWitnessV2
+  , fromCardanoScriptHash
+  , refScriptToScriptHash
   ) where
 
-import Data.Functor ((<&>))
+import Data.Functor       ((<&>))
+import qualified Data.Map as Map
 
 import qualified Cardano.Api           as C
 import qualified Cardano.Api.Shelley   as C
@@ -23,10 +26,13 @@ import qualified Plutus.V2.Ledger.Tx   as PV2
 import           Ledger.Tx.CardanoAPI  (toCardanoAddressInEra, FromCardanoError)
 import           Ledger.Ada            (lovelaceValueOf)
 
-import Plutus.Contract.CardanoAPI 
+import Plutus.Contract.CardanoAPI
   ( toCardanoTxOutValue, ToCardanoError (SimpleScriptsNotSupportedToCardano), toCardanoPlutusScript, toCardanoScriptData, zeroExecutionUnits )
 
 import CardanoTx.Models  (FullTxOut(..), TxOutCandidate(..), TxOutDatum(..))
+import qualified PlutusTx.Builtins as PlutusTx
+import Data.Map (Map)
+import Plutus.Script.Utils.V2.Scripts (scriptHash)
 
 extractCardanoTxId :: C.Tx era -> P.TxId
 extractCardanoTxId = Interop.fromCardanoTxId . C.getTxId . C.getTxBody
@@ -62,7 +68,7 @@ extractCardanoTxContentOutputs bodyc =
   where
     toSdkOutput o = do
       PV2.TxOut{..} <- toCardanoTxOutput o
-      pure $ TxOutCandidate txOutAddress txOutValue (fromPlutusDatum txOutDatum)
+      pure $ TxOutCandidate txOutAddress txOutValue (fromPlutusDatum txOutDatum) txOutReferenceScript
 
 fromPlutusDatum :: PV2.OutputDatum -> TxOutDatum
 fromPlutusDatum PV2.NoOutputDatum = EmptyDatum
@@ -75,12 +81,13 @@ extractCardanoTxOutputAt ix tx = do
   let
     txId = extractCardanoTxId tx
     ref  = P.TxOutRef txId (toInteger ix)
-  pure $ FullTxOut ref txOutAddress txOutValue (fromPlutusDatum txOutDatum)
+  pure $ FullTxOut ref txOutAddress txOutValue (fromPlutusDatum txOutDatum) txOutReferenceScript
 
-toCardanoTxInWitnessV2 :: P.TxInType -> Either ToCardanoError (C.Witness C.WitCtxTxIn C.BabbageEra)
-toCardanoTxInWitnessV2 P.ConsumePublicKeyAddress = pure (C.KeyWitness C.KeyWitnessForSpending)
-toCardanoTxInWitnessV2 P.ConsumeSimpleScriptAddress = Left SimpleScriptsNotSupportedToCardano -- TODO: Better support for simple scripts
+toCardanoTxInWitnessV2 :: Map P.Script C.TxIn -> P.TxInType -> Either ToCardanoError (C.Witness C.WitCtxTxIn C.BabbageEra)
+toCardanoTxInWitnessV2 _ P.ConsumePublicKeyAddress = pure (C.KeyWitness C.KeyWitnessForSpending)
+toCardanoTxInWitnessV2 _ P.ConsumeSimpleScriptAddress = Left SimpleScriptsNotSupportedToCardano -- TODO: Better support for simple scripts
 toCardanoTxInWitnessV2
+    _
     (P.ConsumeScriptAddress
         P.PlutusV1
         (P.Validator validator)
@@ -94,18 +101,30 @@ toCardanoTxInWitnessV2
         <*> pure zeroExecutionUnits
         )
 toCardanoTxInWitnessV2
+    refMap
     (P.ConsumeScriptAddress
         P.PlutusV2
         (P.Validator validator)
         (P.Redeemer redeemer)
         (P.Datum datum))  -- todo: add match
-    = C.ScriptWitness C.ScriptWitnessForSpending <$>
-        (C.PlutusScriptWitness C.PlutusScriptV2InBabbage C.PlutusScriptV2
-        <$> fmap C.PScript (toCardanoPlutusScript (C.AsPlutusScript C.AsPlutusScriptV2) validator)
-        <*> pure C.InlineScriptDatum
-        <*> pure (toCardanoScriptData redeemer)
-        <*> pure zeroExecutionUnits
-        )
+    = do
+      let scripts = Map.mapKeys P.scriptHash refMap
+      case (Map.lookup (P.scriptHash validator) scripts) of
+        Just txIn ->
+          C.ScriptWitness C.ScriptWitnessForSpending <$>
+            (pure (C.PlutusScriptWitness C.PlutusScriptV2InBabbage C.PlutusScriptV2 (C.PReferenceScript txIn Nothing))
+            <*> pure C.InlineScriptDatum
+            <*> pure (toCardanoScriptData redeemer)
+            <*> pure zeroExecutionUnits
+            )
+        Nothing ->
+          C.ScriptWitness C.ScriptWitnessForSpending <$>
+            (C.PlutusScriptWitness C.PlutusScriptV2InBabbage C.PlutusScriptV2
+            <$> fmap C.PScript (toCardanoPlutusScript (C.AsPlutusScript C.AsPlutusScriptV2) validator)
+            <*> pure C.InlineScriptDatum
+            <*> pure (toCardanoScriptData redeemer)
+            <*> pure zeroExecutionUnits
+            )
 
 getOutputAt :: Int -> C.Tx era -> Maybe (C.TxOut C.CtxTx era)
 getOutputAt ix tx =
@@ -119,22 +138,48 @@ toCardanoTxOutput o = either (const Nothing) Just (fromCardanoTxOutV2 o)
 
 toCardanoTxOutV2
     :: C.NetworkId
+    -> Map P.Script C.TxIn
     -> (PV2.OutputDatum -> Either ToCardanoError (C.TxOutDatum ctx C.BabbageEra))
     -> PV2.TxOut
     -> Either ToCardanoError (C.TxOut ctx C.BabbageEra)
-toCardanoTxOutV2 networkId fromDatum (PV2.TxOut addr value datum _) =
+toCardanoTxOutV2 networkId scriptsMap fromDatum (PV2.TxOut addr value datum refScript) =
     C.TxOut <$> toCardanoAddressInEra networkId addr
             <*> toCardanoTxOutValue value
             <*> fromDatum datum
-            <*> pure C.ReferenceScriptNone
+            <*> fromRefScript refScript scriptsMap
+
+fromRefScript :: Maybe P.ScriptHash -> Map P.Script C.TxIn -> Either ToCardanoError (C.ReferenceScript C.BabbageEra)
+fromRefScript Nothing   _ = pure C.ReferenceScriptNone
+fromRefScript (Just sh) scriptsMap = do
+  let scripts = Map.fromList (Map.keys scriptsMap <&> (\script -> (scriptHash script, script)))
+  case Map.lookup sh scripts of
+    Just script -> 
+      toCardanoScriptInAnyLang script <&> C.ReferenceScript C.ReferenceTxInsScriptsInlineDatumsInBabbageEra
+    Nothing -> 
+      pure C.ReferenceScriptNone
+
+-- support only plutus v2
+toCardanoScriptInAnyLang :: P.Script -> Either ToCardanoError C.ScriptInAnyLang
+toCardanoScriptInAnyLang script =
+  C.ScriptInAnyLang (C.PlutusScriptLanguage C.PlutusScriptV2) . C.PlutusScript C.PlutusScriptV2
+    <$> toCardanoPlutusScript (C.AsPlutusScript C.AsPlutusScriptV2) script
 
 fromCardanoTxOutV2 :: C.TxOut C.CtxTx era -> Either FromCardanoError PV2.TxOut
-fromCardanoTxOutV2 (C.TxOut addr value datum _) =
+fromCardanoTxOutV2 (C.TxOut addr value datum refScript) =
     PV2.TxOut
     <$> Interop.fromCardanoAddressInEra addr
     <*> pure (fromCardanoTxOutValue value)
     <*> pure (Interop.fromCardanoTxOutDatum datum)
-    <*> pure Nothing
+    <*> pure (refScriptToScriptHash refScript)
+
+fromCardanoScriptHash :: C.ScriptHash -> P.ValidatorHash
+fromCardanoScriptHash scriptHash = P.ValidatorHash $ PlutusTx.toBuiltin $ C.serialiseToRawBytes scriptHash
+
+refScriptToScriptHash :: C.ReferenceScript era -> Maybe P.ScriptHash
+refScriptToScriptHash C.ReferenceScriptNone = Nothing
+refScriptToScriptHash (C.ReferenceScript _ (C.ScriptInAnyLang _ s)) =
+    let (P.ValidatorHash h) = fromCardanoScriptHash $ C.hashScript s
+     in Just $ P.ScriptHash h
 
 fromCardanoTxOutValue :: C.TxOutValue era -> P.Value
 fromCardanoTxOutValue (C.TxOutAdaOnly _ lovelace) = fromCardanoLovelace lovelace

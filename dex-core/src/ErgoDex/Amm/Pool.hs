@@ -20,7 +20,7 @@ import CardanoTx.Models
                 fullTxOutAddress, fullTxOutRef),
       TxOutCandidate(TxOutCandidate, txOutCandidateAddress,
                      txOutCandidateValue, txOutCandidateDatum),
-      TxOutDatum(KnownDatum) )
+      TxOutDatum(KnownDatum), txOutCandidateRefScript )
 
 import           ErgoDex.Class
 import           ErgoDex.Types
@@ -85,9 +85,10 @@ instance FromLedger Pool where
 instance ToLedger PoolValidatorV1 Pool where
   toLedger (PoolValidator poolValidator) Pool{..} =
       TxOutCandidate
-        { txOutCandidateAddress = mkValidatorAddress poolValidator
-        , txOutCandidateValue   = poolValue
-        , txOutCandidateDatum   = KnownDatum $ Datum $ toBuiltinData poolConf
+        { txOutCandidateAddress   = mkValidatorAddress poolValidator
+        , txOutCandidateValue     = poolValue
+        , txOutCandidateDatum     = KnownDatum $ Datum $ toBuiltinData poolConf
+        , txOutCandidateRefScript = Nothing
         }
     where
       nft            = unPoolId poolId
