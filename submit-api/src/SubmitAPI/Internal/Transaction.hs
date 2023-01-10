@@ -9,9 +9,11 @@ import           Codec.Serialise           (serialise)
 import           Data.ByteString.Lazy      (toStrict)
 import           Prettyprinter             (Pretty(..))
 import qualified Data.Set                  as Set
+import qualified RIO.List                  as List
 
 import           Cardano.Api          hiding (TxBodyError)
 import           Cardano.Api.Shelley  (ProtocolParameters(..), ReferenceTxInsScriptsInlineDatumsSupportedInEra (ReferenceTxInsScriptsInlineDatumsInBabbageEra))
+import qualified Cardano.Api.Shelley            as C
 import           Plutus.Script.Utils.V1.Scripts
 import qualified Plutus.V2.Ledger.Tx            as PV2
 import           Plutus.V2.Ledger.Api           (Datum(Datum))
@@ -28,7 +30,7 @@ import           CardanoTx.ToPlutus
 import           NetworkAPI.Types
 
 signTx
-  :: TxBody BabbageEra 
+  :: TxBody BabbageEra
   -> [ShelleyWitnessSigningKey]
   -> Tx BabbageEra
 signTx body keys =
@@ -38,16 +40,17 @@ signTx body keys =
 buildBalancedTx
   :: (MonadThrow f)
   => SystemEnv
+  -> Map P.Script C.TxIn
   -> NetworkId
   -> Sdk.ChangeAddress
   -> Set.Set Sdk.FullCollateralTxIn
   -> Sdk.TxCandidate
   -> f (BalancedTxBody BabbageEra)
-buildBalancedTx SystemEnv{..} network defaultChangeAddr collateral txc@Sdk.TxCandidate{..} = do
+buildBalancedTx SystemEnv{..} refScriptsMap network defaultChangeAddr collateral txc@Sdk.TxCandidate{..} = do
   let eraInMode    = BabbageEraInCardanoMode
       witOverrides = Nothing
-  txBody     <- buildTxBodyContent pparams network collateral txc
-  inputsMap  <- buildInputsUTxO network $ Set.elems txCandidateInputs
+  txBody     <- buildTxBodyContent pparams network refScriptsMap collateral txc
+  inputsMap  <- buildInputsUTxO network refScriptsMap (Set.elems txCandidateInputs) txCandidateRefIns
   changeAddr <- absorbError $ case txCandidateChangePolicy of
     Just (Sdk.ReturnTo addr) -> Interop.toCardanoAddressInEra network addr
     _                        -> Interop.toCardanoAddressInEra network $ Sdk.getAddress defaultChangeAddr
@@ -61,11 +64,12 @@ estimateTxFee
   :: (MonadThrow f)
   => ProtocolParameters
   -> NetworkId
+  -> Map P.Script C.TxIn
   -> Set.Set Sdk.FullCollateralTxIn
   -> Sdk.TxCandidate
   -> f Lovelace
-estimateTxFee pparams network collateral txc = do
-  txBodyContent <- buildTxBodyContent pparams network collateral txc
+estimateTxFee pparams network refScriptsMap collateral txc = do
+  txBodyContent <- buildTxBodyContent pparams network refScriptsMap collateral txc
   txBody        <- either (throwM . TxBodyError . T.pack . show) pure (makeTransactionBody txBodyContent)
   pure $ evaluateTransactionFee pparams txBody 0 0
 
@@ -73,13 +77,15 @@ buildTxBodyContent
   :: (MonadThrow f)
   => ProtocolParameters
   -> NetworkId
+  -> Map P.Script C.TxIn
   -> Set.Set Sdk.FullCollateralTxIn
   -> Sdk.TxCandidate
   -> f (TxBodyContent BuildTx BabbageEra)
-buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
-  txIns           <- buildTxIns $ Set.elems txCandidateInputs
+buildTxBodyContent protocolParams network refScriptsMap collateral Sdk.TxCandidate{..} = do
+  txIns           <- buildTxIns refScriptsMap $ Set.elems txCandidateInputs
+  txInsRef        <- buildTxRefIns txCandidateRefIns
   txInsCollateral <- buildTxCollateral $ Set.elems collateral
-  txOuts          <- buildTxOuts network txCandidateOutputs
+  txOuts          <- buildTxOuts network refScriptsMap txCandidateOutputs
   txFee           <- absorbError $ Interop.toCardanoFee dummyFee
   txValidityRange <- absorbError $ Interop.toCardanoValidityRange txCandidateValidRange
   txMintValue     <-
@@ -96,7 +102,7 @@ buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
   pure $ TxBodyContent
     { txIns            = txIns
     , txInsCollateral  = txInsCollateral
-    , txInsReference   = TxInsReferenceNone
+    , txInsReference   = txInsRef
     , txOuts           = txOuts
     , txTotalCollateral = TxTotalCollateralNone
     , txReturnCollateral = TxReturnCollateralNone
@@ -116,16 +122,27 @@ buildTxBodyContent protocolParams network collateral Sdk.TxCandidate{..} = do
 
 buildTxIns
   :: (MonadThrow f)
-  => [Sdk.FullTxIn]
+  => Map P.Script C.TxIn
+  -> [Sdk.FullTxIn]
   -> f [(TxIn, BuildTxWith BuildTx (Witness WitCtxTxIn BabbageEra))]
-buildTxIns =
+buildTxIns refScripstMap =
     mapM translate
   where
     translate Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{..}, ..} = do
-      sWit <- absorbError $ Interop.toCardanoTxInWitnessV2 fullTxInType
+      sWit <- absorbError $ Interop.toCardanoTxInWitnessV2 refScripstMap fullTxInType
       txIn <- absorbError $ Interop.toCardanoTxIn fullTxOutRef
 
       pure (txIn, BuildTxWith sWit)
+
+buildTxRefIns
+  :: (MonadThrow f)
+  => [Sdk.FullTxOut ]
+  -> f (TxInsReference BuildTx BabbageEra)
+buildTxRefIns ins =
+    TxInsReference ReferenceTxInsScriptsInlineDatumsInBabbageEra <$> mapM translate ins
+  where
+    translate Sdk.FullTxOut{..} = do
+      absorbError $ Interop.toCardanoTxIn fullTxOutRef
 
 buildTxCollateral
   :: (MonadThrow f)
@@ -140,13 +157,14 @@ buildTxCollateral ins =
 buildTxOuts
   :: (MonadThrow f)
   => NetworkId
+  -> Map P.Script C.TxIn
   -> [Sdk.TxOutCandidate]
   -> f [TxOut CtxTx BabbageEra]
-buildTxOuts network =
+buildTxOuts network scriptsMap =
     mapM translate
   where
     datumCast :: (PV2.OutputDatum -> Either ToCardanoError (TxOutDatum CtxTx BabbageEra))
-    datumCast mDh = 
+    datumCast mDh =
       case mDh of
         PV2.NoOutputDatum -> pure TxOutDatumNone
         PV2.OutputDatumHash dh -> do
@@ -155,18 +173,22 @@ buildTxOuts network =
         PV2.OutputDatum d -> do
           pure $ TxOutDatumInline ReferenceTxInsScriptsInlineDatumsInBabbageEra (Interop.toCardanoScriptData (P.getDatum d))
 
-    translate sdkOut = absorbError $ Interop.toCardanoTxOutV2 network datumCast $ toPlutus sdkOut
+    translate sdkOut = absorbError $ Interop.toCardanoTxOutV2 network scriptsMap datumCast $ toPlutus sdkOut
 
 buildInputsUTxO
   :: (MonadThrow f)
   => NetworkId
+  -> Map P.Script C.TxIn
   -> [Sdk.FullTxIn]
+  -> [Sdk.FullTxOut]
   -> f (UTxO BabbageEra)
-buildInputsUTxO network inputs =
-    mapM (absorbError . translate) inputs <&> UTxO . Map.fromList
+buildInputsUTxO network scriptsMap inputs refOutputs = do
+  translatedInputs     <- mapM (absorbError . translate) inputs
+  translatedRefOutputs <- mapM (absorbError . translateOutputs) refOutputs
+  pure . UTxO . Map.fromList $ translatedInputs ++ translatedRefOutputs
   where
     datumCast :: (PV2.OutputDatum -> Either ToCardanoError (TxOutDatum CtxTx BabbageEra))
-    datumCast mDh = 
+    datumCast mDh =
       case mDh of
         PV2.NoOutputDatum -> pure TxOutDatumNone
         PV2.OutputDatumHash dh -> do
@@ -177,7 +199,12 @@ buildInputsUTxO network inputs =
 
     translate Sdk.FullTxIn{fullTxInTxOut=out@Sdk.FullTxOut{..}} = do
       txIn  <- Interop.toCardanoTxIn fullTxOutRef
-      txOut <- Interop.toCardanoTxOutV2 network datumCast $ toPlutus out
+      txOut <- Interop.toCardanoTxOutV2 network scriptsMap datumCast $ toPlutus out
+      pure (txIn, toCtxUTxOTxOut txOut)
+
+    translateOutputs out@Sdk.FullTxOut{..} = do
+      txIn  <- Interop.toCardanoTxIn fullTxOutRef
+      txOut <- Interop.toCardanoTxOutV2 network scriptsMap datumCast $ toPlutus out
       pure (txIn, toCtxUTxOTxOut txOut)
 
 buildMintRedeemers :: Sdk.MintInputs -> P.Redeemers

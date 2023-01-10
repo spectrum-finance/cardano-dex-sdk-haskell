@@ -107,22 +107,25 @@ data FullTxOut = FullTxOut
   , dataHash      :: Maybe P.DatumHash
   , data'         :: Maybe P.Datum
   , spentByTxHash :: Maybe TxHash
+  , refScriptHash :: Maybe P.ScriptHash 
   } deriving (Show, Generic)
 
 instance FromJSON FullTxOut where
   parseJSON = withObject "quickblueFullTxOut" $ \o -> do
-    ref           <- OutRef <$> o .: "ref"
-    txHash        <- TxHash <$> o .: "txHash"
-    index         <- o .: "index"
-    globalIndex   <- Gix <$> o .: "globalIndex"
-    addr          <- Addr <$> o .: "addr"
-    value         <- o .: "value"
-    dataHash      <- o .:? "dataHash"
-    rawDataM      <- o .:? "data"
-    spentByTxHash <- o .:? "spentByTxHash"
+    ref            <- OutRef <$> o .: "ref"
+    txHash         <- TxHash <$> o .: "txHash"
+    index          <- o .: "index"
+    globalIndex    <- Gix <$> o .: "globalIndex"
+    addr           <- Addr <$> o .: "addr"
+    value          <- o .: "value"
+    dataHash       <- o .:? "dataHash"
+    rawDataM       <- o .:? "data"
+    spentByTxHash  <- o .:? "spentByTxHash"
+    refScriptHashM <- o .:? "refScriptHash"
     let
-      jsonDataM  = rawDataM >>= (EC.rightToMaybe . Api.scriptDataFromJson Api.ScriptDataJsonDetailedSchema)
-      data'      = fmap (P.Datum . BI.dataToBuiltinData . toPlutusData) jsonDataM
+      jsonDataM     = rawDataM >>= (EC.rightToMaybe . Api.scriptDataFromJson Api.ScriptDataJsonDetailedSchema)
+      data'         = fmap (P.Datum . BI.dataToBuiltinData . toPlutusData) jsonDataM
+      refScriptHash = fmap ScriptHash refScriptHashM
     return FullTxOut{..}
 
 instance ToCardanoTx FullTxOut Tx.FullTxOut where
@@ -132,6 +135,7 @@ instance ToCardanoTx FullTxOut Tx.FullTxOut where
       , fullTxOutAddress   = toCardanoTx addr
       , fullTxOutValue     = foldr (\a acc -> unionVal acc (toCardanoTx a)) mempty value
       , fullTxOutDatum     = outDatum
+      , fullTxOutScriptRef = refScriptHash
       }
     where
       outDatum = case (data', dataHash) of
