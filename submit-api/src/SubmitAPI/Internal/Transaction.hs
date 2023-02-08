@@ -28,6 +28,7 @@ import qualified CardanoTx.Models             as Sdk
 import qualified SubmitAPI.Internal.Balancing as Balancing
 import           CardanoTx.ToPlutus
 import           NetworkAPI.Types
+import Debug.Trace
 
 signTx
   :: TxBody BabbageEra
@@ -247,7 +248,9 @@ data TxAssemblyError
   deriving (Show, Exception)
 
 absorbError :: (MonadThrow f) => Either Interop.ToCardanoError a -> f a
-absorbError (Left err) = throwM $ adaptInteropError err
+absorbError (Left err) = do
+  Debug.Trace.traceM ("Error: " ++ show err)
+  throwM $ adaptInteropError err
 absorbError (Right vl) = pure vl
 
 adaptInteropError :: Interop.ToCardanoError -> TxAssemblyError
