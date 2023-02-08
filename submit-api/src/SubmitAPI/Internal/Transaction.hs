@@ -149,7 +149,7 @@ buildTxRefIns ins =
       Debug.Trace.traceM ("buildTxRefIns")
       a <- absorbError $ Interop.toCardanoTxIn fullTxOutRef
       Debug.Trace.traceM ("buildTxRefIns: " ++ show a)
-      a
+      pure a
 
 buildTxCollateral
   :: (MonadThrow f)
