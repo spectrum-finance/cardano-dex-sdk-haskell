@@ -94,6 +94,7 @@ buildTxBodyContent protocolParams network refScriptsMap collateral Sdk.TxCandida
         valueMint = Sdk.unMintValue txCandidateValueMint
         policies  = Map.fromList $ toList (Sdk.mintInputsPolicies txCandidateMintInputs) <&> (\policy -> (mintingPolicyHash policy, policy))
     in absorbError $ Interop.toCardanoMintValue redeemers valueMint policies
+  Debug.Trace.traceM ("Going to parse witness " ++ show txCandidateSigners)
   wits <- absorbError $ traverse Interop.toCardanoPaymentKeyHash txCandidateSigners
   let
     wits' =
@@ -130,9 +131,11 @@ buildTxIns refScripstMap =
     mapM translate
   where
     translate Sdk.FullTxIn{fullTxInTxOut=Sdk.FullTxOut{..}, ..} = do
+      Debug.Trace.traceM "buildTxIns"
       sWit <- absorbError $ Interop.toCardanoTxInWitnessV2 refScripstMap fullTxInType
+      Debug.Trace.traceM ("sWit: " ++ show sWit)
       txIn <- absorbError $ Interop.toCardanoTxIn fullTxOutRef
-
+      Debug.Trace.traceM ("txIn: " ++ show txIn)
       pure (txIn, BuildTxWith sWit)
 
 buildTxRefIns
@@ -143,7 +146,10 @@ buildTxRefIns ins =
     TxInsReference ReferenceTxInsScriptsInlineDatumsInBabbageEra <$> mapM translate ins
   where
     translate Sdk.FullTxOut{..} = do
-      absorbError $ Interop.toCardanoTxIn fullTxOutRef
+      Debug.Trace.traceM ("buildTxRefIns")
+      a <- absorbError $ Interop.toCardanoTxIn fullTxOutRef
+      Debug.Trace.traceM ("buildTxRefIns: " ++ show a)
+      a
 
 buildTxCollateral
   :: (MonadThrow f)
