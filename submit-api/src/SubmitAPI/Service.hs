@@ -19,6 +19,7 @@ import qualified NetworkAPI.Service  as Network
 import           NetworkAPI.Types
 import           WalletAPI.Utxos
 import           WalletAPI.Vault
+import Debug.Trace
 
 data Transactions f era = Transactions
   { estimateTxFee :: Set.Set Sdk.FullCollateralTxIn -> Sdk.TxCandidate -> f C.Lovelace
@@ -97,7 +98,10 @@ selectCollaterals WalletOutputs{selectUtxosStrict} SystemEnv{..} refScriptsMap n
       isScriptIn _                                                    = False
 
       scriptInputs = filter isScriptIn (Set.elems txCandidateInputs)
+  
+  Debug.Trace.traceM ("scriptInputs: " ++ show scriptInputs)
 
+  let
       collectCollaterals knownCollaterals = do
         let
           estimateCollateral' collaterals = do
@@ -107,17 +111,19 @@ selectCollaterals WalletOutputs{selectUtxosStrict} SystemEnv{..} refScriptsMap n
             pure $ P.Lovelace $ collateralPercent * fee' `div` 100
 
         collateral <- estimateCollateral' knownCollaterals
+        Debug.Trace.traceM ("collateral: " ++ show collateral)
         utxos      <- selectUtxosStrict (P.toValue collateral) >>= maybe (throwM FailedToSatisfyCollateral) pure
-
+        Debug.Trace.traceM ("utxos: " ++ show utxos)
         let collaterals = Set.fromList $ Set.elems utxos <&> Sdk.FullCollateralTxIn
-
+        Debug.Trace.traceM ("collaterals: " ++ show collaterals)
         collateral' <- estimateCollateral' collaterals
-
+        Debug.Trace.traceM ("collateral': " ++ show collateral')
+        Debug.Trace.traceM ("collateral: " ++ show collateral)
         if collateral' > collateral
           then collectCollaterals collaterals
           else pure collaterals
 
   case (scriptInputs, collateralPolicy) of
     ([], _)    -> pure mempty
-    (_, Cover) -> collectCollaterals mempty
+    (_, Cover) -> Debug.Trace.traceM "Cover" >> collectCollaterals mempty
     _          -> throwM CollateralNotAllowed
