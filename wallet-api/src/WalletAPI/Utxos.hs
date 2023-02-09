@@ -28,6 +28,7 @@ import qualified Explorer.Class    as Explorer
 import           Explorer.Types    (PaymentCred)
 import           Explorer.Models   (Paging, Items)
 import           Algebra.Natural
+import Debug.Trace
 
 data WalletOutputs f = WalletOutputs
   -- Select UTxOs satisfying the given minumal Value.
@@ -50,17 +51,20 @@ mkWalletOutputs' fToI mklogging explorer vaultF = do
   let Vault{..}  = fmapK fToI vaultF
   getPaymentKeyHash >>= mkWalletOutputs mklogging explorer
 
-selectUtxos'' :: (MonadIO f, MonadMask f) => Logging f -> Explorer f -> UtxoStore f -> Hash PaymentKey -> Bool -> Value -> f (Maybe (Set.Set FullTxOut))
-selectUtxos'' logging explorer ustore@UtxoStore{..} pkh strict requiredValue = do
+selectUtxos'' :: forall f. (MonadIO f, MonadMask f) => Logging f -> Explorer f -> UtxoStore f -> Hash PaymentKey -> Bool -> Value -> f (Maybe (Set.Set FullTxOut))
+selectUtxos'' logging@Logging{..} explorer ustore@UtxoStore{..} pkh strict requiredValue = do
+  infoM ("Going to selectUtxos'' for " ++ show pkh ++ ". Req value: " ++ show requiredValue)
   let
     fetchUtxos offset limit = do
       let
         paging  = Explorer.Paging offset limit
         mkPCred = Explorer.PaymentCred . T.decodeUtf8 . convertToBase Base16 . serialiseToRawBytes
+      infoM ("paging " ++ show paging ++ ". mkPCred: " ++ show (mkPCred pkh))
       utxoBatch <- getUnspentOutputsByPCredWithRetry logging explorer (mkPCred pkh) paging
+      infoM ("utxoBatch " ++ show utxoBatch)
       putUtxos (Set.fromList $ Explorer.items utxoBatch <&> Explorer.toCardanoTx)
       let entriesLeft = Explorer.total utxoBatch - (offset + limit)
-
+      infoM ("entriesLeft " ++ show entriesLeft)
       if entriesLeft > 0
       then fetchUtxos (offset + limit) limit
       else pure ()
@@ -86,6 +90,7 @@ selectUtxos'' logging explorer ustore@UtxoStore{..} pkh strict requiredValue = d
           Just acc
 
   utxos <- getUtxos
+  infoM ("getUtxos:" ++ show utxos)
   case collect [] mempty (Set.elems utxos) of
     Just outs -> pure $ Just $ Set.fromList outs
     Nothing   -> fetchUtxos 0 batchSize >> selectUtxos'' logging explorer ustore pkh strict requiredValue
