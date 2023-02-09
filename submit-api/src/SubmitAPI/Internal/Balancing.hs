@@ -13,6 +13,7 @@ import Cardano.Api
 import Cardano.Api.Shelley   (ProtocolParameters(..), PoolId, ReferenceScript (..), fromShelleyLovelace)
 import qualified Cardano.Ledger.Coin as Ledger
 import Cardano.Slotting.Time (SystemStart)
+import Debug.Trace
 
 makeTransactionBodyAutoBalance
   :: forall era mode.
@@ -105,6 +106,9 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
                }
 
     let balance = evaluateTransactionBalance pparams poolids utxo txbody2
+
+    traceM ("balance: " ++ show balance)
+    traceM ("txbody2: " ++ show txbody2)
 
     mapM_ (`checkMinUTxOValue` pparams) $ txOuts txbodycontent1
 
