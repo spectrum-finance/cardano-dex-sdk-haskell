@@ -10,7 +10,7 @@ import qualified Data.Text as Text
 
 import System.Logging.Hlog (Logging(..), MakeLogging(..))
 
-import           Cardano.Api
+import           Cardano.Api hiding (SocketPath)
 import qualified Ouroboros.Network.Protocol.LocalTxSubmission.Client as Net.Tx
 
 import NetworkAPI.Types (SocketPath(..), SystemEnv(..))
