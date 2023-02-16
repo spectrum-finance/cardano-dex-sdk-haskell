@@ -1,9 +1,9 @@
 cabal-version:      2.4
-name:               wallet-api
+name:               spectrum
 version:            0.1.0.0
 
 author:             ErgoLabs
-maintainer:         ErgoLabs
+maintainer:         
 
 extra-source-files: CHANGELOG.md
 
@@ -25,7 +25,6 @@ common project-config
                         DataKinds
                         DefaultSignatures
                         DeriveDataTypeable
-                        DerivingStrategies
                         DeriveFoldable
                         DeriveFunctor
                         DeriveGeneric
@@ -54,8 +53,10 @@ common project-config
                         TupleSections
                         TypeFamilies
                         TypeSynonymInstances
-                        TypeApplications
                         ViewPatterns
+                        DerivingStrategies
+                        DuplicateRecordFields
+                        RecordWildCards
 
   ghc-options:          -Wall
                         -Wcompat
@@ -72,51 +73,15 @@ library
 
     hs-source-dirs: src
     
-    exposed-modules: WalletAPI.Vault
-                     WalletAPI.Utxos
-                     WalletAPI.TrustStore
-                     WalletAPI.UtxoStore
-                     WalletAPI.UtxoStoreConfig
-                     WalletAPI.Internal.Crypto
-                     WalletAPI.Internal.Models
+    exposed-modules: Spectrum.Common.Persistence.Exception
+                     Spectrum.Common.Persistence.Serialization
+                     Spectrum.Prelude.HigherKind
 
-    build-depends:  rio
-                 ,  serialise  
-                 ,  binary    
-                 ,  cardano-tx 
-                 ,  quickblue  
-                 ,  plutus-tx  
-                 ,  plutus-ledger-api       
-                 ,  cardano-crypto-wrapper  
-                 ,  cardano-crypto-class    
-                 ,  plutus-chain-index      
-                 ,  prettyprinter           
-                 ,  cardano-slotting       
-                 ,  cryptonite              
-                 ,  base16-bytestring      
-                 ,  mtl                     
-                 ,  plutus-ledger
-                 ,  memory                  
-                 ,  stm                    
-                 ,  bytestring
-                 ,  aeson
-                 ,  spectrum
-                 ,  servant
-                 ,  singletons
-                 ,  either
-                 ,  aeson-gadt-th
-                 ,  some
-                 ,  dependent-sum-template
-                 ,  containers
-                 ,  freer-simple
-                 ,  extra
-                 ,  cardano-api
-                 ,  text
-                 ,  dhall
-                 ,  retry
-                 ,  exceptions
-                 ,  hlog
-                 ,  algebra-core
-                 ,  rocksdb-haskell
-                 ,  resourcet
-                 ,  conduit
+    build-depends:
+        bytestring,
+        aeson,
+        dhall,
+        containers,
+        either,
+        rio,
+        transformers
