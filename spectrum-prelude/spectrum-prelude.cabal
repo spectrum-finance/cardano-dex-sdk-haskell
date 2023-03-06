@@ -1,5 +1,5 @@
 cabal-version:      2.4
-name:               dex-core
+name:               spectrum-prelude
 version:            0.1.0.0
 
 author:             ErgoLabs
@@ -9,7 +9,7 @@ extra-source-files: CHANGELOG.md
 
 source-repository head
   type: git
-  location: https://github.com/ergolabs/cardano-dex-sdk-haskell
+  location: https://github.com/ergolabs/cardano-dex-backend
 
 common base
   build-depends: base >= 4.9 && < 5
@@ -29,12 +29,9 @@ common project-config
                         DeriveFunctor
                         DeriveGeneric
                         DeriveTraversable
-                        DerivingStrategies
-                        UndecidableInstances
                         DoAndIfThenElse
                         EmptyDataDecls
                         ExistentialQuantification
-                        LambdaCase
                         FlexibleContexts
                         FlexibleInstances
                         FunctionalDependencies
@@ -46,19 +43,19 @@ common project-config
                         MultiParamTypeClasses
                         MultiWayIf
                         NamedFieldPuns
+                        NoImplicitPrelude
                         PartialTypeSignatures
                         PatternGuards
                         PolyKinds
                         RankNTypes
-                        LambdaCase
                         RecordWildCards
                         ScopedTypeVariables
                         StandaloneDeriving
                         TupleSections
-                        TypeApplications
                         TypeFamilies
                         TypeSynonymInstances
                         ViewPatterns
+                        DuplicateRecordFields
 
   ghc-options:          -Wall
                         -Wcompat
@@ -75,72 +72,14 @@ library
 
     hs-source-dirs: src
     
-    exposed-modules: ErgoDex.Class
-                     ErgoDex.Types
-                     ErgoDex.Validators
-                     ErgoDex.State
-                     ErgoDex.Amm.Orders
-                     ErgoDex.Amm.Pool
-                     ErgoDex.Amm.PoolActions
-                     ErgoDex.Amm.PoolSetup
-                     ErgoDex.Amm.Constants
-                     ErgoDex.ScriptsValidators
+    exposed-modules: Spectrum.Prelude.Context
+                     Spectrum.Prelude.UnliftIO
+                     Spectrum.Prelude.Throw
 
-    build-depends:
-        rio,
-        cardano-tx,
-        ergo-hs-common,
-        plutus-ledger,
-        plutus-tx,
-        plutus-ledger-api,
-        bytestring,
-        aeson,
-        servant,
-        plutus-contract,
-        mtl,
-        cardano-dex-contracts-offchain,
-        plutus-script-utils,
-        singletons,
-        transformers-either,
-        aeson-gadt-th,
-        some,
-        dependent-sum-template,
-        containers,
-        freer-simple,
-        plutus-core,
-        either,
-        extra,
-        transformers,
-        cardano-api,
-        text,
-        serialise,
-        dhall,
-        hlog
-
-test-suite dex-core-tests
-  type: exitcode-stdio-1.0
-  main-is: Main.hs
-  hs-source-dirs: test
-  other-modules:
-    Spec.Pool
-  build-depends:
-    , base
-    , HUnit
-    , hedgehog
-    , tasty-hunit
-    , tasty
-    , tasty-hedgehog
-    , text
-    , base16-bytestring
-    , bytestring
-    , plutus-ledger-api
-    , random
-    , plutus-tx
-    , cardano-dex-contracts-offchain
-    , plutus-ledger-api
-    , plutus-ledger
-    , containers
-    , random-strings
-    , plutus-core
-    , dex-core
-    , cardano-tx
+    build-depends:  rio
+                  , aeson == 1.5.6.0
+                  , unliftio-core
+                  , io-classes
+                  , transformers
+                  , generic-lens
+                  , spectrum
