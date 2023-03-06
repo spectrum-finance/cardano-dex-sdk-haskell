@@ -6,5 +6,5 @@ import ErgoDex.State
 class FromLedger a where
   parseFromLedger :: FullTxOut -> Maybe (OnChain a)
 
-class ToLedger a where
-  toLedger :: a -> TxOutCandidate
+class ToLedger ctx a where
+  toLedger :: ctx -> a -> TxOutCandidate

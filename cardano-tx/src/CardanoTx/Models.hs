@@ -6,12 +6,13 @@ import qualified Data.Map   as Map
 
 import           Ledger                      hiding (TxIn)
 import           Plutus.V1.Ledger.Credential (Credential (..))
+import           Plutus.Script.Utils.Scripts
 import qualified Ledger                      as P
-import qualified Ledger.Constraints.OffChain as P
+import qualified Plutus.V2.Ledger.Tx         as PV2
 import           GHC.Generics                (Generic)
 
 import CardanoTx.ToPlutus (ToPlutus(..))
-import CardanoTx.Types
+import Plutus.ChainIndex  (OutputDatum)
 
 newtype ChangeAddress = ChangeAddress { getAddress :: Address }
   deriving (Eq, Generic)
@@ -38,40 +39,42 @@ asTxOutDatumHash (KnownDatum dt)     = Just $ datumHash dt
 asTxOutDatumHash (KnownDatumHash dh) = Just dh
 asTxOutDatumHash _                   = Nothing
 
-asTxOutDatum :: TxOutDatum -> Maybe Datum
-asTxOutDatum (KnownDatum dt) = Just dt
-asTxOutDatum _               = Nothing
+asTxOutDatum :: TxOutDatum -> OutputDatum
+asTxOutDatum (KnownDatum dt) = PV2.OutputDatum dt
+asTxOutDatum _               = PV2.NoOutputDatum
 
 -- TX output template
 data TxOutCandidate = TxOutCandidate
-  { txOutCandidateAddress :: Address
-  , txOutCandidateValue   :: Value
-  , txOutCandidateDatum   :: TxOutDatum
+  { txOutCandidateAddress   :: Address
+  , txOutCandidateValue     :: Value
+  , txOutCandidateDatum     :: TxOutDatum
+  , txOutCandidateRefScript :: Maybe P.ScriptHash
   }
   deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
-instance ToPlutus TxOutCandidate P.TxOut where
+instance ToPlutus TxOutCandidate PV2.TxOut where
   toPlutus TxOutCandidate{..} =
-    P.TxOut txOutCandidateAddress txOutCandidateValue dh
-      where dh = asTxOutDatumHash txOutCandidateDatum
+    PV2.TxOut txOutCandidateAddress txOutCandidateValue dh Nothing
+      where dh = asTxOutDatum txOutCandidateDatum
 
 instance Ord TxOutCandidate where
   compare TxOutCandidate{txOutCandidateAddress=rx} TxOutCandidate{txOutCandidateAddress=ry} = compare rx ry
 
 data FullTxOut = FullTxOut
-  { fullTxOutRef     :: TxOutRef
-  , fullTxOutAddress :: Address
-  , fullTxOutValue   :: Value
-  , fullTxOutDatum   :: TxOutDatum
+  { fullTxOutRef       :: TxOutRef
+  , fullTxOutAddress   :: Address
+  , fullTxOutValue     :: Value
+  , fullTxOutDatum     :: TxOutDatum
+  , fullTxOutScriptRef :: Maybe P.ScriptHash
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 mkFullTxOut :: TxOutRef -> TxOutCandidate -> FullTxOut
 mkFullTxOut ref TxOutCandidate{..} =
-    FullTxOut ref txOutCandidateAddress txOutCandidateValue txOutCandidateDatum
+    FullTxOut ref txOutCandidateAddress txOutCandidateValue txOutCandidateDatum txOutCandidateRefScript
 
-instance ToPlutus FullTxOut P.TxOut where
-  toPlutus FullTxOut{..} = P.TxOut fullTxOutAddress fullTxOutValue dh
-    where dh = asTxOutDatumHash fullTxOutDatum
+instance ToPlutus FullTxOut PV2.TxOut where
+  toPlutus FullTxOut{..} = PV2.TxOut fullTxOutAddress fullTxOutValue dh fullTxOutScriptRef
+    where dh = asTxOutDatum fullTxOutDatum
 
 instance Ord FullTxOut where
   compare FullTxOut{fullTxOutRef=rx} FullTxOut{fullTxOutRef=ry} = compare rx ry
@@ -84,19 +87,14 @@ data FullTxIn = FullTxIn
 instance Ord FullTxIn where
   compare FullTxIn{fullTxInTxOut=foutx} FullTxIn{fullTxInTxOut=fouty} = compare foutx fouty
 
-toScriptOutput :: FullTxIn -> Maybe P.ScriptOutput
-toScriptOutput FullTxIn{fullTxInTxOut=FullTxOut{fullTxOutValue}, fullTxInType=ConsumeScriptAddress v _ d} =
-  Just $ P.ScriptOutput (validatorHash v) fullTxOutValue (datumHash d)
-toScriptOutput _ = Nothing
-
 mkPkhTxIn :: FullTxOut -> FullTxIn
 mkPkhTxIn fout = FullTxIn fout ConsumePublicKeyAddress
 
 mkScriptTxIn :: FullTxOut -> Validator -> Redeemer -> FullTxIn
 mkScriptTxIn fout@FullTxOut{..} v r =
   FullTxIn fout $ case (fullTxOutAddress, fullTxOutDatum) of
-    (Address (ScriptCredential _) _, KnownDatum d) -> ConsumeScriptAddress v r d
-    _                                              -> ConsumeScriptAddress v r unitDatum
+    (Address (ScriptCredential _) _, KnownDatum d) -> ConsumeScriptAddress PlutusV2 v r d
+    _                                              -> ConsumeScriptAddress PlutusV2 v r unitDatum
 
 instance ToPlutus FullTxIn P.TxIn where
   toPlutus FullTxIn{..} =
@@ -136,6 +134,7 @@ mkMintInputs xs = MintInputs mps rs
 -- TX template without collaterals, fees, change etc.
 data TxCandidate = TxCandidate
   { txCandidateInputs       :: Set.Set FullTxIn
+  , txCandidateRefIns       :: [FullTxOut]      -- we are not going to consume those inputs, so they are represented as FullTxOut
   , txCandidateOutputs      :: [TxOutCandidate]
   , txCandidateValueMint    :: MintValue
   , txCandidateMintInputs   :: MintInputs

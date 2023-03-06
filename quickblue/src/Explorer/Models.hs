@@ -9,13 +9,12 @@ import           GHC.Generics
 
 import qualified Ledger                     as P
 import qualified Plutus.V1.Ledger.Value     as Value
-import qualified Plutus.V1.Ledger.Tx        as Tx
+import           Ledger                     hiding (TxIn)
 import qualified PlutusTx.Builtins.Internal as BI
 import           Explorer.Types
 import           Explorer.Class
 import qualified CardanoTx.Models           as Tx
 import           CardanoTx.Value
-import qualified CardanoTx.Types            as Tx
 
 import qualified Cardano.Api as Api
 import           Cardano.Api.Shelley   (ProtocolParameters(..), PoolId, toPlutusData)
@@ -95,7 +94,7 @@ instance ToCardanoTx FullTxIn Tx.FullTxIn where
     Tx.FullTxIn
       { fullTxInTxOut = toCardanoTx out
       -- actually, we don't need this field att all, so we keep it default
-      , fullTxInType  = Tx.ConsumeSimpleScriptAddress
+      , fullTxInType  = ConsumeSimpleScriptAddress
       }
 
 data FullTxOut = FullTxOut
@@ -108,22 +107,25 @@ data FullTxOut = FullTxOut
   , dataHash      :: Maybe P.DatumHash
   , data'         :: Maybe P.Datum
   , spentByTxHash :: Maybe TxHash
+  , refScriptHash :: Maybe P.ScriptHash 
   } deriving (Show, Generic)
 
 instance FromJSON FullTxOut where
   parseJSON = withObject "quickblueFullTxOut" $ \o -> do
-    ref           <- OutRef <$> o .: "ref"
-    txHash        <- TxHash <$> o .: "txHash"
-    index         <- o .: "index"
-    globalIndex   <- Gix <$> o .: "globalIndex"
-    addr          <- Addr <$> o .: "addr"
-    value         <- o .: "value"
-    dataHash      <- o .:? "dataHash"
-    rawDataM      <- o .:? "data"
-    spentByTxHash <- o .:? "spentByTxHash"
+    ref            <- OutRef <$> o .: "ref"
+    txHash         <- TxHash <$> o .: "txHash"
+    index          <- o .: "index"
+    globalIndex    <- Gix <$> o .: "globalIndex"
+    addr           <- Addr <$> o .: "addr"
+    value          <- o .: "value"
+    dataHash       <- o .:? "dataHash"
+    rawDataM       <- o .:? "data"
+    spentByTxHash  <- o .:? "spentByTxHash"
+    refScriptHashM <- o .:? "refScriptHash"
     let
-      jsonDataM  = rawDataM >>= (EC.rightToMaybe . Api.scriptDataFromJson Api.ScriptDataJsonDetailedSchema)
-      data'      = fmap (P.Datum . BI.dataToBuiltinData . toPlutusData) jsonDataM
+      jsonDataM     = rawDataM >>= (EC.rightToMaybe . Api.scriptDataFromJson Api.ScriptDataJsonDetailedSchema)
+      data'         = fmap (P.Datum . BI.dataToBuiltinData . toPlutusData) jsonDataM
+      refScriptHash = fmap ScriptHash refScriptHashM
     return FullTxOut{..}
 
 instance ToCardanoTx FullTxOut Tx.FullTxOut where
@@ -133,6 +135,7 @@ instance ToCardanoTx FullTxOut Tx.FullTxOut where
       , fullTxOutAddress   = toCardanoTx addr
       , fullTxOutValue     = foldr (\a acc -> unionVal acc (toCardanoTx a)) mempty value
       , fullTxOutDatum     = outDatum
+      , fullTxOutScriptRef = refScriptHash
       }
     where
       outDatum = case (data', dataHash) of

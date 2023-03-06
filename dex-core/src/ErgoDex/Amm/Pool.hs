@@ -1,33 +1,36 @@
 module ErgoDex.Amm.Pool where
 
 import Data.Bifunctor
-import Data.Aeson     (FromJSON, ToJSON)
-import GHC.Generics   (Generic)
+import Data.Aeson             (FromJSON, ToJSON)
+import GHC.Generics           (Generic)
+import Data.Functor           ((<&>))
+import Control.Monad          (when)
+import Control.Monad.IO.Class (MonadIO)
 
 import Ledger
-import Ledger.Value                    (assetClassValue, assetClassValueOf)
+import Ledger.Value                   (assetClassValue, assetClassValueOf)
 import PlutusTx.IsData.Class
 import PlutusTx.Sqrt
-import PlutusTx.Numeric                (AdditiveMonoid(zero))
-import Plutus.V1.Ledger.Ada            (lovelaceValueOf)
+import PlutusTx.Numeric               (AdditiveMonoid(zero))
+import Ledger.Ada                     (lovelaceValueOf)
+import Plutus.Script.Utils.V2.Address (mkValidatorAddress)
 
 import CardanoTx.Models
     ( FullTxOut(FullTxOut, fullTxOutDatum, fullTxOutValue,
                 fullTxOutAddress, fullTxOutRef),
       TxOutCandidate(TxOutCandidate, txOutCandidateAddress,
                      txOutCandidateValue, txOutCandidateDatum),
-      TxOutDatum(KnownDatum) )
+      TxOutDatum(KnownDatum), txOutCandidateRefScript )
+
 import           ErgoDex.Class
 import           ErgoDex.Types
 import           ErgoDex.State
+import           ErgoDex.Validators
 import qualified ErgoDex.Contracts.Typed       as S
 import           ErgoDex.Contracts.Types
 import qualified ErgoDex.Contracts.Proxy.Order as W
 import           ErgoDex.Contracts.Pool
 import           ErgoDex.Amm.Constants         (minSafeOutputAmount)
-import           ErgoDex.PValidators
-import Data.Functor ((<&>))
-import Control.Monad (when)
 
 newtype PoolId = PoolId { unPoolId :: Coin Nft }
   deriving (Show, Eq, Generic)
@@ -54,7 +57,7 @@ feeDen :: Integer
 feeDen = 1000
 
 instance FromLedger Pool where
-  parseFromLedger fout@FullTxOut{fullTxOutDatum=(KnownDatum (Datum d)), ..} =
+  parseFromLedger fout@FullTxOut{fullTxOutDatum=(KnownDatum (Datum d)), ..} = --todo add also check for address
     case fromBuiltinData d of
       (Just PoolConfig{..}) -> do
         let
@@ -75,16 +78,17 @@ instance FromLedger Pool where
           , poolCoinLq    = Coin poolLq
           , poolFee       = PoolFee poolFeeNum feeDen
           , outCollateral = collateral
-          }          
+          }
       _ -> Nothing
   parseFromLedger _ = Nothing
 
-instance ToLedger Pool where
-  toLedger Pool{..} =
+instance ToLedger PoolValidatorV1 Pool where
+  toLedger (PoolValidator poolValidator) Pool{..} =
       TxOutCandidate
-        { txOutCandidateAddress = validatorAddress poolValidator
-        , txOutCandidateValue   = poolValue
-        , txOutCandidateDatum   = KnownDatum $ Datum $ toBuiltinData poolConf
+        { txOutCandidateAddress   = mkValidatorAddress poolValidator
+        , txOutCandidateValue     = poolValue
+        , txOutCandidateDatum     = KnownDatum $ Datum $ toBuiltinData poolConf
+        , txOutCandidateRefScript = Nothing
         }
     where
       nft            = unPoolId poolId
@@ -108,8 +112,13 @@ data PoolInitError
   | InsufficientInitialLiqudity (Amount Liquidity)
   deriving (Show, Eq)
 
-initPool :: S.PoolConfig -> Amount Liquidity -> (Amount X, Amount Y) -> Either PoolInitError (Predicted Pool, Amount Liquidity)
-initPool S.PoolConfig{..} burnLq (inX, inY) = do
+initPool
+  :: PoolValidator V1
+  -> S.PoolConfig
+  -> Amount Liquidity
+  -> (Amount X, Amount Y)
+  -> Either PoolInitError (Predicted Pool, Amount Liquidity)
+initPool poolValidator S.PoolConfig{..} burnLq (inX, inY) = do
   unlockedLq <- initialLiquidityAmount poolLq (inX, inY) <&> getAmount
   when (unlockedLq <= burnLq) (Left $ InsufficientInitialLiqudity unlockedLq)
   let
@@ -129,11 +138,12 @@ initPool S.PoolConfig{..} burnLq (inX, inY) = do
       , poolFee       = PoolFee poolFeeNum feeDen
       , outCollateral = outCollateral
       }
-    poolOut = toLedger pool
+    poolOut = toLedger poolValidator pool
   pure (Predicted poolOut pool, releasedLq)
 
-applyDeposit :: Pool -> (Amount X, Amount Y) -> Predicted Pool
-applyDeposit p@Pool{..} (inX, inY) =
+
+applyDeposit :: PoolValidator V1 -> Pool -> (Amount X, Amount Y) -> Predicted Pool
+applyDeposit poolValidator p@Pool{..} (inX, inY) =
     Predicted nextPoolOut nextPool
   where
     (unlockedLq, (changeX, changeY)) = rewardLp p (inX, inY)
@@ -143,8 +153,7 @@ applyDeposit p@Pool{..} (inX, inY) =
       , poolReservesY = poolReservesY + inY - changeY
       , poolLiquidity = poolLiquidity + unlockedLq
       }
-
-    nextPoolOut = toLedger nextPool
+    nextPoolOut = toLedger poolValidator nextPool
 
 rewardLp :: Pool -> (Amount X, Amount Y) -> (Amount Liquidity, (Amount X, Amount Y))
 rewardLp p@Pool{poolLiquidity=(Amount lq), poolReservesX=(Amount poolX), poolReservesY=(Amount poolY)} (Amount inX, Amount inY) =
@@ -161,8 +170,8 @@ rewardLp p@Pool{poolLiquidity=(Amount lq), poolReservesX=(Amount poolX), poolRes
         else (Amount $ (minByX - minByY) * poolX `div` lq, Amount 0)
     unlockedLq = Amount (min minByX minByY)
 
-applyRedeem :: Pool -> Amount Liquidity -> Predicted Pool
-applyRedeem p@Pool{..} burnedLq =
+applyRedeem :: PoolValidator V1 -> Pool -> Amount Liquidity -> Predicted Pool
+applyRedeem poolValidator p@Pool{..} burnedLq =
     Predicted nextPoolOut nextPool
   where
     (outX, outY) = bimap getAmount getAmount (sharesAmount p burnedLq)
@@ -172,12 +181,11 @@ applyRedeem p@Pool{..} burnedLq =
       , poolReservesY = poolReservesY - outY
       , poolLiquidity = poolLiquidity - burnedLq
       }
+    nextPoolOut = toLedger poolValidator nextPool
 
-    nextPoolOut = toLedger nextPool
-
-applySwap :: Pool -> AssetAmount Base -> Predicted Pool
-applySwap p@Pool{..} base =
-  Predicted nextPoolOut nextPool
+applySwap :: PoolValidator V1 -> Pool -> AssetAmount Base -> Predicted Pool
+applySwap poolValidator p@Pool{..} base =
+    Predicted nextPoolOut nextPool
   where
     xy             = unCoin (getAsset base) == unCoin poolCoinX
     baseAmount     = unAmount $ getAmount base
@@ -194,8 +202,7 @@ applySwap p@Pool{..} base =
         { poolReservesX = Amount $ poolReservesX' - quoteAmount
         , poolReservesY = Amount $ poolReservesY' + baseAmount
         }
-
-    nextPoolOut = toLedger nextPool
+    nextPoolOut = toLedger poolValidator nextPool
 
 initialLiquidityAmount :: Coin Liquidity -> (Amount X, Amount Y) -> Either PoolInitError (AssetAmount Liquidity)
 initialLiquidityAmount poolCoinLq (Amount inX, Amount inY) =

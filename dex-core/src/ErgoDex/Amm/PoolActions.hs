@@ -2,30 +2,32 @@ module ErgoDex.Amm.PoolActions
   ( PoolActions(..)
   , OrderExecErr(..)
   , mkPoolActions
+  , AmmValidators(..)
+  , fetchValidatorsV1
   ) where
 
 import           Control.Exception.Base
-import           Control.Monad          (when)
-import qualified Data.Set               as Set
+import qualified Data.Set                   as Set
 import           Data.Bifunctor
 import           Data.Tuple
+import           RIO
 
-import           Ledger          (Redeemer(..), PaymentPubKeyHash(..), pubKeyHashAddress)
-import qualified Ledger.Interval as Interval
-import qualified Ledger.Ada      as Ada
-import           Ledger.Value    (assetClassValue)
-import           PlutusTx        (toBuiltinData)
-import           Ledger.Scripts  (Validator)
+import           Ledger              (Redeemer(..), PaymentPubKeyHash(..), pubKeyHashAddress)
+import qualified Ledger.Interval     as Interval
+import qualified Ledger.Ada          as Ada
+import           Ledger.Value        (assetClassValue)
+import           PlutusTx            (toBuiltinData)
+import           Cardano.Api.Shelley (TxIn)
 
 import           ErgoDex.Types
 import           ErgoDex.State
 import           ErgoDex.Amm.Orders
 import           ErgoDex.Amm.Pool
+import           ErgoDex.Validators
 import qualified ErgoDex.Contracts.Pool        as P
 import qualified ErgoDex.Contracts.Proxy.Order as O
 import           ErgoDex.Contracts.Types
-import ErgoDex.PValidators
-    ( depositValidator, poolValidator, redeemValidator, swapValidator )
+import           ErgoDex.PValidators           (depositValidator, poolValidator, redeemValidator, swapValidator)
 import           CardanoTx.Models
 
 data OrderExecErr
@@ -37,39 +39,66 @@ data OrderExecErr
 
 instance Exception OrderExecErr
 
-data PoolActions = PoolActions
-  { runSwap    :: Confirmed Swap    -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
-  , runDeposit :: Confirmed Deposit -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
-  , runRedeem  :: Confirmed Redeem  -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+data AmmValidators ver = AmmValidators
+  { poolV    :: PoolValidator ver
+  , swapV    :: SwapValidator ver
+  , depositV :: DepositValidator ver
+  , redeemV  :: RedeemValidator ver
   }
 
-mkPoolActions :: PaymentPubKeyHash -> PoolActions
-mkPoolActions executorPkh = PoolActions
-  { runSwap    = runSwap' executorPkh
-  , runDeposit = runDeposit' executorPkh
-  , runRedeem  = runRedeem' executorPkh
+fetchValidatorsV1 :: MonadIO m => m (AmmValidators V1)
+fetchValidatorsV1 =
+  AmmValidators
+    <$> fetchPoolValidatorV1
+    <*> fetchSwapValidatorV1
+    <*> fetchDepositValidatorV1
+    <*> fetchRedeemValidatorV1
+
+data PoolActions = PoolActions
+  { runSwap    :: [FullTxOut] -> OnChain Swap    -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+  , runDeposit :: [FullTxOut] -> OnChain Deposit -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+  , runRedeem  :: [FullTxOut] -> OnChain Redeem  -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
+  }
+
+mkPoolActions :: PaymentPubKeyHash -> AmmValidators V1 -> PoolActions
+mkPoolActions executorPkh AmmValidators{..} = PoolActions
+  { runSwap    = runSwap' executorPkh poolV swapV
+  , runDeposit = runDeposit' executorPkh poolV depositV
+  , runRedeem  = runRedeem' executorPkh poolV redeemV
   }
 
 newtype PoolIn  = PoolIn FullTxOut
 newtype OrderIn = OrderIn FullTxOut
 
-mkOrderInputs :: P.PoolAction -> Validator -> PoolIn -> OrderIn -> Set.Set FullTxIn
-mkOrderInputs action orderValidator (PoolIn poolOut) (OrderIn orderOut) =
-    Set.fromList [poolIn, orderIn]
-  where
-    preInputs = Set.fromList [poolOut, orderOut]
-    poolIx    = toInteger $ Set.findIndex poolOut preInputs
-    orderIx   = toInteger $ Set.findIndex orderOut preInputs
-    poolIn    = mkScriptTxIn poolOut poolValidator   (Redeemer $ toBuiltinData $ P.PoolRedeemer action poolIx)
-    orderIn   = mkScriptTxIn orderOut orderValidator (Redeemer $ toBuiltinData $ O.OrderRedeemer poolIx orderIx 1 O.Apply)
+mkOrderInputs
+  :: forall kind. P.PoolAction
+  -> PoolValidator V1
+  -> OrderValidator kind V1
+  -> PoolIn
+  -> OrderIn
+  -> Set.Set FullTxIn
+mkOrderInputs action (PoolValidator pv) ov' (PoolIn poolOut) (OrderIn orderOut) =
+    let
+      ov        = orderValidator ov'
+      preInputs = Set.fromList [poolOut, orderOut]
+      poolIx    = toInteger $ Set.findIndex poolOut preInputs
+      orderIx   = toInteger $ Set.findIndex orderOut preInputs
+      poolIn    = mkScriptTxIn poolOut pv (Redeemer $ toBuiltinData $ P.PoolRedeemer action poolIx)
+      orderIn   = mkScriptTxIn orderOut ov (Redeemer $ toBuiltinData $ O.OrderRedeemer poolIx orderIx 1 O.Apply)
+    in Set.fromList [poolIn, orderIn]
 
-runSwap' :: PaymentPubKeyHash -> Confirmed Swap -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
+runSwap'
+  :: PaymentPubKeyHash
+  -> PoolValidator V1
+  -> SwapValidator V1
+  -> [FullTxOut]
+  -> OnChain Swap
+  -> (FullTxOut, Pool)
+  -> Either OrderExecErr (TxCandidate, Predicted Pool)
+runSwap' executorPkh pv sv refInputs (OnChain swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
   let
-    inputs = mkOrderInputs P.Swap swapValidator (PoolIn poolOut) (OrderIn swapOut)
-
-    pp@(Predicted nextPoolOut _) = applySwap pool (AssetAmount swapBase swapBaseIn)
-
+    inputs = mkOrderInputs P.Swap pv sv (PoolIn poolOut) (OrderIn swapOut)
+    pp@(Predicted nextPoolOut _) = applySwap pv pool (AssetAmount swapBase swapBaseIn)
     quoteOutput = outputAmount pool (AssetAmount swapBase swapBaseIn)
 
   when (swapPoolId /= poolId pool)               (Left $ PoolMismatch swapPoolId (poolId pool))
@@ -79,9 +108,10 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
     rewardAddr = pubKeyHashAddress (PaymentPubKeyHash swapRewardPkh) swapRewardSPkh
     rewardOut  =
         TxOutCandidate
-          { txOutCandidateAddress = rewardAddr
-          , txOutCandidateValue   = rewardValue
-          , txOutCandidateDatum   = EmptyDatum
+          { txOutCandidateAddress   = rewardAddr
+          , txOutCandidateValue     = rewardValue
+          , txOutCandidateDatum     = EmptyDatum
+          , txOutCandidateRefScript = Nothing
           }
       where
         initValue     = fullTxOutValue swapOut
@@ -95,6 +125,7 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
 
     txCandidate = TxCandidate
       { txCandidateInputs       = inputs
+      , txCandidateRefIns       = refInputs
       , txCandidateOutputs      = [nextPoolOut, rewardOut]
       , txCandidateValueMint    = mempty
       , txCandidateMintInputs   = mempty
@@ -105,11 +136,18 @@ runSwap' executorPkh (Confirmed swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (
 
   Right (txCandidate, pp)
 
-runDeposit' :: PaymentPubKeyHash -> Confirmed Deposit -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{..}) = do
+runDeposit'
+  :: PaymentPubKeyHash
+  -> PoolValidator V1
+  -> DepositValidator V1
+  -> [FullTxOut]
+  -> OnChain Deposit
+  -> (FullTxOut, Pool)
+  -> Either OrderExecErr (TxCandidate, Predicted Pool)
+runDeposit' executorPkh pv dv refInputs (OnChain depositOut Deposit{..}) (poolOut, pool@Pool{..}) = do
   when (depositPoolId /= poolId) (Left $ PoolMismatch depositPoolId poolId)
   let
-    inputs = mkOrderInputs P.Deposit depositValidator (PoolIn poolOut) (OrderIn depositOut)
+    inputs = mkOrderInputs P.Deposit pv dv (PoolIn poolOut) (OrderIn depositOut)
 
     (inX, inY) =
         bimap entryAmount entryAmount $
@@ -131,16 +169,17 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{.
          assetClassValue (unCoin poolCoinY) changeY
       <> assetClassValue (unCoin poolCoinX) changeX
 
-    pp@(Predicted nextPoolOut _) = applyDeposit pool (netInX, netInY)
+    pp@(Predicted nextPoolOut _) = applyDeposit pv pool (netInX, netInY)
 
     mintLqValue = assetAmountValue (AssetAmount poolCoinLq unlockedLq)
 
     rewardAddr = pubKeyHashAddress (PaymentPubKeyHash depositRewardPkh) depositRewardSPkh
     rewardOut  =
         TxOutCandidate
-          { txOutCandidateAddress = rewardAddr
-          , txOutCandidateValue   = rewardValue
-          , txOutCandidateDatum   = EmptyDatum
+          { txOutCandidateAddress   = rewardAddr
+          , txOutCandidateValue     = rewardValue
+          , txOutCandidateDatum     = EmptyDatum
+          , txOutCandidateRefScript = Nothing
           }
       where
         initValue     = fullTxOutValue depositOut
@@ -153,6 +192,7 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{.
 
     txCandidate = TxCandidate
       { txCandidateInputs       = inputs
+      , txCandidateRefIns       = refInputs
       , txCandidateOutputs      = [nextPoolOut, rewardOut]
       , txCandidateValueMint    = mempty
       , txCandidateMintInputs   = mempty
@@ -163,22 +203,30 @@ runDeposit' executorPkh (Confirmed depositOut Deposit{..}) (poolOut, pool@Pool{.
 
   Right (txCandidate, pp)
 
-runRedeem' :: PaymentPubKeyHash -> Confirmed Redeem -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (poolOut, pool@Pool{..}) = do
+runRedeem'
+  :: PaymentPubKeyHash
+  -> PoolValidator V1
+  -> RedeemValidator V1
+  -> [FullTxOut]
+  -> OnChain Redeem
+  -> (FullTxOut, Pool)
+  -> Either OrderExecErr (TxCandidate, Predicted Pool)
+runRedeem' executorPkh pv rv refInputs (OnChain redeemOut Redeem{..}) (poolOut, pool@Pool{..}) = do
   when (redeemPoolId /= poolId) (Left $ PoolMismatch redeemPoolId poolId)
   let
-    inputs = mkOrderInputs P.Redeem redeemValidator (PoolIn poolOut) (OrderIn redeemOut)
+    inputs = mkOrderInputs P.Redeem pv rv (PoolIn poolOut) (OrderIn redeemOut)
 
-    pp@(Predicted nextPoolOut _) = applyRedeem pool redeemLqIn
+    pp@(Predicted nextPoolOut _) = applyRedeem pv pool redeemLqIn
 
     burnLqValue = assetClassValue (unCoin redeemLq) (negate $ unAmount redeemLqIn)
 
     rewardAddr = pubKeyHashAddress (PaymentPubKeyHash redeemRewardPkh) redeemRewardSPkh
     rewardOut  =
         TxOutCandidate
-          { txOutCandidateAddress = rewardAddr
-          , txOutCandidateValue   = rewardValue
-          , txOutCandidateDatum   = EmptyDatum
+          { txOutCandidateAddress   = rewardAddr
+          , txOutCandidateValue     = rewardValue
+          , txOutCandidateDatum     = EmptyDatum
+          , txOutCandidateRefScript = Nothing
           }
       where
         (outX, outY)  = sharesAmount pool redeemLqIn
@@ -190,6 +238,7 @@ runRedeem' executorPkh (Confirmed redeemOut Redeem{..}) (poolOut, pool@Pool{..})
 
     txCandidate = TxCandidate
       { txCandidateInputs       = inputs
+      , txCandidateRefIns       = refInputs
       , txCandidateOutputs      = [nextPoolOut, rewardOut]
       , txCandidateValueMint    = mempty
       , txCandidateMintInputs   = mempty

@@ -28,45 +28,47 @@ data Transactions f era = Transactions
 
 mkTransactions
   :: (MonadThrow f, MonadIO f)
-  => CardanoNetwork f C.AlonzoEra
+  => CardanoNetwork f C.BabbageEra
   -> C.NetworkId
+  -> Map P.Script C.TxIn
   -> WalletOutputs f
   -> Vault f
   -> TxAssemblyConfig
-  -> Transactions f C.AlonzoEra
-mkTransactions network networkId utxos wallet conf = Transactions
-  { estimateTxFee = estimateTxFee' network networkId
-  , finalizeTx    = finalizeTx' network networkId utxos wallet conf
+  -> Transactions f C.BabbageEra
+mkTransactions network networkId refScriptsMap utxos wallet conf = Transactions
+  { estimateTxFee = estimateTxFee' network networkId refScriptsMap
+  , finalizeTx    = finalizeTx' network networkId refScriptsMap utxos wallet conf
   , submitTx      = submitTx' network
   }
 
 estimateTxFee'
   :: MonadThrow f
   => MonadIO f
-  => CardanoNetwork f C.AlonzoEra
+  => CardanoNetwork f C.BabbageEra
   -> C.NetworkId
+  -> Map P.Script C.TxIn
   -> Set.Set Sdk.FullCollateralTxIn
   -> Sdk.TxCandidate
   -> f C.Lovelace
-estimateTxFee' CardanoNetwork{..} network collateral txc = do
+estimateTxFee' CardanoNetwork{..} network refScriptsMap collateral txc = do
   SystemEnv{pparams} <- getSystemEnv
-  Internal.estimateTxFee pparams network collateral txc 
+  Internal.estimateTxFee pparams network refScriptsMap collateral txc 
 
 finalizeTx'
   :: MonadThrow f
-  => MonadIO f
-  => CardanoNetwork f C.AlonzoEra
+  => CardanoNetwork f C.BabbageEra
   -> C.NetworkId
+  -> Map P.Script C.TxIn
   -> WalletOutputs f
   -> Vault f
   -> TxAssemblyConfig
   -> Sdk.TxCandidate
-  -> f (C.Tx C.AlonzoEra)
-finalizeTx' CardanoNetwork{..} network utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
+  -> f (C.Tx C.BabbageEra)
+finalizeTx' CardanoNetwork{..} network refScriptsMap utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   sysenv      <- getSystemEnv
-  collaterals <- selectCollaterals utxos sysenv network conf txc
+  collaterals <- selectCollaterals utxos sysenv refScriptsMap network conf txc
 
-  (C.BalancedTxBody txb _ _) <- Internal.buildBalancedTx sysenv network (getChangeAddr deafultChangeAddr) collaterals txc
+  (C.BalancedTxBody txb _ _) <- Internal.buildBalancedTx sysenv refScriptsMap network (getChangeAddr deafultChangeAddr) collaterals txc
   let
     allInputs   = (Set.elems txCandidateInputs <&> Sdk.fullTxInTxOut) ++ (Set.elems collaterals <&> Sdk.fullCollateralTxInTxOut)
     signatories = allInputs >>= getPkh
@@ -76,21 +78,21 @@ finalizeTx' CardanoNetwork{..} network utxos Vault{..} conf@TxAssemblyConfig{..}
   signers <- mapM (\pkh -> getSigningKey pkh >>= maybe (throwM $ SignerNotFound pkh) pure) signatories
   pure $ Internal.signTx txb signers
 
-submitTx' :: Monad f => CardanoNetwork f C.AlonzoEra -> C.Tx C.AlonzoEra -> f C.TxId
+submitTx' :: Monad f => CardanoNetwork f C.BabbageEra -> C.Tx C.BabbageEra -> f C.TxId
 submitTx' CardanoNetwork{submitTx} tx = do
   submitTx tx
   pure . C.getTxId . C.getTxBody $ tx
 
 selectCollaterals
   :: MonadThrow f
-  => MonadIO f
   => WalletOutputs f
   -> SystemEnv
+  -> Map P.Script C.TxIn
   -> C.NetworkId
   -> TxAssemblyConfig
   -> Sdk.TxCandidate
   -> f (Set.Set Sdk.FullCollateralTxIn)
-selectCollaterals WalletOutputs{selectUtxosStrict} SystemEnv{..} network TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
+selectCollaterals WalletOutputs{selectUtxosStrict} SystemEnv{..} refScriptsMap network TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   let isScriptIn Sdk.FullTxIn{fullTxInType=P.ConsumeScriptAddress {}} = True
       isScriptIn _                                                    = False
 
@@ -99,7 +101,7 @@ selectCollaterals WalletOutputs{selectUtxosStrict} SystemEnv{..} network TxAssem
       collectCollaterals knownCollaterals = do
         let
           estimateCollateral' collaterals = do
-            fee <- Internal.estimateTxFee pparams network collaterals txc
+            fee <- Internal.estimateTxFee pparams network refScriptsMap collaterals txc
             let (C.Quantity fee') = C.lovelaceToQuantity fee
                 collateralPercent = naturalToInteger $ fromMaybe 0 (C.protocolParamCollateralPercent pparams)
             pure $ P.Lovelace $ collateralPercent * fee' `div` 100

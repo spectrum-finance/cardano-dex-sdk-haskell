@@ -11,17 +11,18 @@ import Hedgehog
 import Hedgehog.Gen as Gen
 import Hedgehog.Range as Range
 
-import qualified Ledger.Ada                 as Ada
-import qualified Ledger                     as P
-import qualified Ledger.Value               as P
-import qualified Ledger.Value               as Value
-import qualified PlutusTx.Builtins.Internal as P
-import qualified Plutus.V1.Ledger.Api       as P
-import qualified Ledger.Interval            as Interval
+import qualified Ledger.Ada                  as Ada
+import qualified Ledger                      as P
+import qualified Ledger.Value                as P
+import qualified Ledger.Value                as Value
+import qualified PlutusTx.Builtins.Internal  as P
+import qualified Plutus.Script.Utils.Scripts as P
+import qualified Plutus.V1.Ledger.Api        as P
+import qualified Ledger.Interval             as Interval
+import           Ledger.Ada                  (adaValueOf)
 import qualified PlutusTx
 
 import qualified CardanoTx.Models     as Sdk
-import           Plutus.V1.Ledger.Ada (adaValueOf)
 import           CardanoTx.Models     (TxOutDatum(EmptyDatum))
 
 mkTokenName :: BS.ByteString -> P.TokenName
@@ -84,7 +85,7 @@ genFullTxOutExact :: MonadGen f => P.Value -> f Sdk.FullTxOut
 genFullTxOutExact value = do
   ref   <- genTxOutRef
   addr  <- genPkhAddress
-  pure $ Sdk.FullTxOut ref addr value EmptyDatum
+  pure $ Sdk.FullTxOut ref addr value EmptyDatum Nothing
 
 genFullTxIn :: MonadGen f => f Sdk.FullTxIn
 genFullTxIn = genFullTxOut <&> (`Sdk.FullTxIn` P.ConsumePublicKeyAddress)
@@ -103,7 +104,7 @@ genTxOutCandidate = do
 genTxOutCandidateExact :: MonadGen f => P.Value -> f Sdk.TxOutCandidate
 genTxOutCandidateExact value = do
   addr <- genPkhAddress
-  pure $ Sdk.TxOutCandidate addr value EmptyDatum
+  pure $ Sdk.TxOutCandidate addr value EmptyDatum Nothing
 
 genPlainTxCandidate :: MonadGen f => f Sdk.TxCandidate
 genPlainTxCandidate = do
@@ -118,4 +119,4 @@ genPlainTxCandidate = do
     then genFullTxInExact (Ada.lovelaceValueOf delta) <&> pure
     else pure []
   let updatedInputs = Set.fromList $ inputs ++ extraIn
-  pure $ Sdk.TxCandidate updatedInputs outputs mempty mempty Nothing Interval.always mempty
+  pure $ Sdk.TxCandidate updatedInputs [] outputs mempty mempty Nothing Interval.always mempty
