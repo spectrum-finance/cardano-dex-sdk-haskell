@@ -164,7 +164,7 @@ data AnyOrder = forall a . AnyOrder
   }
 
 instance Show AnyOrder where
-   show = show . toJSON
+  show = show . toJSON
 
 data ActionKind = SwapK | DepositK | RedeemK
   deriving (Show, Eq, Generic, ToJSON, FromJSON)
