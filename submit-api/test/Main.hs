@@ -11,6 +11,7 @@ import PlutusTx
 import ErgoDex.Contracts.Pool
 import Data.ByteString.Char8 as Char8
 import qualified Data.ByteString.Base16  as Hex
+import CardanoTx.Address
 import qualified Data.Text.Encoding      as T
 import qualified Data.ByteString.Short  as SBS
 import qualified Data.ByteString.Lazy as LBS
@@ -54,14 +55,18 @@ main = do
   -- print (PV2.mkValidatorAddress deposit)
   -- print (PV2.mkValidatorAddress redeem)
   -- print (PV2.mkValidatorAddress pool)
-  -- let shortBS = Hex.encode $ LBS.toStrict $ serialise (toData poolDatum)
+  -- let shortBS = Hex.encode $ LBS.toStrict $ serialise orderRedeemer
   -- print shortBS
+  let addr = readShellyAddress "addr1z8snz7c4974vzdpxu65ruphl3zjdvtxw8strf2c2tmqnxz2j2c79gy9l76sdg0xwhd7r0c0kna0tycz4y5s6mlenh8pq0xmsha"
+  print addr
   pure ()
-  -- pscript <- poolValidator
-  -- let 
-  --   shortBS = SBS.toShort . LBS.toStrict $ serialise (unValidatorScript pscript)
-  --   scr :: PlutusScript PlutusScriptV2
-  --   scr = PlutusScriptSerialised shortBS
+  pscript <- swapValidator
+  --let 
+   -- shortBS = Hex.encode $ LBS.toStrict $ serialise (unValidatorScript pscript)
+    -- scr :: PlutusScript PlutusScriptV2
+    -- scr = PlutusScriptSerialised shortBS
+  print datumStr
+  pure ()
   -- writeFileTextEnvelope "/home/bromel/projects/cardano-dex-sdk-haskell/submit-api/pool.plutus" Nothing scr
   -- swapInstance
   -- depositInstance
