@@ -57,7 +57,7 @@ buildBalancedTx SystemEnv{..} refScriptsMap network defaultChangeAddr collateral
   absorbBalancingError $
     Balancing.makeTransactionBodyAutoBalance eraInMode sysstart eraHistory pparams pools inputsMap txBody changeAddr witOverrides
       where
-        absorbBalancingError (Left e)  = throwM $ BalancingError $ T.pack $ show e
+        absorbBalancingError (Left e)  = throwM $ BalancingError $ T.pack $ displayError e
         absorbBalancingError (Right a) = pure a
 
 estimateTxFee
