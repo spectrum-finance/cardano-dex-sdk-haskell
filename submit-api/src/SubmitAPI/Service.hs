@@ -17,7 +17,7 @@ import           SubmitAPI.Internal.Transaction  (TxAssemblyError(..))
 import           NetworkAPI.Service  hiding (submitTx)
 import qualified NetworkAPI.Service  as Network
 import           NetworkAPI.Types
-import           WalletAPI.Utxos
+import           WalletAPI.CollateralOutputs
 import           WalletAPI.Vault
 
 data Transactions f era = Transactions
@@ -31,13 +31,13 @@ mkTransactions
   => CardanoNetwork f C.BabbageEra
   -> C.NetworkId
   -> Map P.Script C.TxIn
-  -> WalletOutputs f
+  -> CollateralOutputs f
   -> Vault f
   -> TxAssemblyConfig
   -> Transactions f C.BabbageEra
-mkTransactions network networkId refScriptsMap utxos wallet conf = Transactions
+mkTransactions network networkId refScriptsMap collaterals wallet conf = Transactions
   { estimateTxFee = estimateTxFee' network networkId refScriptsMap
-  , finalizeTx    = finalizeTx' network networkId refScriptsMap utxos wallet conf
+  , finalizeTx    = finalizeTx' network networkId refScriptsMap collaterals wallet conf
   , submitTx      = submitTx' network
   }
 
@@ -59,14 +59,14 @@ finalizeTx'
   => CardanoNetwork f C.BabbageEra
   -> C.NetworkId
   -> Map P.Script C.TxIn
-  -> WalletOutputs f
+  -> CollateralOutputs f
   -> Vault f
   -> TxAssemblyConfig
   -> Sdk.TxCandidate
   -> f (C.Tx C.BabbageEra)
-finalizeTx' CardanoNetwork{..} network refScriptsMap utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
+finalizeTx' CardanoNetwork{..} network refScriptsMap collaterals Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   sysenv      <- getSystemEnv
-  collaterals <- selectCollaterals utxos sysenv refScriptsMap network conf txc
+  collaterals <- selectCollaterals collaterals sysenv refScriptsMap network conf txc
 
   (C.BalancedTxBody txb _ _) <- Internal.buildBalancedTx sysenv refScriptsMap network (getChangeAddr deafultChangeAddr) collaterals txc
   let
@@ -85,14 +85,14 @@ submitTx' CardanoNetwork{submitTx} tx = do
 
 selectCollaterals
   :: MonadThrow f
-  => WalletOutputs f
+  => CollateralOutputs f
   -> SystemEnv
   -> Map P.Script C.TxIn
   -> C.NetworkId
   -> TxAssemblyConfig
   -> Sdk.TxCandidate
   -> f (Set.Set Sdk.FullCollateralTxIn)
-selectCollaterals WalletOutputs{selectUtxosStrict} SystemEnv{..} refScriptsMap network TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
+selectCollaterals CollateralOutputs{selectCollateralsStrict} SystemEnv{..} refScriptsMap network TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
   let isScriptIn Sdk.FullTxIn{fullTxInType=P.ConsumeScriptAddress {}} = True
       isScriptIn _                                                    = False
 
@@ -104,10 +104,10 @@ selectCollaterals WalletOutputs{selectUtxosStrict} SystemEnv{..} refScriptsMap n
             fee <- Internal.estimateTxFee pparams network refScriptsMap collaterals txc
             let (C.Quantity fee') = C.lovelaceToQuantity fee
                 collateralPercent = naturalToInteger $ fromMaybe 0 (C.protocolParamCollateralPercent pparams)
-            pure $ P.Lovelace $ collateralPercent * fee' `div` 100
+            pure . P.Lovelace $ collateralPercent * fee' `div` 100
 
         collateral <- estimateCollateral' knownCollaterals
-        utxos      <- selectUtxosStrict (P.toValue collateral) >>= maybe (throwM FailedToSatisfyCollateral) pure
+        utxos      <- selectCollateralsStrict collateral >>= maybe (throwM FailedToSatisfyCollateral) pure
 
         let collaterals = Set.fromList $ Set.elems utxos <&> Sdk.FullCollateralTxIn
 

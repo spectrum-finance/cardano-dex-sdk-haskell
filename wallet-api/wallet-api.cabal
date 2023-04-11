@@ -73,10 +73,9 @@ library
     hs-source-dirs: src
     
     exposed-modules: WalletAPI.Vault
-                     WalletAPI.Utxos
                      WalletAPI.TrustStore
-                     WalletAPI.UtxoStore
-                     WalletAPI.UtxoStoreConfig
+                     WalletAPI.CollateralOutputs
+                     WalletAPI.CollateralsStoreConfig
                      WalletAPI.Internal.Crypto
                      WalletAPI.Internal.Models
 

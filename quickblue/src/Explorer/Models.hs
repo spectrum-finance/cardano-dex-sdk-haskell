@@ -7,7 +7,7 @@ import           Data.String             (IsString(..))
 import qualified Data.Text               as T
 import           GHC.Generics
 
-import qualified Ledger                     as P
+import qualified Ledger                     as P hiding (value, value, value)
 import qualified Plutus.V1.Ledger.Value     as Value
 import           Ledger                     hiding (TxIn)
 import qualified PlutusTx.Builtins.Internal as BI
@@ -109,6 +109,9 @@ data FullTxOut = FullTxOut
   , spentByTxHash :: Maybe TxHash
   , refScriptHash :: Maybe P.ScriptHash 
   } deriving (Show, Generic)
+
+containsOnlyAda :: FullTxOut -> Bool
+containsOnlyAda FullTxOut{value} = length value == 1
 
 instance FromJSON FullTxOut where
   parseJSON = withObject "quickblueFullTxOut" $ \o -> do

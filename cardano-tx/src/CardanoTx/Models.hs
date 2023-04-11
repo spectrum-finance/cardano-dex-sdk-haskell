@@ -13,6 +13,8 @@ import           GHC.Generics                (Generic)
 
 import CardanoTx.ToPlutus (ToPlutus(..))
 import Plutus.ChainIndex  (OutputDatum)
+import Ledger.Value (flattenValue)
+import Ledger.Ada (fromValue)
 
 newtype ChangeAddress = ChangeAddress { getAddress :: Address }
   deriving (Eq, Generic)
@@ -71,6 +73,12 @@ data FullTxOut = FullTxOut
 mkFullTxOut :: TxOutRef -> TxOutCandidate -> FullTxOut
 mkFullTxOut ref TxOutCandidate{..} =
     FullTxOut ref txOutCandidateAddress txOutCandidateValue txOutCandidateDatum txOutCandidateRefScript
+
+containsOnlyAda :: FullTxOut -> Bool
+containsOnlyAda FullTxOut{..} = (length . flattenValue $ fullTxOutValue) == 1
+
+adaValue :: FullTxOut -> Ada
+adaValue FullTxOut{..} = fromValue fullTxOutValue 
 
 instance ToPlutus FullTxOut PV2.TxOut where
   toPlutus FullTxOut{..} = PV2.TxOut fullTxOutAddress fullTxOutValue dh fullTxOutScriptRef

@@ -11,7 +11,7 @@ import Control.Monad.Trans.Resource
 import Ledger
 import System.Logging.Hlog
 import CardanoTx.Models ( FullTxOut(..) )
-import WalletAPI.UtxoStoreConfig
+import WalletAPI.CollateralsStoreConfig
 import Data.Aeson (FromJSON)
 import Spectrum.Common.Persistence.Serialization
   ( serialize, deserializeM )
@@ -26,8 +26,8 @@ data UtxoStore f = UtxoStore
   , containsUtxo :: TxOutRef -> f Bool
   }
 
-mkPersistentUtxoStoreWithCache :: forall i f. (MonadIO i, MonadResource i, MonadIO f, MonadThrow f) => MakeLogging i f -> UtxoStoreConfig -> i (UtxoStore f)
-mkPersistentUtxoStoreWithCache MakeLogging{.. } UtxoStoreConfig{..} = do
+mkPersistentUtxoStoreWithCache :: forall i f. (MonadIO i, MonadResource i, MonadIO f, MonadThrow f) => MakeLogging i f -> FilePath -> Bool -> i (UtxoStore f)
+mkPersistentUtxoStoreWithCache MakeLogging{.. } utxoStorePath createIfMissing = do
   logging <- forComponent "PersistentUtxoStore"
   storeT  <- liftIO $ newTVarIO mempty
   (_, db) <- Rocks.openBracket utxoStorePath
