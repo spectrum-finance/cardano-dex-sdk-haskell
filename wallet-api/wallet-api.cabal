@@ -75,6 +75,7 @@ library
     exposed-modules: WalletAPI.Vault
                      WalletAPI.TrustStore
                      WalletAPI.CollateralOutputs
+                     WalletAPI.UtxoStore
                      WalletAPI.CollateralsStoreConfig
                      WalletAPI.Internal.Crypto
                      WalletAPI.Internal.Models
