@@ -32,7 +32,7 @@ import           Explorer.Models   (Paging, Items (items))
 import           Algebra.Natural
 import           WalletAPI.CollateralsStoreConfig    (CollateralsStoreConfig(..))
 import           Control.Monad.Trans.Resource        (MonadResource)
-import Ledger.Ada (lovelaceOf, toValue)
+import           Ledger.Ada (lovelaceOf, toValue, getLovelace)
 
 data CollateralOutputs f = CollateralOutputs
   -- Contains only utxo with ada. Used for collaterals.
@@ -87,12 +87,12 @@ selectCollateralsStrict'' logging cfg@CollateralsStoreConfig{..} explorer ustore
       utxoBatch <- getUnspentOutputsByPCredWithRetry logging explorer (mkPCred pkh) paging
       let
         adaUtxos    = Explorer.toCardanoTx <$> Explorer.containsOnlyAda `filter` items utxoBatch
-        adaInUtxos = foldl (\acc utxo -> adaValue utxo + acc) (lovelaceOf 0) adaUtxos
+        adaInUtxos = foldl (\acc utxo -> adaValue utxo <> acc) (lovelaceOf 0) adaUtxos
       putUtxos (Set.fromList adaUtxos)
       let entriesLeft = Explorer.total utxoBatch - (offset + limit)
 
-      if entriesLeft > 0
-      then fetchUtxos (offset + limit) limit (adaInUtxos + accValue)
+      if entriesLeft > 0 && minimumAdaCapacity >= getLovelace (adaInUtxos <> accValue)
+      then fetchUtxos (offset + limit) limit (adaInUtxos <> accValue)
       else pure ()
 
     collect :: [FullTxOut] -> Value -> [FullTxOut] -> Maybe [FullTxOut]
