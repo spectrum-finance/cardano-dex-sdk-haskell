@@ -11,6 +11,8 @@ packages:
   submit-api
   datum-keeper-client
   algebra-core
+  spectrum-prelude
+  ledger-sync
 
 -- You never, ever, want this.
 write-ghc-environment-files: never
