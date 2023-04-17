@@ -3,6 +3,7 @@ module WalletAPI.Utxos
   ( WalletOutputs(..)
   , mkWalletOutputs
   , mkWalletOutputs'
+  , mkPersistentWalletOutputs
   ) where
 
 import           RIO
@@ -27,7 +28,11 @@ import qualified Explorer.Models   as Explorer
 import qualified Explorer.Class    as Explorer
 import           Explorer.Types    (PaymentCred)
 import           Explorer.Models   (Paging, Items)
+
 import           Algebra.Natural
+import           WalletAPI.UtxoStoreConfig    (UtxoStoreConfig(..))
+import           Control.Monad.Trans.Resource (MonadResource)
+import           Spectrum.Prelude.HigherKind  (LiftK(..))
 
 data WalletOutputs f = WalletOutputs
   -- Select UTxOs satisfying the given minumal Value.
@@ -35,6 +40,32 @@ data WalletOutputs f = WalletOutputs
   -- Assets other than present in the given minimal Value are not allowed.
   , selectUtxosStrict :: Value -> f (Maybe (Set.Set FullTxOut))
   }
+
+mkPersistentWalletOutputs :: 
+  ( MonadIO i
+  , MonadIO f
+  , MonadMask f
+  , MonadResource i
+  ) => (f ~> i) -> MakeLogging i f -> UtxoStoreConfig -> Explorer f -> Vault f -> i (WalletOutputs f)
+mkPersistentWalletOutputs fToI mkLogging@MakeLogging{..} cfg explorer vaultF = do
+  let Vault{..} = fmapK fToI vaultF
+  logging <- forComponent "WalletOutputs"
+  ustore  <- mkPersistentUtxoStoreWithCache mkLogging cfg
+  pkh     <- getPaymentKeyHash
+  fToI $ filterSpentedUtxos ustore explorer
+  pure $ WalletOutputs
+    { selectUtxos       = selectUtxos'' logging explorer ustore pkh False
+    , selectUtxosStrict = selectUtxos'' logging explorer ustore pkh True
+    }
+
+filterSpentedUtxos :: (Monad f) => UtxoStore f -> Explorer f -> f ()
+filterSpentedUtxos UtxoStore{..} Explorer{..} = do
+  allUtxos <- getUtxos
+  (\FullTxOut{..} -> getOutput fullTxOutRef >>= (\case 
+      Just _  -> pure ()
+      Nothing -> dropUtxos $ Set.fromList [fullTxOutRef]
+    )) `traverse` toList allUtxos
+  pure ()
 
 mkWalletOutputs :: (MonadIO i, MonadIO f, MonadMask f) => MakeLogging i f -> Explorer f -> Hash PaymentKey -> i (WalletOutputs f)
 mkWalletOutputs mkLogging@MakeLogging{..} explorer pkh = do

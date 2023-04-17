@@ -65,6 +65,7 @@ instance FromLedger Swap where
 data Deposit = Deposit
   { depositPoolId     :: PoolId
   , depositPair       :: (AssetEntry, AssetEntry)
+  , depositLq         :: AssetClass
   , depositExFee      :: ExFee
   , depositRewardPkh  :: PubKeyHash
   , depositRewardSPkh :: Maybe StakePubKeyHash
@@ -83,6 +84,7 @@ instance FromLedger Deposit where
               Just $ OnChain fout Deposit
                 { depositPoolId     = PoolId $ Coin poolNft
                 , depositPair       = pair
+                , depositLq         = tokenLp
                 , depositExFee      = ExFee $ Amount exFee
                 , depositRewardPkh  = rewardPkh
                 , depositRewardSPkh = fmap StakePubKeyHash stakePkh
@@ -99,6 +101,8 @@ data Redeem = Redeem
   { redeemPoolId     :: PoolId
   , redeemLqIn       :: Amount Liquidity
   , redeemLq         :: Coin Liquidity
+  , redeemPoolX      :: Coin X
+  , redeemPoolY      :: Coin Y
   , redeemExFee      :: ExFee
   , redeemRewardPkh  :: PubKeyHash
   , redeemRewardSPkh :: Maybe StakePubKeyHash
@@ -114,6 +118,8 @@ instance FromLedger Redeem where
                 { redeemPoolId     = PoolId $ Coin poolNft
                 , redeemLqIn       = Amount v
                 , redeemLq         = Coin $ AssetClass (ac, tn)
+                , redeemPoolX      = Coin poolX
+                , redeemPoolY      = Coin poolY
                 , redeemExFee      = ExFee $ Amount exFee
                 , redeemRewardPkh  = rewardPkh
                 , redeemRewardSPkh = fmap StakePubKeyHash stakePkh

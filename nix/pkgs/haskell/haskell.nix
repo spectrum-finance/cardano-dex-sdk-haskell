@@ -45,12 +45,14 @@ let
       "https://github.com/input-output-hk/hedgehog-extras"."714ee03a5a786a05fc57ac5d2f1c2edce4660d85" = "6KQFEzb9g2a0soVvwLKESEbA+a8ygpROcMr6bkatROE=";
       "https://github.com/ergolabs/cardano-dex-contracts"."2fb44f444897d84e313ceb4d3d467441385802dd" = "Kih0IS6Ty3EnXlgqAyF04nWIWJAnHOEVfraebh5RsNI=";
       "https://github.com/ergolabs/hlog"."19dfa3a6e696a3f63fc3539cd6b7a3fc4d999853" = "Lvmj1oLuXmktrboXh/BrXqLPf8FxSCXIf99GnBXu0Bk=";
+      "https://github.com/daleiz/rocksdb-haskell"."109af08f95b40f458d4933e3725ecb3e59337c39" = "1i1ya491fapa0g96527krarv0w0iybizqcz518741iw06hhpikiy";
     };
 
     modules = [
       {
         packages = {
           ergo-hs-common.package.buildable = false;
+          spectrum.package.buildable = false;
           cardano-tx.package.buildable = false;
           dex-core.package.buildable = false;
           quickblue.package.buildable = false;
@@ -59,6 +61,8 @@ let
           submit-api.package.buildable = false;
           datum-keeper-client.package.buildable = false;
           algebra-core.package.buildable = false;
+          spectrum-prelude.package.buildable = false;
+          ledger-sync.package.buildable = false;
 
           # Broken due to haddock errors. Refer to https://github.com/input-output-hk/plutus/blob/master/nix/pkgs/haskell/haskell.nix
           plutus-ledger.doHaddock = false;

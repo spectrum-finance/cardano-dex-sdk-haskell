@@ -20,6 +20,12 @@ cradle:
       component: "submit-api:test:submit-api-tests"
     - path: "./datum-keeper-client/src"
       component: "datum-keeper-client:lib:datum-keeper-client"
+    - path: "./spectrum/src"
+      component: "spectrum:lib:spectrum"
     - path: "./algebra-core/src"
       component: "algebra-core:lib:algebra-core"
+    - path: "./spectrum-prelude/src"
+      component: "spectrum-prelude:lib:spectrum-prelude"
+    - path: "./ledger-sync/src"
+      component: "ledger-sync:lib:ledger-sync"
 

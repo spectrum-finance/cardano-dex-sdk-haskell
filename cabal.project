@@ -2,6 +2,7 @@ index-state: 2022-04-06T00:00:00Z
 
 packages:
   ergo-hs-common
+  spectrum
   cardano-tx
   dex-core
   quickblue
@@ -10,6 +11,8 @@ packages:
   submit-api
   datum-keeper-client
   algebra-core
+  spectrum-prelude
+  ledger-sync
 
 -- You never, ever, want this.
 write-ghc-environment-files: never
@@ -280,6 +283,11 @@ source-repository-package
     type: git
     location: https://github.com/input-output-hk/Win32-network
     tag: 3825d3abf75f83f406c1f7161883c438dac7277d
+
+source-repository-package
+  type: git
+  location: https://github.com/daleiz/rocksdb-haskell
+  tag: 109af08f95b40f458d4933e3725ecb3e59337c39
 
 source-repository-package
     type: git
