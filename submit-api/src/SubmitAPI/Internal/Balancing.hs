@@ -2,10 +2,12 @@ module SubmitAPI.Internal.Balancing where
 
 import Prelude
 
+import           RIO.List       (find)
 import           Data.Bifunctor (first)
 import           Data.Map       (Map)
 import qualified Data.Map       as Map
 import           Data.Maybe     (fromMaybe, catMaybes)
+import           Data.Functor   ((<&>))
 import           Data.Set       (Set)
 import           Data.Ratio
 
@@ -202,12 +204,29 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
    -- the fee calculation includes a change address for simplicity and
    -- we make no attempt to recalculate the tx fee without a change address.
    accountForNoChange :: TxOut CtxTx era -> [TxOut CtxTx era] -> [TxOut CtxTx era]
-   accountForNoChange change@(TxOut _ balance _ _) rest =
+   accountForNoChange change@(TxOut addr balance _ _) rest =
      case txOutValueToLovelace balance of
        Lovelace 0 -> rest
        -- We append change at the end so a client can predict the indexes
        -- of the outputs
-       _ -> rest ++ [change]
+       chargeLovelace ->
+        let
+          chargeUserBox = find (\(TxOut boxAddr _ _ _) -> boxAddr == addr) rest
+          updatedChargeUserBox = chargeUserBox <&> (\(TxOut boxAddr prevValue d ref) ->
+               let
+                 newValue = 
+                  case prevValue of
+                    TxOutAdaOnly supportedEra lovelace -> TxOutAdaOnly supportedEra (lovelace + chargeLovelace)
+                    TxOutValue multiSupport value -> TxOutValue multiSupport (value <> lovelaceToValue chargeLovelace)
+                in TxOut boxAddr newValue d ref
+            )
+          outputs = 
+            case updatedChargeUserBox of
+                Nothing -> rest ++ [change]
+                Just output -> 
+                  -- replace user reward box with updated
+                  (\txOut@(TxOut boxAddr _ _ _) -> if boxAddr == addr then output else txOut) <$> rest
+        in outputs
 
    maybeDummyTotalCollAndCollReturnOutput
      :: TxBodyContent BuildTx era -> AddressInEra era -> (TxReturnCollateral CtxTx era, TxTotalCollateral era)
