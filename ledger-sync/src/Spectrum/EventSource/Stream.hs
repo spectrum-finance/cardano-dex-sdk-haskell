@@ -27,11 +27,11 @@ import System.Logging.Hlog
 
 import qualified Ouroboros.Consensus.Protocol.Praos.Header as Praos
 import Ouroboros.Consensus.Shelley.Ledger
-  ( ShelleyBlock(ShelleyBlock), ShelleyHash (unShelleyHash) )
+  ( ShelleyBlock(ShelleyBlock), ShelleyHash (unShelleyHash), GenTx (..) )
 import Ouroboros.Consensus.HardFork.Combinator
   ( OneEraHash(OneEraHash) )
 import Ouroboros.Consensus.Cardano.Block
-  ( HardForkBlock(BlockBabbage) )
+  ( HardForkBlock(BlockBabbage), GenTx (GenTxBabbage, GenTxAlonzo) )
 import Ouroboros.Consensus.Block
   ( Point )
 
@@ -43,7 +43,7 @@ import qualified Cardano.Crypto.Hash as CC
 import Spectrum.LedgerSync.Protocol.Client
   ( Block )
 import Spectrum.EventSource.Data.Tx
-  ( fromBabbageLedgerTx, MinimalConfirmedTx (slotNo) )
+  ( fromBabbageLedgerTx, MinimalConfirmedTx (slotNo), fromMempoolBabbageLedgerTx )
 import Spectrum.LedgerSync
   ( LedgerSync(..) )
 import Spectrum.Prelude.Context
@@ -60,21 +60,23 @@ import Spectrum.EventSource.Types
 import Spectrum.EventSource.Persistence.LedgerHistory
   ( LedgerHistory (..), mkLedgerHistory )
 import Spectrum.EventSource.Data.TxEvent
-  ( TxEvent(AppliedTx, UnappliedTx) )
+  ( TxEvent(AppliedTx, UnappliedTx, PendingTx) )
 import Spectrum.EventSource.Data.TxContext
-  ( TxCtx(LedgerCtx) )
+  ( TxCtx(LedgerCtx, MempoolCtx) )
 import Spectrum.LedgerSync.Data.LedgerUpdate
   ( LedgerUpdate(RollForward, RollBackward) )
 import Spectrum.EventSource.Persistence.Data.BlockLinks
   ( BlockLinks(BlockLinks, txIds, prevPoint) )
+import Spectrum.LedgerSync.Data.MempoolUpdate 
+  ( MempoolUpdate(..) )
 import Spectrum.EventSource.Persistence.Config
   ( LedgerStoreConfig )
 import Spectrum.Prelude.HigherKind
   ( LiftK (liftK) )
-import Debug.Trace (traceM)
 
-newtype EventSource s m ctx = EventSource
-  { upstream :: s m (TxEvent ctx)
+data EventSource s m = EventSource
+  { upstream     :: s m (TxEvent 'LedgerCtx)
+  , upstreamMTxs :: s m (TxEvent 'MempoolCtx)
   }
 
 mkEventSource
@@ -91,7 +93,7 @@ mkEventSource
     , HasType LedgerStoreConfig env
     )
   => LedgerSync m
-  -> f (EventSource s m 'LedgerCtx)
+  -> f (EventSource s m)
 mkEventSource lsync = do
   mklog@MakeLogging{..}      <- askContext
   EventSourceConfig{startAt} <- askContext
@@ -101,7 +103,10 @@ mkEventSource lsync = do
   persistence <- mkLedgerHistory mklog lhcong
 
   liftK $ seekToBeginning logging persistence lsync startAt
-  pure $ EventSource $ upstream' logging persistence lsync
+  pure $ EventSource
+    { upstream     = upstream' logging persistence lsync
+    , upstreamMTxs = upstreamMempoolTxs' logging lsync
+    } 
 
 upstream'
   :: forall s m. (IsStream s, Monad (s m), MonadAsync m)
@@ -111,7 +116,16 @@ upstream'
   -> s m (TxEvent 'LedgerCtx)
 upstream' logging@Logging{..} persistence LedgerSync{..}
   = S.repeatM pull >>= processUpdate logging persistence
-  & S.trace (traceM . show)
+  & S.trace (debugM . show)
+
+upstreamMempoolTxs'
+  :: forall s m. (IsStream s, Monad (s m), MonadAsync m)
+  => Logging m
+  -> LedgerSync m
+  -> s m (TxEvent 'MempoolCtx)
+upstreamMempoolTxs' logging@Logging{..} LedgerSync{..}
+  = S.repeatM pullTx >>= processMempoolUpdate logging
+  & S.trace (debugM . show)
 
 processUpdate
   :: forall s m.
@@ -138,6 +152,19 @@ processUpdate
       $ S.fromFoldable txs' & S.map (AppliedTx . fromBabbageLedgerTx hHash slotNo)
 processUpdate logging lh (RollBackward point) = streamUnappliedTxs logging lh point
 processUpdate Logging{..} _ upd = S.before (errorM $ "Cannot process update " <> show upd) mempty
+
+processMempoolUpdate
+  :: forall s m.
+    ( IsStream s
+    , MonadIO m
+    , MonadBaseControl IO m
+    , MonadThrow m
+    )
+  => Logging m
+  -> MempoolUpdate Block
+  -> s m (TxEvent 'MempoolCtx)
+processMempoolUpdate _ (NewTx (GenTxBabbage (ShelleyTx _ x)) slot) = S.fromList [PendingTx $ fromMempoolBabbageLedgerTx x slot]
+processMempoolUpdate Logging{..} _ = S.before (errorM @String "Cannot process mempool update") mempty
 
 streamUnappliedTxs
   :: forall s m.

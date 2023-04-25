@@ -88,9 +88,12 @@ library
                      Spectrum.EventSource.Stream
                      Spectrum.EventSource.Types
                      Spectrum.LedgerSync.Data.LedgerUpdate
+                     Spectrum.LedgerSync.Data.MempoolUpdate
                      Spectrum.LedgerSync.Protocol.Client
                      Spectrum.LedgerSync.Protocol.ChainSync
+                     Spectrum.LedgerSync.Protocol.MempoolSync
                      Spectrum.LedgerSync.Protocol.Data.ChainSync
+                     Spectrum.LedgerSync.Protocol.Data.MempoolSync
                      Cardano.Network.Protocol.NodeToClient.Trace
 
     build-depends:  bytestring

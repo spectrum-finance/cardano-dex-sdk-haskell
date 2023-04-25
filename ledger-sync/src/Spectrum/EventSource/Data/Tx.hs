@@ -14,6 +14,7 @@ module Spectrum.EventSource.Data.Tx
   , MinimalConfirmedTx(..)
   , MinimalTx(..)
   , fromBabbageLedgerTx
+  , fromMempoolBabbageLedgerTx
   ) where
 
 import RIO
@@ -66,6 +67,7 @@ data MinimalUnconfirmedTx = MinimalUnconfirmedTx
   { txId      :: P.TxId
   , txInputs  :: Set.Set P.TxIn
   , txOutputs :: [FullTxOut]
+  , slotNo    :: SlotNo
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 -- | A minimal sufficient representation of a confirmed transaction
@@ -122,6 +124,44 @@ fromBabbageLedgerTx blockHash slotNo vtx =
   in MinimalLedgerTx $ MinimalConfirmedTx
     { blockId   = blockId
     , txId      = txId
+    , txInputs  = Set.fromList $ Set.toList (Al.inputs body) <&> fromCardanoTxIn
+    , txOutputs = zip [0..] (toList $ Al.outputs body)
+                    <&> uncurry fromCardanoTxOut
+                    >>= either mempty pure
+    , slotNo    = slotNo
+    }
+
+fromMempoolBabbageLedgerTx
+  :: (Crypto crypto, crypto ~ StandardCrypto)
+  => Al.ValidatedTx (BabbageEra crypto) 
+  -> SlotNo
+  -> MinimalTx 'MempoolCtx
+fromMempoolBabbageLedgerTx vtx slotNo =
+  let
+    body = Al.body vtx
+    txId
+      = P.TxId
+      . PlutusTx.toBuiltin
+      . CC.hashToBytes
+      . Ledger.extractHash
+      . Ledger._unTxId
+      . Ledger.txid
+      $ body
+    fromCardanoTxIn tin = P.TxIn (Interop.fromCardanoTxIn (fromShelleyTxIn tin)) Nothing
+    fromCardanoTxOut ix tout =
+      Interop.fromCardanoTxOutV2 (fromShelleyTxOut ShelleyBasedEraBabbage (sizedValue tout)) <&> (\PV2.TxOut{..} ->
+        FullTxOut
+          (P.TxOutRef txId ix)
+          txOutAddress
+          txOutValue
+          (parseDatum txOutDatum)
+          txOutReferenceScript)
+    parseDatum datum = case datum of
+      PV2.NoOutputDatum      -> EmptyDatum
+      PV2.OutputDatumHash dh -> KnownDatumHash dh
+      PV2.OutputDatum d      -> KnownDatum d
+  in MinimalMempoolTx $ MinimalUnconfirmedTx
+    { txId      = txId
     , txInputs  = Set.fromList $ Set.toList (Al.inputs body) <&> fromCardanoTxIn
     , txOutputs = zip [0..] (toList $ Al.outputs body)
                     <&> uncurry fromCardanoTxOut
