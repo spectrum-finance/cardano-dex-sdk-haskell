@@ -53,7 +53,7 @@ import Ouroboros.Network.NodeToClient.Version
 
 import Spectrum.LedgerSync.Config
   ( NetworkParameters(NetworkParameters, slotsPerEpoch, networkMagic),
-    LedgerSyncConfig(..) )
+    NodeSocketConfig(..) )
 import Spectrum.LedgerSync.Exception
   ( ChainSyncInitFailed(ChainSyncInitFailed) )
 import Spectrum.LedgerSync.Protocol.ChainSync
@@ -85,7 +85,7 @@ mkLedgerSync
     , MonadST m
     , MonadIO m
     , MonadReader env m
-    , HasType LedgerSyncConfig env
+    , HasType NodeSocketConfig env
     , HasType NetworkParameters env
     , HasType (MakeLogging m m) env
     )
@@ -94,7 +94,7 @@ mkLedgerSync
   -> m (LedgerSync m)
 mkLedgerSync unliftIO tr = do
   MakeLogging{..}                               <- askContext
-  LedgerSyncConfig{nodeSocketPath, maxInFlight} <- askContext
+  NodeSocketConfig{nodeSocketPath, maxInFlight} <- askContext
   NetworkParameters{slotsPerEpoch,networkMagic} <- askContext
 
   l@Logging{..} <- forComponent "LedgerSync"
