@@ -75,7 +75,7 @@ import Spectrum.EventSource.Persistence.Config
 import Spectrum.Prelude.HigherKind
   ( LiftK (liftK) )
 
-data EventSource s m ctx = EventSource
+newtype EventSource s m ctx = EventSource
   { upstream     :: s m (TxEvent ctx)
   }
 
