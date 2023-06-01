@@ -1,6 +1,7 @@
 module Spectrum.EventSource.Stream
   ( EventSource(..)
-  , mkEventSource
+  , mkLedgerEventSource
+  , mkMempoolTxEventSource
   ) where
 
 import RIO
@@ -31,7 +32,7 @@ import Ouroboros.Consensus.Shelley.Ledger
 import Ouroboros.Consensus.HardFork.Combinator
   ( OneEraHash(OneEraHash) )
 import Ouroboros.Consensus.Cardano.Block
-  ( HardForkBlock(BlockBabbage), GenTx (GenTxBabbage, GenTxAlonzo) )
+  ( HardForkBlock(BlockBabbage), GenTx (GenTxBabbage) )
 import Ouroboros.Consensus.Block
   ( Point )
 
@@ -43,7 +44,7 @@ import qualified Cardano.Crypto.Hash as CC
 import Spectrum.LedgerSync.Protocol.Client
   ( Block )
 import Spectrum.EventSource.Data.Tx
-  ( fromBabbageLedgerTx, MinimalConfirmedTx (slotNo), fromMempoolBabbageLedgerTx )
+  ( fromBabbageLedgerTx, fromMempoolBabbageLedgerTx )
 import Spectrum.LedgerSync
   ( LedgerSync(..) )
 import Spectrum.Prelude.Context
@@ -67,19 +68,18 @@ import Spectrum.LedgerSync.Data.LedgerUpdate
   ( LedgerUpdate(RollForward, RollBackward) )
 import Spectrum.EventSource.Persistence.Data.BlockLinks
   ( BlockLinks(BlockLinks, txIds, prevPoint) )
-import Spectrum.LedgerSync.Data.MempoolUpdate 
+import Spectrum.LedgerSync.Data.MempoolUpdate
   ( MempoolUpdate(..) )
 import Spectrum.EventSource.Persistence.Config
   ( LedgerStoreConfig )
 import Spectrum.Prelude.HigherKind
   ( LiftK (liftK) )
 
-data EventSource s m = EventSource
-  { upstream     :: s m (TxEvent 'LedgerCtx)
-  , upstreamMTxs :: s m (TxEvent 'MempoolCtx)
+data EventSource s m ctx = EventSource
+  { upstream     :: s m (TxEvent ctx)
   }
 
-mkEventSource
+mkLedgerEventSource
   :: forall f m s env.
     ( Monad f
     , MonadResource f
@@ -93,20 +93,39 @@ mkEventSource
     , HasType LedgerStoreConfig env
     )
   => LedgerSync m
-  -> f (EventSource s m)
-mkEventSource lsync = do
+  -> f (EventSource s m 'LedgerCtx)
+mkLedgerEventSource lsync = do
   mklog@MakeLogging{..}      <- askContext
   EventSourceConfig{startAt} <- askContext
   lhcong                     <- askContext
 
-  logging     <- forComponent "EventSource"
+  logging     <- forComponent "LedgerEventSource"
   persistence <- mkLedgerHistory mklog lhcong
 
   liftK $ seekToBeginning logging persistence lsync startAt
   pure $ EventSource
-    { upstream     = upstream' logging persistence lsync
-    , upstreamMTxs = upstreamMempoolTxs' logging lsync
-    } 
+    { upstream = upstream' logging persistence lsync
+    }
+
+mkMempoolTxEventSource
+  :: forall f m s env.
+    ( Monad f
+    , MonadResource f
+    , IsStream s
+    , Monad (s m)
+    , MonadAsync m
+    , MonadReader env f
+    , HasType (MakeLogging f m) env
+    )
+  => LedgerSync m
+  -> f (EventSource s m 'MempoolCtx)
+mkMempoolTxEventSource lsync =   do
+  MakeLogging{..} <- askContext
+  logging         <- forComponent "MempoolEventSource"
+
+  pure $ EventSource
+    { upstream = upstreamMempoolTxs' logging lsync
+    }
 
 upstream'
   :: forall s m. (IsStream s, Monad (s m), MonadAsync m)
