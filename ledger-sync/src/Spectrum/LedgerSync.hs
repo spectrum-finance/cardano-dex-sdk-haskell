@@ -33,7 +33,8 @@ import System.Logging.Hlog
 
 import Spectrum.LedgerSync.Data.LedgerUpdate
   ( LedgerUpdate )
-import qualified Spectrum.LedgerSync.Data.LedgerUpdate as Update
+import qualified Spectrum.LedgerSync.Data.LedgerUpdate  as Update
+import qualified Spectrum.LedgerSync.Data.MempoolUpdate as MempoolUpdate
 import Spectrum.LedgerSync.Protocol.Data.ChainSync
   ( RequestNextResponse(RollBackward, RollForward, block, point),
     RequestNext(RequestNext),
@@ -50,6 +51,8 @@ import Ouroboros.Network.Block
   ( Point )
 import Ouroboros.Network.NodeToClient.Version
   ( NodeToClientVersionData (NodeToClientVersionData) )
+import Ouroboros.Consensus.Cardano.Block 
+  ( GenTx )
 
 import Spectrum.LedgerSync.Config
   ( NetworkParameters(NetworkParameters, slotsPerEpoch, networkMagic),
@@ -58,14 +61,19 @@ import Spectrum.LedgerSync.Exception
   ( ChainSyncInitFailed(ChainSyncInitFailed) )
 import Spectrum.LedgerSync.Protocol.ChainSync
   ( mkChainSyncClient )
+import Spectrum.LedgerSync.Protocol.MempoolSync
+import Spectrum.LedgerSync.Protocol.Data.MempoolSync
 import Spectrum.LedgerSync.Protocol.Client
-  ( mkClient, connectClient, Block )
+  ( mkClient, connectClient, Block, Clients(..) )
 import Spectrum.Prelude.HigherKind
   ( FunctorK(..) )
+import Spectrum.LedgerSync.Data.MempoolUpdate (MempoolUpdate)
+import Debug.Trace ()
 
 data LedgerSync m = LedgerSync
   { pull    :: m (LedgerUpdate Block)
   , tryPull :: m (Maybe (LedgerUpdate Block))
+  , pullTx  :: m (MempoolUpdate Block)
   , seekTo  :: Point Block -> m ()
   }
 
@@ -74,6 +82,7 @@ instance FunctorK LedgerSync where
     LedgerSync
       { pull    = trans pull
       , tryPull = trans tryPull
+      , pullTx  = trans pullTx
       , seekTo  = trans . seekTo
       }
 
@@ -99,9 +108,14 @@ mkLedgerSync unliftIO tr = do
 
   l@Logging{..} <- forComponent "LedgerSync"
   (outQ, inQ) <- atomically $ (,) <$> newTQueue <*> newTQueue
+
+  (outQTxMonitor, inQTxMonitor) <- atomically $ (,) <$> newTQueue <*> newTQueue
   let
     chainSyncClient = mkChainSyncClient (naturalToInt maxInFlight) outQ inQ
-    client          = mkClient unliftIO slotsPerEpoch chainSyncClient
+    txMonitorClient = mkTxMonitorClient outQTxMonitor inQTxMonitor
+    clients         = Clients chainSyncClient txMonitorClient
+
+    client          = mkClient unliftIO slotsPerEpoch clients
     versions        = NodeToClientVersionData networkMagic
 
   infoM @String "Connecting Node Client"
@@ -110,6 +124,7 @@ mkLedgerSync unliftIO tr = do
   pure LedgerSync
     { pull    = pull' outQ inQ
     , tryPull = tryPull' outQ inQ
+    , pullTx  = pullTx' outQTxMonitor inQTxMonitor
     , seekTo  = seekTo' l outQ inQ
     }
 
@@ -139,6 +154,15 @@ pull' outQ inQ = do
   atomically $ writeTQueue outQ $ RequestNextReq RequestNext
   atomically $ readTQueue inQ <&> extractUpdate
 
+pullTx'
+  :: MonadSTM m
+  => TQueue m (MempoolRequest block)
+  -> TQueue m (MempoolResponse block)
+  -> m (MempoolUpdate block)
+pullTx' outQ inQ = do
+  atomically $ writeTQueue outQ RequestNextTx
+  atomically $ readTQueue inQ <&> extractMempoolUpdate
+
 tryPull'
   :: MonadSTM m
   => TQueue m (ChainSyncRequest block)
@@ -152,3 +176,7 @@ extractUpdate :: ChainSyncResponse block -> LedgerUpdate block
 extractUpdate (RequestNextRes RollForward{block})  = Update.RollForward block
 extractUpdate (RequestNextRes RollBackward{point}) = Update.RollBackward point
 extractUpdate _                                    = undefined
+
+extractMempoolUpdate :: MempoolResponse block -> MempoolUpdate block
+extractMempoolUpdate (NewTx tx slot) = MempoolUpdate.NewTx tx slot
+extractMempoolUpdate _               = undefined
