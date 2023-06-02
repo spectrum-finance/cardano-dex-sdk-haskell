@@ -2,17 +2,19 @@ module SubmitAPI.Internal.Balancing where
 
 import Prelude
 
+import           RIO.List       (find)
+import           RIO            (isJust)
 import           Data.Bifunctor (first)
 import           Data.Map       (Map)
 import qualified Data.Map       as Map
 import           Data.Maybe     (fromMaybe, catMaybes)
+import           Data.Functor   ((<&>))
 import           Data.Set       (Set)
 import           Data.Ratio
 
 import Cardano.Api
 import Cardano.Api.Shelley   (ProtocolParameters(..), PoolId, ReferenceScript (..), fromShelleyLovelace)
 import qualified Cardano.Ledger.Coin as Ledger
-import Cardano.Slotting.Time (SystemStart)
 
 makeTransactionBodyAutoBalance
   :: forall era mode.
@@ -99,6 +101,7 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
     -- does not matter, instead it's just the values of the fee and outputs.
     -- Here we do not want to start with any change output, since that's what
     -- we need to calculate.
+
     txbody2 <- first TxBodyError $ -- TODO: impossible to fail now
                makeTransactionBody txbodycontent1 {
                  txFee = TxFeeExplicit explicitTxFees fee
@@ -111,11 +114,11 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
     -- check if the balance is positive or negative
     -- in one case we can produce change, in the other the inputs are insufficient
     case balance of
-      TxOutAdaOnly _ _ -> balanceCheck balance
+      TxOutAdaOnly _ _ -> balanceCheck balance (txOuts txbodycontent1)
       TxOutValue _ v   ->
         case valueToLovelace v of
           Nothing -> Left $ TxBodyErrorNonAdaAssetsUnbalanced v
-          Just _  -> balanceCheck balance
+          Just _  -> balanceCheck balance (txOuts txbodycontent1)
 
     --TODO: we could add the extra fee for the CBOR encoding of the change,
     -- now that we know the magnitude of the change: i.e. 1-8 bytes extra.
@@ -202,12 +205,29 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
    -- the fee calculation includes a change address for simplicity and
    -- we make no attempt to recalculate the tx fee without a change address.
    accountForNoChange :: TxOut CtxTx era -> [TxOut CtxTx era] -> [TxOut CtxTx era]
-   accountForNoChange change@(TxOut _ balance _ _) rest =
+   accountForNoChange change@(TxOut addr balance _ _) rest =
      case txOutValueToLovelace balance of
        Lovelace 0 -> rest
        -- We append change at the end so a client can predict the indexes
        -- of the outputs
-       _ -> rest ++ [change]
+       chargeLovelace ->
+        let
+          chargeUserBox = find (\(TxOut boxAddr _ _ _) -> boxAddr == addr) rest
+          updatedChargeUserBox = chargeUserBox <&> (\(TxOut boxAddr prevValue d ref) ->
+               let
+                 newValue =
+                  case prevValue of
+                    TxOutAdaOnly supportedEra lovelace -> TxOutAdaOnly supportedEra (lovelace + chargeLovelace)
+                    TxOutValue multiSupport value -> TxOutValue multiSupport (value <> lovelaceToValue chargeLovelace)
+                in TxOut boxAddr newValue d ref
+            )
+          outputs =
+            case updatedChargeUserBox of
+                Nothing -> rest ++ [change]
+                Just output ->
+                  -- replace user reward box with updated
+                  (\txOut@(TxOut boxAddr _ _ _) -> if boxAddr == addr then output else txOut) <$> rest
+        in outputs
 
    maybeDummyTotalCollAndCollReturnOutput
      :: TxBodyContent BuildTx era -> AddressInEra era -> (TxReturnCollateral CtxTx era, TxTotalCollateral era)
@@ -229,17 +249,22 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
                   (TxReturnCollateralNone,tc@TxTotalCollateral{}) -> (dummyRetCol, tc)
                   (TxReturnCollateralNone, TxTotalCollateralNone) -> (dummyRetCol, dummyTotCol)
 
-   balanceCheck :: TxOutValue era -> Either TxBodyErrorAutoBalance ()
-   balanceCheck balance
+   balanceCheck :: TxOutValue era -> [TxOut CtxTx era] -> Either TxBodyErrorAutoBalance ()
+   balanceCheck balance outs
     | txOutValueToLovelace balance == 0 = return ()
     | txOutValueToLovelace balance < 0 =
         Left . TxBodyErrorAdaBalanceNegative $ txOutValueToLovelace balance
-    | otherwise =
-        case checkMinUTxOValue (TxOut changeaddr balance TxOutDatumNone ReferenceScriptNone) pparams of
-          Left (TxBodyErrorMinUTxONotMet txOutAny minUTxO) ->
-            Left $ TxBodyErrorAdaBalanceTooSmall txOutAny minUTxO (txOutValueToLovelace balance)
-          Left err -> Left err
-          Right _  -> Right ()
+    | otherwise = do
+        let chargeBoxWillBeMerged = isJust $ find (\(TxOut boxAddr _ _ _) -> boxAddr == changeaddr) outs
+        if chargeBoxWillBeMerged
+          then 
+            Right ()
+          else 
+            case checkMinUTxOValue (TxOut changeaddr balance TxOutDatumNone ReferenceScriptNone) pparams of
+              Left (TxBodyErrorMinUTxONotMet txOutAny minUTxO) ->
+                Left $ TxBodyErrorAdaBalanceTooSmall txOutAny minUTxO (txOutValueToLovelace balance)
+              Left err -> Left err
+              Right _  -> Right ()
 
    checkMinUTxOValue
      :: TxOut CtxTx era
