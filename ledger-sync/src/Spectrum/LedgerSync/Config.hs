@@ -1,5 +1,5 @@
 module Spectrum.LedgerSync.Config
-  ( LedgerSyncConfig(..)
+  ( NodeSocketConfig(..)
   , NetworkParameters(..)
   , parseNetworkParameters
   ) where
@@ -39,7 +39,7 @@ import Ouroboros.Consensus.BlockchainTime.WallClock.Types
 import Ouroboros.Network.Magic
   ( NetworkMagic (..) )
 
-data LedgerSyncConfig = LedgerSyncConfig
+data NodeSocketConfig = NodeSocketConfig
   { nodeSocketPath :: !FilePath
   , maxInFlight    :: !Natural
   } deriving (Generic, FromDhall)
