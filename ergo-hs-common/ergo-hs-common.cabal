@@ -74,5 +74,6 @@ library
     exposed-modules:
       Common.Throw.Combinators
       Common.Data.List.Combinators
+      Common.String.Formatting
 
     build-depends:  rio, plutus-ledger-api, plutus-tx, containers

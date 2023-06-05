@@ -14,6 +14,7 @@ import Explorer.Config
 import Ledger ( TxOutRef, txOutRefId, txOutRefIdx )
 import Prelude hiding (Ordering)
 import System.Logging.Hlog (Logging (Logging, debugM), MakeLogging (MakeLogging, forComponent))
+import Common.String.Formatting (toLower)
 
 data Explorer f = Explorer
   { getOutput                :: TxOutRef -> f (Maybe FullTxOut)
@@ -35,23 +36,23 @@ mkExplorer MakeLogging{..} conf = do
     }
 
 getOutput' :: MonadIO f => Logging f -> ExplorerConfig -> TxOutRef -> f (Maybe FullTxOut)
-getOutput' logging conf ref =
-  mkGetRequest logging conf $ "/cardano/v1/outputs/" ++ renderTxOutRef ref
+getOutput' logging conf@ExplorerConfig{..} ref =
+  mkGetRequest logging conf $ "/cardano/" ++ toLower (show network) ++ "/v1/outputs/" ++ renderTxOutRef ref
 
 getUnspentOutputs' :: MonadIO f => Logging f -> ExplorerConfig -> Gix -> Limit -> Ordering -> f (Items FullTxOut)
-getUnspentOutputs' logging conf minIndex limit ordering =
-  mkGetRequest logging conf $ "/cardano/v1/outputs/unspent/indexed?minIndex=" ++ show minIndex ++ "&limit=" ++ show limit ++ "&ordering=" ++ show ordering
+getUnspentOutputs' logging conf@ExplorerConfig{..} minIndex limit ordering =
+  mkGetRequest logging conf $ "/cardano/" ++ toLower (show network) ++ "/v1/outputs/unspent/indexed?minIndex=" ++ show minIndex ++ "&limit=" ++ show limit ++ "&ordering=" ++ show ordering
 
 getUnspentOutputsByPCred' :: MonadIO f => Logging f -> ExplorerConfig -> PaymentCred -> Paging -> f (Items FullTxOut)
-getUnspentOutputsByPCred' logging conf pcred Paging{..} =
-  mkGetRequest logging conf $ "/cardano/v1/outputs/unspent/byPaymentCred/" ++ T.unpack (unPaymentCred pcred) ++  "/?offset=" ++ show offset ++ "&limit=" ++ show limit
+getUnspentOutputsByPCred' logging conf@ExplorerConfig{..} pcred Paging{..} =
+  mkGetRequest logging conf $ "/cardano/" ++ toLower (show network) ++ "/v1/outputs/unspent/byPaymentCred/" ++ T.unpack (unPaymentCred pcred) ++  "/?offset=" ++ show offset ++ "&limit=" ++ show limit
 
 getSystemEnv' :: MonadIO f => Logging f -> ExplorerConfig -> f SystemEnv
-getSystemEnv' logging conf = mkGetRequest logging conf "/cardano/v1/networkParams"
+getSystemEnv' logging conf@ExplorerConfig{..} = mkGetRequest logging conf ("/cardano/v1/" ++ toLower (show network) ++ "/networkParams")
 
 getTxs' :: MonadIO f => Logging f -> ExplorerConfig -> Paging -> Ordering -> f (Items FullTx)
-getTxs' logging conf Paging{..} ordering =
-  mkGetRequest logging conf $ "/cardano/v1/transactions/?offset=" ++ show offset ++ "&limit=" ++ show limit ++ "&ordering=" ++ show ordering
+getTxs' logging conf@ExplorerConfig{..} Paging{..} ordering =
+  mkGetRequest logging conf $ "/cardano/" ++ toLower (show network) ++ "/v1/transactions/?offset=" ++ show offset ++ "&limit=" ++ show limit ++ "&ordering=" ++ show ordering
 
 mkGetRequest :: (MonadIO f, FromJSON a, Show a) => Logging f -> ExplorerConfig -> String -> f a
 mkGetRequest Logging{..} ExplorerConfig{..} path = do
