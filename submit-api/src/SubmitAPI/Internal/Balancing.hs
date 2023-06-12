@@ -270,10 +270,11 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
      :: TxOut CtxTx era
      -> ProtocolParameters
      -> Either TxBodyErrorAutoBalance ()
-   checkMinUTxOValue txout@(TxOut _ v _ _) pparams' = do
+   checkMinUTxOValue txout@(TxOut addr v _ _) pparams' = do
      minUTxO  <- first TxBodyErrorMinUTxOMissingPParams
                    $ calculateMinimumUTxO era txout pparams'
-     if txOutValueToLovelace v >= selectLovelace minUTxO
+     let chargeBoxWillBeMerged = addr == changeaddr
+     if txOutValueToLovelace v >= selectLovelace minUTxO || chargeBoxWillBeMerged
      then Right ()
      else Left TxBodyErrorMissingParamMinUTxO --todo fix: TxOutInAnyEra. Current err is incorrect
 
