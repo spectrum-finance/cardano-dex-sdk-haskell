@@ -30,6 +30,7 @@ import qualified ErgoDex.Contracts.Pool        as P
 import qualified ErgoDex.Contracts.Proxy.Order as O
 import           ErgoDex.Contracts.Types
 import           CardanoTx.Models
+import Debug.Trace
 
 data PoolActionsConfig = PoolActionsConfig
   { safeTxFeeLovalace :: Integer
@@ -130,7 +131,7 @@ runSwap' PoolActionsConfig{..} executorPkh pv sv refInputs (OnChain swapOut Swap
         rewardValue = assetAmountValue quoteOutput <> residualValue
   
     executorRewardPkh = pubKeyHashAddress executorPkh Nothing
-    exexutorRewardOut = 
+    executorRewardOut = 
         TxOutCandidate
           { txOutCandidateAddress   = executorRewardPkh
           , txOutCandidateValue     = Ada.lovelaceValueOf (exFee - safeTxFeeLovalace)
@@ -141,13 +142,19 @@ runSwap' PoolActionsConfig{..} executorPkh pv sv refInputs (OnChain swapOut Swap
     txCandidate = TxCandidate
       { txCandidateInputs       = inputs
       , txCandidateRefIns       = refInputs
-      , txCandidateOutputs      = [nextPoolOut, rewardOut, exexutorRewardOut]
+      , txCandidateOutputs      = [nextPoolOut, rewardOut, executorRewardOut]
       , txCandidateValueMint    = mempty
       , txCandidateMintInputs   = mempty
       , txCandidateChangePolicy = Just . ReturnTo $ rewardAddr
       , txCandidateValidRange   = Interval.always
       , txCandidateSigners      = mempty
       }
+
+  Debug.Trace.traceM ("PoolIn" ++ show poolOut)
+  Debug.Trace.traceM ("OrderIn" ++ show swapOut)
+  Debug.Trace.traceM ("exFee" ++ show exFee)
+  Debug.Trace.traceM ("RewardOut" ++ show rewardOut)
+  Debug.Trace.traceM ("executorRewardOut" ++ show executorRewardOut)
 
   Right (txCandidate, pp)
 
