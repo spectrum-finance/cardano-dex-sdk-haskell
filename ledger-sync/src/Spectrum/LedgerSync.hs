@@ -92,17 +92,14 @@ mkLedgerSync
     , MonadMask m
     , MonadST m
     , MonadIO m
-    , MonadReader env m
-    , HasType NodeSocketConfig env
-    , HasType NetworkParameters env
     )
   => UnliftIO m
   -> Tracer m TraceClient
   -> MakeLogging m m
+  -> NodeSocketConfig
+  -> NetworkParameters
   -> m (LedgerSync m)
-mkLedgerSync unliftIO tr MakeLogging{..} = do
-  NodeSocketConfig{nodeSocketPath, maxInFlight} <- askContext
-  NetworkParameters{slotsPerEpoch,networkMagic} <- askContext
+mkLedgerSync unliftIO tr MakeLogging{..} NodeSocketConfig{..} NetworkParameters{..} = do
 
   l@Logging{..} <- forComponent "LedgerSync"
   (outQ, inQ) <- atomically $ (,) <$> newTQueue <*> newTQueue
