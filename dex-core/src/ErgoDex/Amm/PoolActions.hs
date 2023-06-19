@@ -150,11 +150,14 @@ runSwap' PoolActionsConfig{..} executorPkh pv sv refInputs (OnChain swapOut Swap
       , txCandidateSigners      = mempty
       }
 
-  Debug.Trace.traceM ("PoolIn" ++ show poolOut)
-  Debug.Trace.traceM ("OrderIn" ++ show swapOut)
-  Debug.Trace.traceM ("exFee" ++ show exFee)
+  Debug.Trace.traceM ("PoolIn " ++ show poolOut)
+  Debug.Trace.traceM ("OrderIn " ++ show swapOut)
+  Debug.Trace.traceM ("exFeePerTokenNum " ++ show exFeePerTokenNum)
+  Debug.Trace.traceM ("exFeePerTokenDen " ++ show exFeePerTokenDen)
+  Debug.Trace.traceM ("exFee " ++ show exFee)
+  Debug.Trace.traceM ("quoteOutput " ++ show quoteOutput)
   Debug.Trace.traceM ("RewardOut" ++ show rewardOut)
-  Debug.Trace.traceM ("executorRewardOut" ++ show executorRewardOut)
+  Debug.Trace.traceM ("executorRewardOut " ++ show executorRewardOut)
 
   Right (txCandidate, pp)
 
