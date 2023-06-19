@@ -36,12 +36,12 @@ import Spectrum.LedgerSync.Data.LedgerUpdate
 import qualified Spectrum.LedgerSync.Data.LedgerUpdate  as Update
 import qualified Spectrum.LedgerSync.Data.MempoolUpdate as MempoolUpdate
 import Spectrum.LedgerSync.Protocol.Data.ChainSync
-  ( RequestNextResponse(RollBackward, RollForward, block, point),
+  ( RequestNextResponse(RollBackward, RollForward, block, point, tip),
     RequestNext(RequestNext),
     ChainSyncResponse(RequestNextRes, FindIntersectRes),
     ChainSyncRequest(RequestNextReq, FindIntersectReq),
     FindIntersect(FindIntersect),
-    FindIntersectResponse (IntersectionFound) )
+    FindIntersectResponse (IntersectionFound))
 
 import Ouroboros.Consensus.Block
   ( StandardHash )
@@ -55,8 +55,7 @@ import Ouroboros.Consensus.Cardano.Block
   ( GenTx )
 
 import Spectrum.LedgerSync.Config
-  ( NetworkParameters(NetworkParameters, slotsPerEpoch, networkMagic),
-    NodeSocketConfig(..) )
+  ( NetworkParameters(NetworkParameters, slotsPerEpoch, networkMagic), NodeSocketConfig(..))
 import Spectrum.LedgerSync.Exception
   ( ChainSyncInitFailed(ChainSyncInitFailed) )
 import Spectrum.LedgerSync.Protocol.ChainSync
@@ -173,7 +172,7 @@ tryPull' outQ inQ = do
   atomically $ tryReadTQueue inQ <&> (<&> extractUpdate)
 
 extractUpdate :: ChainSyncResponse block -> LedgerUpdate block
-extractUpdate (RequestNextRes RollForward{block})  = Update.RollForward block
+extractUpdate (RequestNextRes RollForward{block, tip})  = Update.RollForward block tip
 extractUpdate (RequestNextRes RollBackward{point}) = Update.RollBackward point
 extractUpdate _                                    = undefined
 

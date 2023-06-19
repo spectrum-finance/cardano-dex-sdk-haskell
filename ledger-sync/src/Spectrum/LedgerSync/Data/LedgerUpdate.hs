@@ -1,9 +1,9 @@
 module Spectrum.LedgerSync.Data.LedgerUpdate where
 
-import Ouroboros.Consensus.Block
-  ( Point )
+import Ouroboros.Network.Block
+  ( Point (..), Tip (..) )
 
 data LedgerUpdate block
-  = RollForward block
+  = RollForward block (Tip block)
   | RollBackward (Point block)
   deriving (Eq, Show)

@@ -288,3 +288,4 @@ runRedeem' PoolActionsConfig{..} executorPkh pv rv refInputs (OnChain redeemOut 
       }
 
   Right (txCandidate, pp)
+  
