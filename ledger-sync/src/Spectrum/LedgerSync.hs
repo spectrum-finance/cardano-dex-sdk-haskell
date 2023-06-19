@@ -95,13 +95,12 @@ mkLedgerSync
     , MonadReader env m
     , HasType NodeSocketConfig env
     , HasType NetworkParameters env
-    , HasType (MakeLogging m m) env
     )
   => UnliftIO m
   -> Tracer m TraceClient
+  -> MakeLogging m m
   -> m (LedgerSync m)
-mkLedgerSync unliftIO tr = do
-  MakeLogging{..}                               <- askContext
+mkLedgerSync unliftIO tr MakeLogging{..} = do
   NodeSocketConfig{nodeSocketPath, maxInFlight} <- askContext
   NetworkParameters{slotsPerEpoch,networkMagic} <- askContext
 
