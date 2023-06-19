@@ -11,6 +11,7 @@ import Ledger
 import Ledger.Value                   (assetClassValue, assetClassValueOf)
 import PlutusTx.IsData.Class
 import PlutusTx.Sqrt
+import Plutus.V1.Ledger.Api           (StakingCredential(..))
 import PlutusTx.Numeric               (AdditiveMonoid(zero))
 import Ledger.Ada                     (lovelaceValueOf)
 import Plutus.Script.Utils.V2.Address (mkValidatorAddress)
@@ -42,42 +43,49 @@ data PoolFee = PoolFee
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 data Pool = Pool
-  { poolId        :: PoolId
-  , poolReservesX :: Amount X
-  , poolReservesY :: Amount Y
-  , poolLiquidity :: Amount Liquidity
-  , poolCoinX     :: Coin X
-  , poolCoinY     :: Coin Y
-  , poolCoinLq    :: Coin Liquidity
-  , poolFee       :: PoolFee
-  , outCollateral :: Amount Lovelace
+  { poolId           :: PoolId
+  , poolReservesX    :: Amount X
+  , poolReservesY    :: Amount Y
+  , poolLiquidity    :: Amount Liquidity
+  , poolCoinX        :: Coin X
+  , poolCoinY        :: Coin Y
+  , poolCoinLq       :: Coin Liquidity
+  , poolFee          :: PoolFee
+  , outCollateral    :: Amount Lovelace
+  , stakeAdminPolicy :: [CurrencySymbol]
+  , lqBound          :: Amount X
+  , stakeCred        :: Maybe StakingCredential
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 feeDen :: Integer
 feeDen = 1000
 
 instance FromLedger Pool where
-  parseFromLedger fout@FullTxOut{fullTxOutDatum=(KnownDatum (Datum d)), ..} = --todo add also check for address
+  parseFromLedger fout@FullTxOut{fullTxOutDatum=(KnownDatum (Datum d)), fullTxOutAddress=Address{..}, ..} = --todo add also check for address
     case fromBuiltinData d of
       (Just PoolConfig{..}) -> do
         let
-          rx         = Amount $ assetClassValueOf fullTxOutValue poolX
-          ry         = Amount $ assetClassValueOf fullTxOutValue poolY
-          rlq        = Amount $ assetClassValueOf fullTxOutValue poolLq
-          nft        = Amount $ assetClassValueOf fullTxOutValue poolNft
-          lq         = maxLqCapAmount - rlq -- actual LQ emission
+          rx            = Amount $ assetClassValueOf fullTxOutValue poolX
+          ry            = Amount $ assetClassValueOf fullTxOutValue poolY
+          rlq           = Amount $ assetClassValueOf fullTxOutValue poolLq
+          nft           = Amount $ assetClassValueOf fullTxOutValue poolNft
+          lqBoundAmount = Amount lqBound
+          lq            = maxLqCapAmount - rlq -- actual LQ emission
           collateral = if W.isAda poolX || W.isAda poolY then zero else minSafeOutputAmount
         when (rx == 0 || ry == 0 || rlq == 0 || nft /= 1) Nothing
         Just $ OnChain fout Pool
-          { poolId        = PoolId $ Coin  poolNft
-          , poolReservesX = rx
-          , poolReservesY = ry
-          , poolLiquidity = lq
-          , poolCoinX     = Coin poolX
-          , poolCoinY     = Coin poolY
-          , poolCoinLq    = Coin poolLq
-          , poolFee       = PoolFee poolFeeNum feeDen
-          , outCollateral = collateral
+          { poolId           = PoolId $ Coin poolNft
+          , poolReservesX    = rx
+          , poolReservesY    = ry
+          , poolLiquidity    = lq
+          , poolCoinX        = Coin poolX
+          , poolCoinY        = Coin poolY
+          , poolCoinLq       = Coin poolLq
+          , poolFee          = PoolFee poolFeeNum feeDen
+          , outCollateral    = collateral
+          , stakeAdminPolicy = stakeAdminPolicy
+          , lqBound          = lqBoundAmount
+          , stakeCred        = addressStakingCredential
           }
       _ -> Nothing
   parseFromLedger _ = Nothing
@@ -85,12 +93,15 @@ instance FromLedger Pool where
 instance ToLedger PoolValidatorV1 Pool where
   toLedger (PoolValidator poolValidator) Pool{..} =
       TxOutCandidate
-        { txOutCandidateAddress   = mkValidatorAddress poolValidator
+        { txOutCandidateAddress   = poolAddress
         , txOutCandidateValue     = poolValue
         , txOutCandidateDatum     = KnownDatum $ Datum $ toBuiltinData poolConf
         , txOutCandidateRefScript = Nothing
         }
     where
+      poolAddress    = (mkValidatorAddress poolValidator) {
+           addressStakingCredential = stakeCred
+        }
       nft            = unPoolId poolId
       poolLqReserves = maxLqCapAmount - poolLiquidity
       poolValue      = assetClassValue (unCoin nft) 1 <>
@@ -100,11 +111,13 @@ instance ToLedger PoolValidatorV1 Pool where
                        lovelaceValueOf (unAmount outCollateral)
 
       poolConf = PoolConfig
-        { poolNft    = unCoin nft
-        , poolX      = unCoin poolCoinX
-        , poolY      = unCoin poolCoinY
-        , poolLq     = unCoin poolCoinLq
-        , poolFeeNum = poolFeeNum' poolFee
+        { poolNft          = unCoin nft
+        , poolX            = unCoin poolCoinX
+        , poolY            = unCoin poolCoinY
+        , poolLq           = unCoin poolCoinLq
+        , poolFeeNum       = poolFeeNum' poolFee
+        , stakeAdminPolicy = stakeAdminPolicy
+        , lqBound          = unAmount lqBound
         }
 
 data PoolInitError
@@ -112,6 +125,7 @@ data PoolInitError
   | InsufficientInitialLiqudity (Amount Liquidity)
   deriving (Show, Eq)
 
+-- todo: remove me
 initPool
   :: PoolValidator V1
   -> S.PoolConfig
@@ -128,15 +142,18 @@ initPool poolValidator S.PoolConfig{..} burnLq (inX, inY) = do
         then zero
         else minSafeOutputAmount
     pool = Pool
-      { poolId        = PoolId poolNft
-      , poolReservesX = inX
-      , poolReservesY = inY
-      , poolLiquidity = releasedLq
-      , poolCoinX     = poolX
-      , poolCoinY     = poolY
-      , poolCoinLq    = poolLq
-      , poolFee       = PoolFee poolFeeNum feeDen
-      , outCollateral = outCollateral
+      { poolId           = PoolId poolNft
+      , poolReservesX    = inX
+      , poolReservesY    = inY
+      , poolLiquidity    = releasedLq
+      , poolCoinX        = poolX
+      , poolCoinY        = poolY
+      , poolCoinLq       = poolLq
+      , poolFee          = PoolFee poolFeeNum feeDen
+      , stakeAdminPolicy = []
+      , lqBound          = 10000
+      , outCollateral    = outCollateral
+      , stakeCred        = Nothing
       }
     poolOut = toLedger poolValidator pool
   pure (Predicted poolOut pool, releasedLq)

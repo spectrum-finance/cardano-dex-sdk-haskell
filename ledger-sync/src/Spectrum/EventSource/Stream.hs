@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE RecordWildCards #-}
 module Spectrum.EventSource.Stream
   ( EventSource(..)
   , mkLedgerEventSource
@@ -10,16 +12,18 @@ import RIO
 import Data.ByteString.Short
   ( toShort )
 
-import Control.Monad.Trans.Control
-  ( MonadBaseControl )
+import Ledger
+  ( TxId )
+
+import qualified Data.Foldable as Foldable
+
 import Control.Monad.IO.Class
   ( MonadIO )
 import Control.Monad.Catch
   ( MonadThrow )
 import Control.Monad
   ( join )
-import Control.Monad.Trans.Resource
-  ( MonadResource )
+import Data.Sequence.Strict
 
 import Streamly.Prelude as S
 
@@ -36,10 +40,13 @@ import Ouroboros.Consensus.Cardano.Block
 import Ouroboros.Consensus.Block
   ( Point )
 
+import Spectrum.EventSource.Data.Tx (MinimalTx(..), MinimalConfirmedTx (..))
+
 import Cardano.Ledger.Alonzo.TxSeq
   ( TxSeq(txSeqTxns) )
 import qualified Cardano.Ledger.Block as Ledger
 import qualified Cardano.Crypto.Hash as CC
+import Data.List
 
 import Spectrum.LedgerSync.Protocol.Client
   ( Block )
@@ -59,7 +66,7 @@ import Spectrum.EventSource.Types
   , ConcreteHash (ConcreteHash)
   )
 import Spectrum.EventSource.Persistence.LedgerHistory
-  ( LedgerHistory (..), mkLedgerHistory )
+  ( LedgerHistory (..), mkLedgerHistory, mkRuntimeLedgerHistory )
 import Spectrum.EventSource.Data.TxEvent
   ( TxEvent(AppliedTx, UnappliedTx, PendingTx) )
 import Spectrum.EventSource.Data.TxContext
@@ -73,7 +80,8 @@ import Spectrum.LedgerSync.Data.MempoolUpdate
 import Spectrum.EventSource.Persistence.Config
   ( LedgerStoreConfig )
 import Spectrum.Prelude.HigherKind
-  ( LiftK (liftK) )
+  ( LiftK (liftK), type (~>) )
+import qualified Streamly.Internal.Data.Stream.IsStream as S
 
 newtype EventSource s m ctx = EventSource
   { upstream     :: s m (TxEvent ctx)
@@ -82,7 +90,8 @@ newtype EventSource s m ctx = EventSource
 mkLedgerEventSource
   :: forall f m s env.
     ( Monad f
-    , MonadResource f
+    , MonadIO f
+    , MonadThrow f
     , LiftK m f
     , IsStream s
     , Monad (s m)
@@ -93,14 +102,15 @@ mkLedgerEventSource
     , HasType LedgerStoreConfig env
     )
   => LedgerSync m
+  -> m ~> f
   -> f (EventSource s m 'LedgerCtx)
-mkLedgerEventSource lsync = do
-  mklog@MakeLogging{..}      <- askContext
+mkLedgerEventSource lsync fToM = do
+  MakeLogging{..}            <- askContext :: f (MakeLogging f m)
   EventSourceConfig{startAt} <- askContext
-  lhcong                     <- askContext
+  -- lhcong                     <- askContext
 
   logging     <- forComponent "LedgerEventSource"
-  persistence <- mkLedgerHistory mklog lhcong
+  persistence <- fToM mkRuntimeLedgerHistory
 
   liftK $ seekToBeginning logging persistence lsync startAt
   pure $ EventSource
@@ -110,7 +120,6 @@ mkLedgerEventSource lsync = do
 mkMempoolTxEventSource
   :: forall f m s env.
     ( Monad f
-    , MonadResource f
     , IsStream s
     , Monad (s m)
     , MonadAsync m
@@ -151,7 +160,6 @@ processUpdate
     ( IsStream s
     , Monad (s m)
     , MonadIO m
-    , MonadBaseControl IO m
     , MonadThrow m
     )
   => Logging m
@@ -161,37 +169,35 @@ processUpdate
 processUpdate
   _
   LedgerHistory{..}
-  (RollForward (BlockBabbage (ShelleyBlock (Ledger.Block (Praos.Header hBody _) txs) hHash))) =
+  (RollForward block@(BlockBabbage (ShelleyBlock (Ledger.Block (Praos.Header hBody _) txs) hHash)) _) =
     let
       txs'  = txSeqTxns txs
       slotNo = Praos.hbSlotNo hBody
       point = ConcretePoint slotNo (ConcreteHash ch)
         where ch = OneEraHash . toShort . CC.hashToBytes . unShelleyHash $ hHash
-    in S.before (setTip point)
-      $ S.fromFoldable txs' & S.map (AppliedTx . fromBabbageLedgerTx hHash slotNo)
+      txsParsed = txs' <&> fromBabbageLedgerTx hHash slotNo
+      txsIds = Foldable.toList (txsParsed <&> (\(MinimalLedgerTx MinimalConfirmedTx{..}) -> txId)) :: [TxId]
+      parsedTxs = txsParsed <&> AppliedTx
+    in S.before (setTip point >> putBlock point (BlockLinks point txsIds)) $ S.fromFoldable parsedTxs
 processUpdate logging lh (RollBackward point) = streamUnappliedTxs logging lh point
-processUpdate Logging{..} _ upd = S.before (errorM $ "Cannot process update " <> show upd) mempty
+processUpdate Logging{..} _ upd = S.before (errorM $ "Cannot process update " <> show upd) (S.fromList [])
 
 processMempoolUpdate
   :: forall s m.
     ( IsStream s
     , MonadIO m
-    , MonadBaseControl IO m
-    , MonadThrow m
     )
   => Logging m
   -> MempoolUpdate Block
   -> s m (TxEvent 'MempoolCtx)
 processMempoolUpdate _ (NewTx (GenTxBabbage (ShelleyTx _ x)) slot) = S.fromList [PendingTx $ fromMempoolBabbageLedgerTx x slot]
-processMempoolUpdate Logging{..} _ = S.before (errorM @String "Cannot process mempool update") mempty
+processMempoolUpdate Logging{..} _ = S.before (errorM @String "Cannot process mempool update") $ S.fromList []
 
 streamUnappliedTxs
   :: forall s m.
     ( IsStream s
     , Monad (s m)
     , MonadIO m
-    , MonadBaseControl IO m
-    , MonadThrow m
     )
   => Logging m
   -> LedgerHistory m
@@ -209,15 +215,19 @@ streamUnappliedTxs Logging{..} LedgerHistory{..} point = join $ S.fromEffect $ d
           let emitTxs = S.fromFoldable (Prelude.reverse txIds <&> UnappliedTx) -- unapply txs in reverse order
           if toPoint prevPoint == point
             then emitTxs
-            else emitTxs <> rollbackOne prevPoint
-        Nothing -> mempty
-  tipM <- getTip
-  case tipM of
-    Just tip ->
-      if knownPoint
-        then infoM ("Rolling back to point " <> show point) $> rollbackOne tip
-        else errorM ("An attempt to roll back to an unknown point " <> show point) $> mempty
-    Nothing -> pure mempty
+            else S.append emitTxs (rollbackOne prevPoint)
+        Nothing -> S.fromList []
+  if knownPoint
+    then do
+      tipM <- getTip
+      case tipM of
+        Just tip -> infoM ("Rolling back to point " <> show point) $> rollbackOne tip
+        Nothing  -> errorM ("An attempt to roll back to an unknown point. (Empty tipM) " <> show point) $> S.fromList []
+    else errorM ("An attempt to roll back to an unknown point " <> show point) $> S.fromList []
+  -- tipM <- getTip
+  -- case tipM of
+  --   Just tip ->
+  --   Nothing -> pure mempty
 
 seekToBeginning
   :: Monad m

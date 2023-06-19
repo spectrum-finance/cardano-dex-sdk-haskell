@@ -111,6 +111,7 @@ library
         cardano-ledger-shelley,
         cardano-ledger-core,
         cardano-ledger-shelley-ma,
+        cardano-crypto-class,
         cardano-ledger-byron,
         cardano-ledger-babbage,
         ouroboros-consensus,

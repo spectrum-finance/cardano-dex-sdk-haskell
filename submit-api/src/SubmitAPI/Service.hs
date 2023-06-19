@@ -19,6 +19,7 @@ import qualified NetworkAPI.Service  as Network
 import           NetworkAPI.Types
 import           WalletAPI.Utxos
 import           WalletAPI.Vault
+import           Cardano.Crypto.DSIGN.SchnorrSecp256k1
 
 data Transactions f era = Transactions
   { estimateTxFee :: Set.Set Sdk.FullCollateralTxIn -> Sdk.TxCandidate -> f C.Lovelace
