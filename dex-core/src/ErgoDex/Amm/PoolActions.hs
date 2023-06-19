@@ -155,6 +155,8 @@ runSwap' PoolActionsConfig{..} executorPkh pv sv refInputs (OnChain swapOut Swap
   Debug.Trace.traceM ("exFeePerTokenNum " ++ show exFeePerTokenNum)
   Debug.Trace.traceM ("exFeePerTokenDen " ++ show exFeePerTokenDen)
   Debug.Trace.traceM ("exFee " ++ show exFee)
+  Debug.Trace.traceM ("swapMinQuoteOut " ++ show swapMinQuoteOut)
+  Debug.Trace.traceM ("getAmount quoteOutput " ++ show (getAmount quoteOutput))
   Debug.Trace.traceM ("quoteOutput " ++ show quoteOutput)
   Debug.Trace.traceM ("RewardOut" ++ show rewardOut)
   Debug.Trace.traceM ("executorRewardOut " ++ show executorRewardOut)
