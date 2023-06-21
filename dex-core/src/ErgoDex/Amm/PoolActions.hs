@@ -127,6 +127,7 @@ runSwap' PoolActionsConfig{..} executorPkh pv sv refInputs (OnChain swapOut Swap
              initValue
           <> assetClassValue (unCoin swapBase) (negate $ unAmount swapBaseIn) -- Remove Base input
           <> Ada.lovelaceValueOf (negate exFee)                               -- Remove Batcher Fee
+          <> Ada.lovelaceValueOf (negate safeTxFeeLovalace)
 
         rewardValue = assetAmountValue quoteOutput <> residualValue
   
@@ -134,7 +135,7 @@ runSwap' PoolActionsConfig{..} executorPkh pv sv refInputs (OnChain swapOut Swap
     executorRewardOut = 
         TxOutCandidate
           { txOutCandidateAddress   = executorRewardPkh
-          , txOutCandidateValue     = Ada.lovelaceValueOf (exFee - safeTxFeeLovalace)
+          , txOutCandidateValue     = Ada.lovelaceValueOf exFee
           , txOutCandidateDatum     = EmptyDatum
           , txOutCandidateRefScript = Nothing
           }
@@ -217,13 +218,14 @@ runDeposit' PoolActionsConfig{..} executorPkh pv dv refInputs (OnChain depositOu
           <> assetClassValue (unCoin poolCoinX) (negate $ unAmount netInX) -- Remove X net input
           <> assetClassValue (unCoin poolCoinY) (negate $ unAmount netInY) -- Remove Y net input
           <> Ada.lovelaceValueOf (negate $ unAmount exFee)                 -- Remove Fee
+          <> Ada.lovelaceValueOf (negate $ safeTxFeeLovalace)
         rewardValue = residualValue <> mintLqValue <> alignmentValue
 
     executorRewardPkh = pubKeyHashAddress executorPkh Nothing
     exexutorRewardOut = 
         TxOutCandidate
           { txOutCandidateAddress   = executorRewardPkh
-          , txOutCandidateValue     = Ada.lovelaceValueOf $ (unAmount exFee - safeTxFeeLovalace)
+          , txOutCandidateValue     = Ada.lovelaceValueOf $ unAmount exFee
           , txOutCandidateDatum     = EmptyDatum
           , txOutCandidateRefScript = Nothing
           }
@@ -270,13 +272,15 @@ runRedeem' PoolActionsConfig{..} executorPkh pv rv refInputs (OnChain redeemOut 
           , txOutCandidateRefScript = Nothing
           }
       where
-        (outX, outY)  = sharesAmount pool redeemLqIn
-        initValue     = fullTxOutValue redeemOut
-        negatedExFe   = Ada.lovelaceValueOf . negate $ exFee
-        residualValue = 
+        (outX, outY)    = sharesAmount pool redeemLqIn
+        initValue       = fullTxOutValue redeemOut
+        negatedExFe     = Ada.lovelaceValueOf . negate $ exFee
+        negatedSafeFee  = Ada.lovelaceValueOf . negate $ safeTxFeeLovalace
+        residualValue   = 
              initValue 
           <> burnLqValue 
           <> negatedExFe                                     -- Remove LQ input and ExFee
+          <> negatedSafeFee
 
         rewardValue = assetAmountValue outX <> assetAmountValue outY <> residualValue
     
@@ -284,7 +288,7 @@ runRedeem' PoolActionsConfig{..} executorPkh pv rv refInputs (OnChain redeemOut 
     exexutorRewardOut = 
         TxOutCandidate
           { txOutCandidateAddress   = executorRewardPkh
-          , txOutCandidateValue     = Ada.lovelaceValueOf (exFee - safeTxFeeLovalace)
+          , txOutCandidateValue     = Ada.lovelaceValueOf exFee
           , txOutCandidateDatum     = EmptyDatum
           , txOutCandidateRefScript = Nothing
           }
