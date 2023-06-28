@@ -1,7 +1,6 @@
 module ErgoDex.Amm.PoolActions
   ( PoolActions(..)
   , OrderExecErr(..)
-  , PoolActionsConfig(..)
   , mkPoolActions
   , AmmValidators(..)
   , fetchValidatorsV1
@@ -9,7 +8,6 @@ module ErgoDex.Amm.PoolActions
 
 import           Control.Exception.Base
 import qualified Data.Set                   as Set
-import           Dhall                      (FromDhall)
 import           Data.Bifunctor
 import           Data.Tuple
 import           RIO
@@ -30,11 +28,6 @@ import qualified ErgoDex.Contracts.Pool        as P
 import qualified ErgoDex.Contracts.Proxy.Order as O
 import           ErgoDex.Contracts.Types
 import           CardanoTx.Models
-import Debug.Trace
-
-data PoolActionsConfig = PoolActionsConfig
-  { safeTxFeeLovalace :: Integer
-  } deriving (Generic, FromDhall)
 
 data OrderExecErr
   = PriceTooHigh
@@ -66,11 +59,11 @@ data PoolActions = PoolActions
   , runRedeem  :: [FullTxOut] -> OnChain Redeem  -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool)
   }
 
-mkPoolActions :: PoolActionsConfig -> PaymentPubKeyHash -> AmmValidators V1 -> PoolActions
-mkPoolActions cfg executorPkh AmmValidators{..} = PoolActions
-  { runSwap    = runSwap' cfg executorPkh poolV swapV
-  , runDeposit = runDeposit' cfg executorPkh poolV depositV
-  , runRedeem  = runRedeem' cfg executorPkh poolV redeemV
+mkPoolActions :: PaymentPubKeyHash -> AmmValidators V1 -> PoolActions
+mkPoolActions executorPkh AmmValidators{..} = PoolActions
+  { runSwap    = runSwap' executorPkh poolV swapV
+  , runDeposit = runDeposit' executorPkh poolV depositV
+  , runRedeem  = runRedeem' executorPkh poolV redeemV
   }
 
 newtype PoolIn  = PoolIn FullTxOut
@@ -94,15 +87,14 @@ mkOrderInputs action (PoolValidator pv) ov' (PoolIn poolOut) (OrderIn orderOut) 
     in Set.fromList [poolIn, orderIn]
 
 runSwap'
-  :: PoolActionsConfig
-  -> PaymentPubKeyHash
+  :: PaymentPubKeyHash
   -> PoolValidator V1
   -> SwapValidator V1
   -> [FullTxOut]
   -> OnChain Swap
   -> (FullTxOut, Pool)
   -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runSwap' PoolActionsConfig{..} executorPkh pv sv refInputs (OnChain swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
+runSwap' executorPkh pv sv refInputs (OnChain swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
   let
     inputs = mkOrderInputs P.Swap pv sv (PoolIn poolOut) (OrderIn swapOut)
     pp@(Predicted nextPoolOut _) = applySwap pv pool (AssetAmount swapBase swapBaseIn)
@@ -130,50 +122,28 @@ runSwap' PoolActionsConfig{..} executorPkh pv sv refInputs (OnChain swapOut Swap
 
         rewardValue = assetAmountValue quoteOutput <> residualValue
   
-    executorRewardPkh = pubKeyHashAddress executorPkh Nothing
-    executorRewardOut = 
-        TxOutCandidate
-          { txOutCandidateAddress   = executorRewardPkh
-          , txOutCandidateValue     = Ada.lovelaceValueOf exFee
-          , txOutCandidateDatum     = EmptyDatum
-          , txOutCandidateRefScript = Nothing
-          }
-
     txCandidate = TxCandidate
       { txCandidateInputs       = inputs
       , txCandidateRefIns       = refInputs
-      , txCandidateOutputs      = [nextPoolOut, rewardOut, executorRewardOut]
+      , txCandidateOutputs      = [nextPoolOut, rewardOut]
       , txCandidateValueMint    = mempty
       , txCandidateMintInputs   = mempty
-      , txCandidateChangePolicy = Just . ReturnTo $ rewardAddr
+      , txCandidateChangePolicy = Just $ ReturnTo $ pubKeyHashAddress executorPkh Nothing
       , txCandidateValidRange   = Interval.always
       , txCandidateSigners      = mempty
       }
 
-  Debug.Trace.traceM ("PoolIn " ++ show poolOut)
-  Debug.Trace.traceM ("OrderIn " ++ show swapOut)
-  Debug.Trace.traceM ("exFeePerTokenNum " ++ show exFeePerTokenNum)
-  Debug.Trace.traceM ("exFeePerTokenDen " ++ show exFeePerTokenDen)
-  Debug.Trace.traceM ("exFee " ++ show exFee)
-  Debug.Trace.traceM ("swapMinQuoteOut " ++ show swapMinQuoteOut)
-  Debug.Trace.traceM ("getAmount quoteOutput " ++ show (getAmount quoteOutput))
-  Debug.Trace.traceM ("getAmount quoteOutput < swapMinQuoteOut " ++ show (getAmount quoteOutput < swapMinQuoteOut))
-  Debug.Trace.traceM ("quoteOutput " ++ show quoteOutput)
-  Debug.Trace.traceM ("RewardOut" ++ show rewardOut)
-  Debug.Trace.traceM ("executorRewardOut " ++ show executorRewardOut)
-
   Right (txCandidate, pp)
 
 runDeposit'
-  :: PoolActionsConfig
-  -> PaymentPubKeyHash
+  :: PaymentPubKeyHash
   -> PoolValidator V1
   -> DepositValidator V1
   -> [FullTxOut]
   -> OnChain Deposit
   -> (FullTxOut, Pool)
   -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runDeposit' PoolActionsConfig{..} executorPkh pv dv refInputs (OnChain depositOut Deposit{..}) (poolOut, pool@Pool{..}) = do
+runDeposit' executorPkh pv dv refInputs (OnChain depositOut Deposit{..}) (poolOut, pool@Pool{..}) = do
   when (depositPoolId /= poolId) (Left $ PoolMismatch depositPoolId poolId)
   let
     inputs = mkOrderInputs P.Deposit pv dv (PoolIn poolOut) (OrderIn depositOut)
@@ -219,22 +189,13 @@ runDeposit' PoolActionsConfig{..} executorPkh pv dv refInputs (OnChain depositOu
           <> Ada.lovelaceValueOf (negate $ unAmount exFee)                 -- Remove Fee
         rewardValue = residualValue <> mintLqValue <> alignmentValue
 
-    executorRewardPkh = pubKeyHashAddress executorPkh Nothing
-    exexutorRewardOut = 
-        TxOutCandidate
-          { txOutCandidateAddress   = executorRewardPkh
-          , txOutCandidateValue     = Ada.lovelaceValueOf $ unAmount exFee
-          , txOutCandidateDatum     = EmptyDatum
-          , txOutCandidateRefScript = Nothing
-          }
-
     txCandidate = TxCandidate
       { txCandidateInputs       = inputs
       , txCandidateRefIns       = refInputs
-      , txCandidateOutputs      = [nextPoolOut, rewardOut, exexutorRewardOut]
+      , txCandidateOutputs      = [nextPoolOut, rewardOut]
       , txCandidateValueMint    = mempty
       , txCandidateMintInputs   = mempty
-      , txCandidateChangePolicy = Just . ReturnTo $ rewardAddr
+      , txCandidateChangePolicy = Just $ ReturnTo $ pubKeyHashAddress executorPkh Nothing
       , txCandidateValidRange   = Interval.always
       , txCandidateSigners      = mempty
       }
@@ -242,15 +203,14 @@ runDeposit' PoolActionsConfig{..} executorPkh pv dv refInputs (OnChain depositOu
   Right (txCandidate, pp)
 
 runRedeem'
-  :: PoolActionsConfig
-  -> PaymentPubKeyHash
+  :: PaymentPubKeyHash
   -> PoolValidator V1
   -> RedeemValidator V1
   -> [FullTxOut]
   -> OnChain Redeem
   -> (FullTxOut, Pool)
   -> Either OrderExecErr (TxCandidate, Predicted Pool)
-runRedeem' PoolActionsConfig{..} executorPkh pv rv refInputs (OnChain redeemOut Redeem{..}) (poolOut, pool@Pool{..}) = do
+runRedeem' executorPkh pv rv refInputs (OnChain redeemOut Redeem{..}) (poolOut, pool@Pool{..}) = do
   when (redeemPoolId /= poolId) (Left $ PoolMismatch redeemPoolId poolId)
   let
     inputs = mkOrderInputs P.Redeem pv rv (PoolIn poolOut) (OrderIn redeemOut)
@@ -270,35 +230,25 @@ runRedeem' PoolActionsConfig{..} executorPkh pv rv refInputs (OnChain redeemOut 
           , txOutCandidateRefScript = Nothing
           }
       where
-        (outX, outY)    = sharesAmount pool redeemLqIn
-        initValue       = fullTxOutValue redeemOut
-        negatedExFe     = Ada.lovelaceValueOf . negate $ exFee
-        residualValue   = 
+        (outX, outY)  = sharesAmount pool redeemLqIn
+        initValue     = fullTxOutValue redeemOut
+        negatedExFe   = Ada.lovelaceValueOf . negate $ exFee
+        residualValue = 
              initValue 
           <> burnLqValue 
           <> negatedExFe                                     -- Remove LQ input and ExFee
 
         rewardValue = assetAmountValue outX <> assetAmountValue outY <> residualValue
     
-    executorRewardPkh = pubKeyHashAddress executorPkh Nothing
-    exexutorRewardOut = 
-        TxOutCandidate
-          { txOutCandidateAddress   = executorRewardPkh
-          , txOutCandidateValue     = Ada.lovelaceValueOf exFee
-          , txOutCandidateDatum     = EmptyDatum
-          , txOutCandidateRefScript = Nothing
-          }
-
     txCandidate = TxCandidate
       { txCandidateInputs       = inputs
       , txCandidateRefIns       = refInputs
-      , txCandidateOutputs      = [nextPoolOut, rewardOut, exexutorRewardOut]
+      , txCandidateOutputs      = [nextPoolOut, rewardOut]
       , txCandidateValueMint    = mempty
       , txCandidateMintInputs   = mempty
-      , txCandidateChangePolicy = Just . ReturnTo $ rewardAddr
+      , txCandidateChangePolicy = Just $ ReturnTo $ pubKeyHashAddress executorPkh Nothing
       , txCandidateValidRange   = Interval.always
       , txCandidateSigners      = mempty
       }
 
   Right (txCandidate, pp)
-  
