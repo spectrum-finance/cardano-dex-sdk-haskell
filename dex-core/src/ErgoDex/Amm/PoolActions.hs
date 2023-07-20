@@ -103,7 +103,7 @@ runSwap' executorPkh pv sv refInputs (OnChain swapOut Swap{swapExFee=ExFeePerTok
 
   when (swapPoolId /= poolId pool)               (Left $ PoolMismatch swapPoolId (poolId pool))
   when (getAmount quoteOutput < swapMinQuoteOut) (Left PriceTooHigh)
-  when (lqBound pool <= poolReservesX pool * 2)  (Left $ InsufficientPoolLqForSwap (poolId pool))
+  when (poolReservesX pool * 2 <= lqBound pool)  (Left $ InsufficientPoolLqForSwap (poolId pool))
 
   let
     exFee      = assetAmountRawValue quoteOutput * exFeePerTokenNum `div` exFeePerTokenDen
