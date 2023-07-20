@@ -44,12 +44,12 @@ parsePool Logging{..} ScriptsValidators{poolValidator} out@FullTxOut{..} = do
   if (PV2.addressCredential fullTxOutAddress) == (PV2.addressCredential poolAddress)
     then case pool of
       Just a    -> do
-        infoM ("Pool found in: " ++ show out)
+        infoM ("Pool found in: " ++ show out ++ ". Out address:" ++ show fullTxOutAddress ++ ". pool address: " ++ show poolAddress)
         pure $ Just $ Confirmed out a
       _         -> do
         infoM ("Pool not found in: " ++ show out)
         pure Nothing
-  else pure Nothing
+  else infoM ("Pool not found in: " ++ show out ++ ". Out address:" ++ show fullTxOutAddress ++ ". pool address: " ++ show poolAddress) >> pure Nothing
 
 mkScriptsValidators :: (MonadIO m) => ScriptsConfig -> m ScriptsValidators
 mkScriptsValidators ScriptsConfig{..} = do
