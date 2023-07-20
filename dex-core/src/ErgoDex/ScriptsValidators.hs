@@ -41,7 +41,7 @@ parsePool Logging{..} ScriptsValidators{poolValidator} out@FullTxOut{..} = do
   let
     pool        = parseFromLedger out :: Maybe (OnChain Pool)
     poolAddress = mkValidatorAddress poolValidator
-  if fullTxOutAddress == poolAddress
+  if (PV2.addressCredential fullTxOutAddress) == (PV2.addressCredential poolAddress)
     then case pool of
       Just a    -> do
         infoM ("Pool found in: " ++ show out)
