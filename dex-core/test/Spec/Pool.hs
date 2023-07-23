@@ -80,7 +80,7 @@ initialLiquidityTests = testGroup "InitialLiquidity"
       initialLiquidityAmount poolLq (Amount 10, Amount 11) @?= Right (AssetAmount poolLq 11)
   ]
 
-poolConf = S.PoolConfig poolNft poolX poolY poolLq poolFeeNum [] 0
+poolConf = S.PoolConfig poolNft poolX poolY poolLq poolFeeNum
 
 sufficientInitDepositX = Amount 800
 

@@ -200,19 +200,16 @@ main = do
 
   -- end
 
-  testJson
-
   pool <- poolValidator
   swap <- swapValidator
   redeem <- redeemValidator
   deposit <- depositValidator
 
-  print $ mkValidatorAddress pool
-  print $ mkValidatorAddress swap
-  print $ mkValidatorAddress redeem
-  print $ mkValidatorAddress deposit
-
-  print $ readShellyAddress "addr1x9cgs59t2hr5sphrv4gfuzxl323akly5z57qv07hq266evkqwx9ghwy6quk2fhu5g0ek8rth7z4zxr5ev975ph34q5fsq2amyd"
+  let
+    shortBS = SBS.toShort $ LBS.toStrict $ serialise (unValidatorScript pool)
+    scr :: PlutusScript PlutusScriptV2
+    scr = PlutusScriptSerialised shortBS
+  writeFileTextEnvelope "/home/bromel/projects/cardano-dex-sdk-haskell/submit-api/pool.plutus" Nothing scr
 
   pure ()
 
