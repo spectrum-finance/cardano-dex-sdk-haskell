@@ -15,6 +15,7 @@ import           Data.Ratio
 import Cardano.Api
 import Cardano.Api.Shelley   (ProtocolParameters(..), PoolId, ReferenceScript (..), fromShelleyLovelace)
 import qualified Cardano.Ledger.Coin as Ledger
+import Debug.Trace
 
 makeTransactionBodyAutoBalance
   :: forall era mode.
@@ -271,8 +272,11 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
      -> ProtocolParameters
      -> Either TxBodyErrorAutoBalance ()
    checkMinUTxOValue txout@(TxOut addr v _ _) pparams' = do
+     traceM $ "Going to check min utxo for box: " ++ show txout
      minUTxO  <- first TxBodyErrorMinUTxOMissingPParams
                    $ calculateMinimumUTxO era txout pparams'
+     traceM $ "Min utxo is: " ++ show minUTxO
+     traceM $ "Lovelace in box is: " ++ show (txOutValueToLovelace v)
      let chargeBoxWillBeMerged = addr == changeaddr
      if txOutValueToLovelace v >= selectLovelace minUTxO || chargeBoxWillBeMerged
      then Right ()
