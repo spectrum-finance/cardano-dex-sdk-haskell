@@ -24,6 +24,7 @@ import           Cardano.Crypto.DSIGN.SchnorrSecp256k1
 data Transactions f era = Transactions
   { estimateTxFee :: Set.Set Sdk.FullCollateralTxIn -> Sdk.TxCandidate -> f C.Lovelace
   , finalizeTx    :: Sdk.TxCandidate -> f (C.Tx era)
+  , finalizeTxUnsafe :: Sdk.TxCandidate -> Integer -> f (C.Tx era)
   , submitTx      :: C.Tx era -> f C.TxId
   }
 
@@ -39,6 +40,7 @@ mkTransactions
 mkTransactions network networkId refScriptsMap utxos wallet conf = Transactions
   { estimateTxFee = estimateTxFee' network networkId refScriptsMap
   , finalizeTx    = finalizeTx' network networkId refScriptsMap utxos wallet conf
+  , finalizeTxUnsafe = finalizeTxUnsafe' network networkId refScriptsMap utxos wallet conf
   , submitTx      = submitTx' network
   }
 
