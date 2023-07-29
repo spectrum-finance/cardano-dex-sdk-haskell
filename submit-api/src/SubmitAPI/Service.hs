@@ -79,6 +79,31 @@ finalizeTx' CardanoNetwork{..} network refScriptsMap utxos Vault{..} conf@TxAsse
   signers <- mapM (\pkh -> getSigningKey pkh >>= maybe (throwM $ SignerNotFound pkh) pure) signatories
   pure $ Internal.signTx txb signers
 
+finalizeTxUnsafe'
+  :: MonadThrow f
+  => CardanoNetwork f C.BabbageEra
+  -> C.NetworkId
+  -> Map P.Script C.TxIn
+  -> WalletOutputs f
+  -> Vault f
+  -> TxAssemblyConfig
+  -> Sdk.TxCandidate
+  -> Integer
+  -> f (C.Tx C.BabbageEra)
+finalizeTxUnsafe' CardanoNetwork{..} network refScriptsMap utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} changeValue = do
+  sysenv      <- getSystemEnv
+  collaterals <- selectCollaterals utxos sysenv refScriptsMap network conf txc
+
+  (C.BalancedTxBody txb _ _) <- Internal.buildBalancedTxUnsafe sysenv refScriptsMap network (getChangeAddr deafultChangeAddr) collaterals txc changeValue
+  let
+    allInputs   = (Set.elems txCandidateInputs <&> Sdk.fullTxInTxOut) ++ (Set.elems collaterals <&> Sdk.fullCollateralTxInTxOut)
+    signatories = allInputs >>= getPkh
+      where
+        getPkh Sdk.FullTxOut{fullTxOutAddress=P.Address (P.PubKeyCredential pkh) _} = [pkh]
+        getPkh _                                                                    = []
+  signers <- mapM (\pkh -> getSigningKey pkh >>= maybe (throwM $ SignerNotFound pkh) pure) signatories
+  pure $ Internal.signTx txb signers
+
 submitTx' :: Monad f => CardanoNetwork f C.BabbageEra -> C.Tx C.BabbageEra -> f C.TxId
 submitTx' CardanoNetwork{submitTx} tx = do
   submitTx tx
