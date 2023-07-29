@@ -7,7 +7,7 @@ import           RIO            (isJust)
 import           Data.Bifunctor (first)
 import           Data.Map       (Map)
 import qualified Data.Map       as Map
-import           Data.Maybe     (fromMaybe, catMaybes)
+import           Data.Maybe     (catMaybes)
 import           Data.Functor   ((<&>))
 import           Data.Set       (Set)
 import           Data.Ratio
@@ -16,6 +16,37 @@ import Cardano.Api
 import Cardano.Api.Shelley   (ProtocolParameters(..), PoolId, ReferenceScript (..), fromShelleyLovelace)
 import qualified Cardano.Ledger.Coin as Ledger
 import Debug.Trace
+import Control.FromSum
+
+makeTransactionBodyBalanceUnsafe
+  :: forall era.
+     IsShelleyBasedEra era
+  => TxBodyContent BuildTx era
+  -> AddressInEra era -- ^ Change address
+  -> Integer
+  -> Either TxBodyErrorAutoBalance (BalancedTxBody era)
+makeTransactionBodyBalanceUnsafe txbodycontent changeaddr changeValue = do
+  let era' = cardanoEra
+  retColSup <- maybeToEitherOr (totalAndReturnCollateralSupportedInEra era') TxBodyErrorMissingParamMinUTxO -- incorrect error
+  let
+    fee = 300000
+    reqAmt = 1300000
+    totalCollateral = TxTotalCollateral retColSup (Lovelace reqAmt)
+    (retColl, reqCol) = 
+      ( TxReturnCollateral
+          retColSup
+          (TxOut changeaddr (lovelaceToTxOutValue (Lovelace reqAmt)) TxOutDatumNone ReferenceScriptNone)
+      , totalCollateral
+      )
+  explicitTxFees <- first (const TxBodyErrorByronEraNotSupported) $
+                      txFeesExplicitInEra era'
+  txBody0 <- first TxBodyError $ makeTransactionBody txbodycontent
+      { txOuts = txOuts txbodycontent
+      , txFee  = TxFeeExplicit explicitTxFees $ Lovelace fee
+      , txReturnCollateral = retColl
+      , txTotalCollateral  = reqCol
+      }
+  return (BalancedTxBody txBody0 (TxOut changeaddr (lovelaceToTxOutValue (Lovelace changeValue)) TxOutDatumNone ReferenceScriptNone) (Lovelace fee))
 
 makeTransactionBodyAutoBalance
   :: forall era mode.
@@ -258,9 +289,9 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
     | otherwise = do
         let chargeBoxWillBeMerged = isJust $ find (\(TxOut boxAddr _ _ _) -> boxAddr == changeaddr) outs
         if chargeBoxWillBeMerged
-          then 
+          then
             Right ()
-          else 
+          else
             case checkMinUTxOValue (TxOut changeaddr balance TxOutDatumNone ReferenceScriptNone) pparams of
               Left (TxBodyErrorMinUTxONotMet txOutAny minUTxO) ->
                 Left $ TxBodyErrorAdaBalanceTooSmall txOutAny minUTxO (txOutValueToLovelace balance)

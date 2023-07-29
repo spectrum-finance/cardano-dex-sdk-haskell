@@ -90,6 +90,7 @@ library
         cardano-slotting,
         cardano-api,
         mtl,
+        from-sum,
         plutus-ledger,
         bytestring,
         aeson,
@@ -134,8 +135,10 @@ test-suite submit-api-tests
     , base
     , HUnit
     , hedgehog
+    , rio
     , tasty
     , tasty-hunit
+    , transformers
     , tasty-hedgehog
     , aeson
     , text
@@ -158,6 +161,9 @@ test-suite submit-api-tests
     , cardano-tx
     , network-api
     , wallet-api
+    , cardano-cli
     , serialise
     , cardano-dex-contracts-offchain
     , cardano-ledger-alonzo
+    , memory
+    , quickblue
