@@ -17,6 +17,7 @@ import Cardano.Api.Shelley   (ProtocolParameters(..), PoolId, ReferenceScript (.
 import qualified Cardano.Ledger.Coin as Ledger
 import Debug.Trace
 import Control.FromSum ( fromMaybe, maybeToEitherOr )
+import SubmitAPI.Config (UnsafeEvalConfig (..))
 
 -- exUnitsMap:fromList [(ScriptWitnessIndexTxIn 0,Right (ExecutionUnits {executionSteps = 130605779, executionMemory = 298198})),
 -- (ScriptWitnessIndexTxIn 1,Right (ExecutionUnits {executionSteps = 133934187, executionMemory = 302164}))]
@@ -24,16 +25,17 @@ import Control.FromSum ( fromMaybe, maybeToEitherOr )
 makeTransactionBodyBalanceUnsafe
   :: forall era.
      IsShelleyBasedEra era
-  => TxBodyContent BuildTx era
+  => UnsafeEvalConfig
+  -> TxBodyContent BuildTx era
   -> AddressInEra era -- ^ Change address
   -> Integer
   -> Integer 
   -> Either TxBodyErrorAutoBalance (BalancedTxBody era)
-makeTransactionBodyBalanceUnsafe txbodycontent changeaddr changeValue colAmount = do
+makeTransactionBodyBalanceUnsafe cfg@UnsafeEvalConfig{..} txbodycontent changeaddr changeValue colAmount = do
   let era' = cardanoEra
   retColSup <- maybeToEitherOr (totalAndReturnCollateralSupportedInEra era') TxBodyErrorMissingParamMinUTxO -- incorrect error
   let
-    fee = 320000
+    fee = unsafeTxFee
     totalCollateral = TxTotalCollateral retColSup (Lovelace colAmount)
     (retColl, reqCol) = 
       ( TxReturnCollateralNone

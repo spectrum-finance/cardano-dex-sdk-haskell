@@ -36,7 +36,8 @@ data Transactions f era = Transactions
 
 mkTransactions
   :: (MonadThrow f, MonadIO f)
-  => Logging f
+  => UnsafeEvalConfig
+  -> Logging f
   -> CardanoNetwork f C.BabbageEra
   -> C.NetworkId
   -> Map P.Script C.TxIn
@@ -44,10 +45,10 @@ mkTransactions
   -> Vault f
   -> TxAssemblyConfig
   -> Transactions f C.BabbageEra
-mkTransactions logging network networkId refScriptsMap utxos wallet conf = Transactions
+mkTransactions cfg logging network networkId refScriptsMap utxos wallet conf = Transactions
   { estimateTxFee = estimateTxFee' network networkId refScriptsMap
   , finalizeTx    = finalizeTx' network networkId refScriptsMap utxos wallet conf
-  , finalizeTxUnsafe = finalizeTxUnsafe' logging network networkId refScriptsMap utxos wallet conf
+  , finalizeTxUnsafe = finalizeTxUnsafe' cfg logging network networkId refScriptsMap utxos wallet conf
   , submitTx      = submitTx' network
   }
 
@@ -90,7 +91,8 @@ finalizeTx' CardanoNetwork{..} network refScriptsMap utxos Vault{..} conf@TxAsse
 
 finalizeTxUnsafe'
   :: MonadThrow f
-  => Logging f
+  => UnsafeEvalConfig
+  -> Logging f
   -> CardanoNetwork f C.BabbageEra
   -> C.NetworkId
   -> Map P.Script C.TxIn
@@ -100,10 +102,10 @@ finalizeTxUnsafe'
   -> Sdk.TxCandidate
   -> Integer
   -> f (C.Tx C.BabbageEra)
-finalizeTxUnsafe' Logging{..} CardanoNetwork{..} network refScriptsMap utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} changeValue = do
+finalizeTxUnsafe' cfg Logging{..} CardanoNetwork{..} network refScriptsMap utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} changeValue = do
   sysenv                   <- getSystemEnv
   (collaterals, colAmount) <- selectCollateralsUnsafe utxos sysenv conf txc
-  (C.BalancedTxBody txb _ _) <- Internal.buildBalancedTxUnsafe sysenv refScriptsMap network (getChangeAddr deafultChangeAddr) collaterals txc changeValue colAmount
+  (C.BalancedTxBody txb _ _) <- Internal.buildBalancedTxUnsafe cfg sysenv refScriptsMap network (getChangeAddr deafultChangeAddr) collaterals txc changeValue colAmount
   let
     allInputs   = (Set.elems txCandidateInputs <&> Sdk.fullTxInTxOut) ++ (Set.elems collaterals <&> Sdk.fullCollateralTxInTxOut)
     signatories = allInputs >>= getPkh

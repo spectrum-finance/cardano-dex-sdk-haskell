@@ -30,6 +30,7 @@ import           ErgoDex.Contracts.Types
 import           CardanoTx.Models
 import System.Logging.Hlog (Logging (Logging))
 import Plutus.V1.Ledger.Value (Value)
+import SubmitAPI.Config
 
 data OrderExecErr
   = PriceTooHigh
@@ -89,14 +90,14 @@ data PoolActions = PoolActions
   , runRedeem  :: [FullTxOut] -> OnChain Redeem  -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool, Integer)
   }
 
-mkPoolActions :: PaymentPubKeyHash -> AmmValidators V1 -> PoolActions
-mkPoolActions executorPkh AmmValidators{..} = PoolActions
+mkPoolActions :: UnsafeEvalConfig -> PaymentPubKeyHash -> AmmValidators V1 -> PoolActions
+mkPoolActions evalCfg executorPkh AmmValidators{..} = PoolActions
   { runSwapWithDebug    = runSwapWithDebug' executorPkh poolV swapV
   , runDepositWithDebug = runDepositWithDebug' executorPkh poolV depositV
   , runRedeemWithDebug  = runRedeemWithDebug' executorPkh poolV redeemV
-  , runSwap    = runSwapUnsafe' executorPkh poolV swapV
-  , runDeposit = runDepositUnsafe' executorPkh poolV depositV
-  , runRedeem  = runRedeemUnsafe' executorPkh poolV redeemV
+  , runSwap    = runSwapUnsafe' evalCfg executorPkh poolV swapV
+  , runDeposit = runDepositUnsafe' evalCfg executorPkh poolV depositV
+  , runRedeem  = runRedeemUnsafe' evalCfg executorPkh poolV redeemV
   }
 
 newtype PoolIn  = PoolIn FullTxOut
@@ -120,14 +121,15 @@ mkOrderInputs action (PoolValidator pv) ov' (PoolIn poolOut) (OrderIn orderOut) 
     in Set.fromList [poolIn, orderIn]
 
 runSwapUnsafe'
-  :: PaymentPubKeyHash
+  :: UnsafeEvalConfig
+  -> PaymentPubKeyHash
   -> PoolValidator V1
   -> SwapValidator V1
   -> [FullTxOut]
   -> OnChain Swap
   -> (FullTxOut, Pool)
   -> Either OrderExecErr (TxCandidate, Predicted Pool, Integer)
-runSwapUnsafe' executorPkh pv sv refInputs (OnChain swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
+runSwapUnsafe' UnsafeEvalConfig{..} executorPkh pv sv refInputs (OnChain swapOut Swap{swapExFee=ExFeePerToken{..}, ..}) (poolOut, pool) = do
   let
     inputs = mkOrderInputs P.Swap pv sv (PoolIn poolOut) (OrderIn swapOut)
     pp@(Predicted nextPoolOut _) = applySwap pv pool (AssetAmount swapBase swapBaseIn)
@@ -138,7 +140,7 @@ runSwapUnsafe' executorPkh pv sv refInputs (OnChain swapOut Swap{swapExFee=ExFee
   when (poolReservesX pool * 2 <= lqBound pool)  (Left $ InsufficientPoolLqForSwap (poolId pool))
 
   let
-    fee = 320000
+    fee = unsafeTxFee
     exFee      = assetAmountRawValue quoteOutput * exFeePerTokenNum `div` exFeePerTokenDen
     rewardAddr = pubKeyHashAddress (PaymentPubKeyHash swapRewardPkh) swapRewardSPkh
     rewardOut  =
@@ -179,17 +181,18 @@ runSwapUnsafe' executorPkh pv sv refInputs (OnChain swapOut Swap{swapExFee=ExFee
   Right (txCandidate, pp, exFee - fee)
 
 runDepositUnsafe'
-  :: PaymentPubKeyHash
+  :: UnsafeEvalConfig
+  -> PaymentPubKeyHash
   -> PoolValidator V1
   -> DepositValidator V1
   -> [FullTxOut]
   -> OnChain Deposit
   -> (FullTxOut, Pool)
   -> Either OrderExecErr (TxCandidate, Predicted Pool, Integer)
-runDepositUnsafe' executorPkh pv dv refInputs (OnChain depositOut Deposit{..}) (poolOut, pool@Pool{..}) = do
+runDepositUnsafe' UnsafeEvalConfig{..} executorPkh pv dv refInputs (OnChain depositOut Deposit{..}) (poolOut, pool@Pool{..}) = do
   when (depositPoolId /= poolId) (Left $ PoolMismatch depositPoolId poolId)
   let
-    fee = 320000
+    fee = unsafeTxFee
     inputs = mkOrderInputs P.Deposit pv dv (PoolIn poolOut) (OrderIn depositOut)
 
     (inX, inY) =
@@ -255,17 +258,18 @@ runDepositUnsafe' executorPkh pv dv refInputs (OnChain depositOut Deposit{..}) (
   Right (txCandidate, pp, unAmount exFee - fee)
 
 runRedeemUnsafe'
-  :: PaymentPubKeyHash
+  :: UnsafeEvalConfig
+  -> PaymentPubKeyHash
   -> PoolValidator V1
   -> RedeemValidator V1
   -> [FullTxOut]
   -> OnChain Redeem
   -> (FullTxOut, Pool)
   -> Either OrderExecErr (TxCandidate, Predicted Pool, Integer)
-runRedeemUnsafe' executorPkh pv rv refInputs (OnChain redeemOut Redeem{..}) (poolOut, pool@Pool{..}) = do
+runRedeemUnsafe' UnsafeEvalConfig{..} executorPkh pv rv refInputs (OnChain redeemOut Redeem{..}) (poolOut, pool@Pool{..}) = do
   when (redeemPoolId /= poolId) (Left $ PoolMismatch redeemPoolId poolId)
   let
-    fee = 320000
+    fee = unsafeTxFee
 
     inputs = mkOrderInputs P.Redeem pv rv (PoolIn poolOut) (OrderIn redeemOut)
 

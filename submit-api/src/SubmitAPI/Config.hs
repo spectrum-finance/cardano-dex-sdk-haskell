@@ -3,6 +3,7 @@ module SubmitAPI.Config
   , CollateralPolicy(..)
   , TxAssemblyConfig(..)
   , DefaultChangeAddress(..)
+  , UnsafeEvalConfig(..)
   , unwrapChangeAddress
   ) where
 
@@ -36,6 +37,14 @@ data TxAssemblyConfig = TxAssemblyConfig
   } deriving Generic
 
 instance D.FromDhall TxAssemblyConfig
+
+data UnsafeEvalConfig = UnsafeEvalConfig
+  { unsafeTxFee :: Integer
+  , exUnits     :: Integer
+  , exMem       :: Integer
+  } deriving Generic
+
+instance D.FromDhall UnsafeEvalConfig
 
 newtype DefaultChangeAddress = DefaultChangeAddress { getChangeAddr :: ChangeAddress }
 
