@@ -15,6 +15,7 @@ import           Ledger               (Address)
 import qualified Cardano.Api          as C
 import qualified Ledger.Tx.CardanoAPI as Interop
 import           CardanoTx.Models     (ChangeAddress(..))
+import Dhall (Natural)
 
 data FeePolicy
   = Strict  -- Require existing TX inputs to cover fee entirely
@@ -40,8 +41,8 @@ instance D.FromDhall TxAssemblyConfig
 
 data UnsafeEvalConfig = UnsafeEvalConfig
   { unsafeTxFee :: Integer
-  , exUnits     :: Integer
-  , exMem       :: Integer
+  , exUnits     :: Natural
+  , exMem       :: Natural
   } deriving Generic
 
 instance D.FromDhall UnsafeEvalConfig

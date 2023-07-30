@@ -43,7 +43,7 @@ makeTransactionBodyBalanceUnsafe cfg@UnsafeEvalConfig{..} txbodycontent changead
       )
   explicitTxFees <- first (const TxBodyErrorByronEraNotSupported) $
                       txFeesExplicitInEra era'
-  txBody0 <- substituteExecutionUnitsUnsafe txbodycontent
+  txBody0 <- substituteExecutionUnitsUnsafe cfg txbodycontent
   txBodyFinal <- first TxBodyError $ makeTransactionBody txBody0
       { txOuts = txOuts txbodycontent
       , txFee  = TxFeeExplicit explicitTxFees $ Lovelace fee
@@ -52,8 +52,8 @@ makeTransactionBodyBalanceUnsafe cfg@UnsafeEvalConfig{..} txbodycontent changead
       }
   return (BalancedTxBody txBodyFinal (TxOut changeaddr (lovelaceToTxOutValue (Lovelace changeValue)) TxOutDatumNone ReferenceScriptNone) (Lovelace fee))
 
-substituteExecutionUnitsUnsafe :: TxBodyContent BuildTx era -> Either TxBodyErrorAutoBalance (TxBodyContent BuildTx era)
-substituteExecutionUnitsUnsafe =
+substituteExecutionUnitsUnsafe :: UnsafeEvalConfig -> TxBodyContent BuildTx era -> Either TxBodyErrorAutoBalance (TxBodyContent BuildTx era)
+substituteExecutionUnitsUnsafe UnsafeEvalConfig{..} =
     mapTxScriptWitnesses f
   where
     f :: ScriptWitnessIndex
@@ -62,7 +62,7 @@ substituteExecutionUnitsUnsafe =
     f _   wit@SimpleScriptWitness{} = Right wit
     f _ (PlutusScriptWitness langInEra version script datum redeemer _) =
       Right $ PlutusScriptWitness langInEra version script
-                                            datum redeemer (ExecutionUnits 140000000 320000)
+                                            datum redeemer (ExecutionUnits exUnits exMem)
                         
 makeTransactionBodyAutoBalance
   :: forall era mode.
