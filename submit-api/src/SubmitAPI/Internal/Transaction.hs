@@ -69,14 +69,15 @@ buildBalancedTxUnsafe
   -> Set.Set Sdk.FullCollateralTxIn
   -> Sdk.TxCandidate
   -> Integer
+  -> Integer
   -> f (BalancedTxBody BabbageEra)
-buildBalancedTxUnsafe SystemEnv{..} refScriptsMap network defaultChangeAddr collateral txc@Sdk.TxCandidate{..} changeValue = do
+buildBalancedTxUnsafe SystemEnv{..} refScriptsMap network defaultChangeAddr collateral txc@Sdk.TxCandidate{..} changeValue colAmount = do
   txBody     <- buildTxBodyContent pparams network refScriptsMap collateral txc
   changeAddr <- absorbError $ case txCandidateChangePolicy of
     Just (Sdk.ReturnTo addr) -> Interop.toCardanoAddressInEra network addr
     _                        -> Interop.toCardanoAddressInEra network $ Sdk.getAddress defaultChangeAddr
   absorbBalancingError $
-    Balancing.makeTransactionBodyBalanceUnsafe txBody changeAddr changeValue
+    Balancing.makeTransactionBodyBalanceUnsafe txBody changeAddr changeValue colAmount
       where
         absorbBalancingError (Left e)  = throwM $ BalancingError $ T.pack $ displayError e
         absorbBalancingError (Right a) = pure a

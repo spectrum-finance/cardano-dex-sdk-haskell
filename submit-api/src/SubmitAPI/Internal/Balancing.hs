@@ -24,18 +24,18 @@ makeTransactionBodyBalanceUnsafe
   => TxBodyContent BuildTx era
   -> AddressInEra era -- ^ Change address
   -> Integer
+  -> Integer 
   -> Either TxBodyErrorAutoBalance (BalancedTxBody era)
-makeTransactionBodyBalanceUnsafe txbodycontent changeaddr changeValue = do
+makeTransactionBodyBalanceUnsafe txbodycontent changeaddr changeValue colAmount = do
   let era' = cardanoEra
   retColSup <- maybeToEitherOr (totalAndReturnCollateralSupportedInEra era') TxBodyErrorMissingParamMinUTxO -- incorrect error
   let
     fee = 300000
-    reqAmt = 1300000
-    totalCollateral = TxTotalCollateral retColSup (Lovelace reqAmt)
+    totalCollateral = TxTotalCollateral retColSup (Lovelace colAmount)
     (retColl, reqCol) = 
       ( TxReturnCollateral
           retColSup
-          (TxOut changeaddr (lovelaceToTxOutValue (Lovelace reqAmt)) TxOutDatumNone ReferenceScriptNone)
+          (TxOut changeaddr (lovelaceToTxOutValue (Lovelace colAmount)) TxOutDatumNone ReferenceScriptNone)
       , totalCollateral
       )
   explicitTxFees <- first (const TxBodyErrorByronEraNotSupported) $
