@@ -18,6 +18,9 @@ import qualified Cardano.Ledger.Coin as Ledger
 import Debug.Trace
 import Control.FromSum ( fromMaybe, maybeToEitherOr )
 
+-- exUnitsMap:fromList [(ScriptWitnessIndexTxIn 0,Right (ExecutionUnits {executionSteps = 130605779, executionMemory = 298198})),
+-- (ScriptWitnessIndexTxIn 1,Right (ExecutionUnits {executionSteps = 133934187, executionMemory = 302164}))]
+
 makeTransactionBodyBalanceUnsafe
   :: forall era.
      IsShelleyBasedEra era
@@ -38,14 +41,27 @@ makeTransactionBodyBalanceUnsafe txbodycontent changeaddr changeValue colAmount 
       )
   explicitTxFees <- first (const TxBodyErrorByronEraNotSupported) $
                       txFeesExplicitInEra era'
-  txBody0 <- first TxBodyError $ makeTransactionBody txbodycontent
+  txBody0 <- substituteExecutionUnitsUnsafe txbodycontent
+  txBodyFinal <- first TxBodyError $ makeTransactionBody txBody0
       { txOuts = txOuts txbodycontent
       , txFee  = TxFeeExplicit explicitTxFees $ Lovelace fee
       , txReturnCollateral = retColl
       , txTotalCollateral  = reqCol
       }
-  return (BalancedTxBody txBody0 (TxOut changeaddr (lovelaceToTxOutValue (Lovelace changeValue)) TxOutDatumNone ReferenceScriptNone) (Lovelace fee))
+  return (BalancedTxBody txBodyFinal (TxOut changeaddr (lovelaceToTxOutValue (Lovelace changeValue)) TxOutDatumNone ReferenceScriptNone) (Lovelace fee))
 
+substituteExecutionUnitsUnsafe :: TxBodyContent BuildTx era -> Either TxBodyErrorAutoBalance (TxBodyContent BuildTx era)
+substituteExecutionUnitsUnsafe =
+    mapTxScriptWitnesses f
+  where
+    f :: ScriptWitnessIndex
+      -> ScriptWitness witctx era
+      -> Either TxBodyErrorAutoBalance (ScriptWitness witctx era)
+    f _   wit@SimpleScriptWitness{} = Right wit
+    f _ (PlutusScriptWitness langInEra version script datum redeemer _) =
+      Right $ PlutusScriptWitness langInEra version script
+                                            datum redeemer (ExecutionUnits 134500000 304000)
+                                   
 makeTransactionBodyAutoBalance
   :: forall era mode.
      IsShelleyBasedEra era
