@@ -103,8 +103,6 @@ finalizeTxUnsafe'
 finalizeTxUnsafe' Logging{..} CardanoNetwork{..} network refScriptsMap utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} changeValue = do
   sysenv                   <- getSystemEnv
   (collaterals, colAmount) <- selectCollateralsUnsafe utxos sysenv conf txc
-  infoM $ "Collaterals: " ++ show collaterals
-  infoM $ "Collaterals amount: " ++ show colAmount
   (C.BalancedTxBody txb _ _) <- Internal.buildBalancedTxUnsafe sysenv refScriptsMap network (getChangeAddr deafultChangeAddr) collaterals txc changeValue colAmount
   let
     allInputs   = (Set.elems txCandidateInputs <&> Sdk.fullTxInTxOut) ++ (Set.elems collaterals <&> Sdk.fullCollateralTxInTxOut)
