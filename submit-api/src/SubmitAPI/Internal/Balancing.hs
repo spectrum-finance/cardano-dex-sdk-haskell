@@ -60,8 +60,8 @@ substituteExecutionUnitsUnsafe =
     f _   wit@SimpleScriptWitness{} = Right wit
     f _ (PlutusScriptWitness langInEra version script datum redeemer _) =
       Right $ PlutusScriptWitness langInEra version script
-                                            datum redeemer (ExecutionUnits 134500000 304000)
-                                   
+                                            datum redeemer (ExecutionUnits 140000000 320000)
+                        
 makeTransactionBodyAutoBalance
   :: forall era mode.
      IsShelleyBasedEra era
