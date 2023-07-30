@@ -138,7 +138,7 @@ runSwapUnsafe' executorPkh pv sv refInputs (OnChain swapOut Swap{swapExFee=ExFee
   when (poolReservesX pool * 2 <= lqBound pool)  (Left $ InsufficientPoolLqForSwap (poolId pool))
 
   let
-    fee = 300000
+    fee = 320000
     exFee      = assetAmountRawValue quoteOutput * exFeePerTokenNum `div` exFeePerTokenDen
     rewardAddr = pubKeyHashAddress (PaymentPubKeyHash swapRewardPkh) swapRewardSPkh
     rewardOut  =
@@ -189,7 +189,7 @@ runDepositUnsafe'
 runDepositUnsafe' executorPkh pv dv refInputs (OnChain depositOut Deposit{..}) (poolOut, pool@Pool{..}) = do
   when (depositPoolId /= poolId) (Left $ PoolMismatch depositPoolId poolId)
   let
-    fee = 300000
+    fee = 320000
     inputs = mkOrderInputs P.Deposit pv dv (PoolIn poolOut) (OrderIn depositOut)
 
     (inX, inY) =
@@ -265,7 +265,7 @@ runRedeemUnsafe'
 runRedeemUnsafe' executorPkh pv rv refInputs (OnChain redeemOut Redeem{..}) (poolOut, pool@Pool{..}) = do
   when (redeemPoolId /= poolId) (Left $ PoolMismatch redeemPoolId poolId)
   let
-    fee = 300000
+    fee = 320000
 
     inputs = mkOrderInputs P.Redeem pv rv (PoolIn poolOut) (OrderIn redeemOut)
 

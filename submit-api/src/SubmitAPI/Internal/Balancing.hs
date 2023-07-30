@@ -30,7 +30,7 @@ makeTransactionBodyBalanceUnsafe txbodycontent changeaddr changeValue colAmount 
   let era' = cardanoEra
   retColSup <- maybeToEitherOr (totalAndReturnCollateralSupportedInEra era') TxBodyErrorMissingParamMinUTxO -- incorrect error
   let
-    fee = 300000
+    fee = 320000
     totalCollateral = TxTotalCollateral retColSup (Lovelace colAmount)
     (retColl, reqCol) = 
       ( TxReturnCollateralNone
