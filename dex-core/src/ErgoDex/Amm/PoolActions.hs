@@ -161,7 +161,7 @@ runSwapUnsafe' UnsafeEvalConfig{..} executorPkh pv sv refInputs (OnChain swapOut
 
     executorRewardOut =
       TxOutCandidate
-          { txOutCandidateAddress   = rewardAddr
+          { txOutCandidateAddress   = pubKeyHashAddress executorPkh Nothing
           , txOutCandidateValue     = Ada.lovelaceValueOf (exFee - fee)
           , txOutCandidateDatum     = EmptyDatum
           , txOutCandidateRefScript = Nothing
@@ -238,7 +238,7 @@ runDepositUnsafe' UnsafeEvalConfig{..} executorPkh pv dv refInputs (OnChain depo
 
     executorRewardOut =
       TxOutCandidate
-          { txOutCandidateAddress   = rewardAddr
+          { txOutCandidateAddress   = pubKeyHashAddress executorPkh Nothing
           , txOutCandidateValue     = Ada.lovelaceValueOf (unAmount exFee - fee)
           , txOutCandidateDatum     = EmptyDatum
           , txOutCandidateRefScript = Nothing
@@ -300,7 +300,7 @@ runRedeemUnsafe' UnsafeEvalConfig{..} executorPkh pv rv refInputs (OnChain redee
 
     executorRewardOut =
       TxOutCandidate
-          { txOutCandidateAddress   = rewardAddr
+          { txOutCandidateAddress   = pubKeyHashAddress executorPkh Nothing
           , txOutCandidateValue     = Ada.lovelaceValueOf (exFee - fee)
           , txOutCandidateDatum     = EmptyDatum
           , txOutCandidateRefScript = Nothing
