@@ -25,6 +25,7 @@ import Plutus.V1.Ledger.Value (assetClass)
 import Plutus.V1.Ledger.Api (adaSymbol)
 import Plutus.V1.Ledger.Api (adaToken)
 import Ledger.Value (assetClassValueOf)
+import System.Logging.Hlog
 
 data Transactions f era = Transactions
   { estimateTxFee :: Set.Set Sdk.FullCollateralTxIn -> Sdk.TxCandidate -> f C.Lovelace
@@ -35,17 +36,18 @@ data Transactions f era = Transactions
 
 mkTransactions
   :: (MonadThrow f, MonadIO f)
-  => CardanoNetwork f C.BabbageEra
+  => Logging f
+  -> CardanoNetwork f C.BabbageEra
   -> C.NetworkId
   -> Map P.Script C.TxIn
   -> WalletOutputs f
   -> Vault f
   -> TxAssemblyConfig
   -> Transactions f C.BabbageEra
-mkTransactions network networkId refScriptsMap utxos wallet conf = Transactions
+mkTransactions logging network networkId refScriptsMap utxos wallet conf = Transactions
   { estimateTxFee = estimateTxFee' network networkId refScriptsMap
   , finalizeTx    = finalizeTx' network networkId refScriptsMap utxos wallet conf
-  , finalizeTxUnsafe = finalizeTxUnsafe' network networkId refScriptsMap utxos wallet conf
+  , finalizeTxUnsafe = finalizeTxUnsafe' logging network networkId refScriptsMap utxos wallet conf
   , submitTx      = submitTx' network
   }
 
@@ -88,7 +90,8 @@ finalizeTx' CardanoNetwork{..} network refScriptsMap utxos Vault{..} conf@TxAsse
 
 finalizeTxUnsafe'
   :: MonadThrow f
-  => CardanoNetwork f C.BabbageEra
+  => Logging f
+  -> CardanoNetwork f C.BabbageEra
   -> C.NetworkId
   -> Map P.Script C.TxIn
   -> WalletOutputs f
@@ -97,10 +100,11 @@ finalizeTxUnsafe'
   -> Sdk.TxCandidate
   -> Integer
   -> f (C.Tx C.BabbageEra)
-finalizeTxUnsafe' CardanoNetwork{..} network refScriptsMap utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} changeValue = do
+finalizeTxUnsafe' Logging{..} CardanoNetwork{..} network refScriptsMap utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} changeValue = do
   sysenv                   <- getSystemEnv
   (collaterals, colAmount) <- selectCollateralsUnsafe utxos sysenv conf txc
-
+  infoM $ "Collaterals: " ++ show collaterals
+  infoM $ "Collaterals amount: " ++ show colAmount
   (C.BalancedTxBody txb _ _) <- Internal.buildBalancedTxUnsafe sysenv refScriptsMap network (getChangeAddr deafultChangeAddr) collaterals txc changeValue colAmount
   let
     allInputs   = (Set.elems txCandidateInputs <&> Sdk.fullTxInTxOut) ++ (Set.elems collaterals <&> Sdk.fullCollateralTxInTxOut)

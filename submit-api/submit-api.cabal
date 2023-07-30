@@ -96,6 +96,7 @@ library
         aeson,
         servant,
         singletons,
+        hlog,
         either,
         aeson-gadt-th,
         plutus-script-utils,
