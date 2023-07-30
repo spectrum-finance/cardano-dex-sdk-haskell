@@ -16,7 +16,7 @@ import Cardano.Api
 import Cardano.Api.Shelley   (ProtocolParameters(..), PoolId, ReferenceScript (..), fromShelleyLovelace)
 import qualified Cardano.Ledger.Coin as Ledger
 import Debug.Trace
-import Control.FromSum
+import Control.FromSum ( fromMaybe, maybeToEitherOr )
 
 makeTransactionBodyBalanceUnsafe
   :: forall era.
@@ -92,6 +92,8 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
             (txScriptValidityToScriptValidity (txScriptValidity txbodycontent))
             failures
             exUnitsMap'
+
+    traceM $ "exUnitsMap:" ++ show exUnitsMap
 
     txbodycontent1 <- substituteExecutionUnits exUnitsMap' txbodycontent
 
