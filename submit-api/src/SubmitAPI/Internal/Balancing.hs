@@ -33,9 +33,7 @@ makeTransactionBodyBalanceUnsafe txbodycontent changeaddr changeValue colAmount 
     fee = 300000
     totalCollateral = TxTotalCollateral retColSup (Lovelace colAmount)
     (retColl, reqCol) = 
-      ( TxReturnCollateral
-          retColSup
-          (TxOut changeaddr (lovelaceToTxOutValue (Lovelace colAmount)) TxOutDatumNone ReferenceScriptNone)
+      ( TxReturnCollateralNone
       , totalCollateral
       )
   explicitTxFees <- first (const TxBodyErrorByronEraNotSupported) $
