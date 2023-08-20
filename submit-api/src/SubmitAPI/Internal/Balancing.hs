@@ -7,7 +7,7 @@ import           RIO            (isJust)
 import           Data.Bifunctor (first)
 import           Data.Map       (Map)
 import qualified Data.Map       as Map
-import           Data.Maybe     (fromMaybe, catMaybes)
+import           Data.Maybe     (catMaybes)
 import           Data.Functor   ((<&>))
 import           Data.Set       (Set)
 import           Data.Ratio
@@ -15,7 +15,55 @@ import           Data.Ratio
 import Cardano.Api
 import Cardano.Api.Shelley   (ProtocolParameters(..), PoolId, ReferenceScript (..), fromShelleyLovelace)
 import qualified Cardano.Ledger.Coin as Ledger
+import Debug.Trace
+import Control.FromSum ( fromMaybe, maybeToEitherOr )
+import SubmitAPI.Config (UnsafeEvalConfig (..))
 
+-- exUnitsMap:fromList [(ScriptWitnessIndexTxIn 0,Right (ExecutionUnits {executionSteps = 130605779, executionMemory = 298198})),
+-- (ScriptWitnessIndexTxIn 1,Right (ExecutionUnits {executionSteps = 133934187, executionMemory = 302164}))]
+
+makeTransactionBodyBalanceUnsafe
+  :: forall era.
+     IsShelleyBasedEra era
+  => UnsafeEvalConfig
+  -> TxBodyContent BuildTx era
+  -> AddressInEra era -- ^ Change address
+  -> Integer
+  -> Integer 
+  -> Either TxBodyErrorAutoBalance (BalancedTxBody era)
+makeTransactionBodyBalanceUnsafe cfg@UnsafeEvalConfig{..} txbodycontent changeaddr changeValue colAmount = do
+  let era' = cardanoEra
+  retColSup <- maybeToEitherOr (totalAndReturnCollateralSupportedInEra era') TxBodyErrorMissingParamMinUTxO -- incorrect error
+  let
+    fee = unsafeTxFee
+    totalCollateral = TxTotalCollateral retColSup (Lovelace colAmount)
+    (retColl, reqCol) = 
+      ( TxReturnCollateralNone
+      , totalCollateral
+      )
+  explicitTxFees <- first (const TxBodyErrorByronEraNotSupported) $
+                      txFeesExplicitInEra era'
+  txBody0 <- substituteExecutionUnitsUnsafe cfg txbodycontent
+  txBodyFinal <- first TxBodyError $ makeTransactionBody txBody0
+      { txOuts = txOuts txbodycontent
+      , txFee  = TxFeeExplicit explicitTxFees $ Lovelace fee
+      , txReturnCollateral = retColl
+      , txTotalCollateral  = reqCol
+      }
+  return (BalancedTxBody txBodyFinal (TxOut changeaddr (lovelaceToTxOutValue (Lovelace changeValue)) TxOutDatumNone ReferenceScriptNone) (Lovelace fee))
+
+substituteExecutionUnitsUnsafe :: UnsafeEvalConfig -> TxBodyContent BuildTx era -> Either TxBodyErrorAutoBalance (TxBodyContent BuildTx era)
+substituteExecutionUnitsUnsafe UnsafeEvalConfig{..} =
+    mapTxScriptWitnesses f
+  where
+    f :: ScriptWitnessIndex
+      -> ScriptWitness witctx era
+      -> Either TxBodyErrorAutoBalance (ScriptWitness witctx era)
+    f _   wit@SimpleScriptWitness{} = Right wit
+    f _ (PlutusScriptWitness langInEra version script datum redeemer _) =
+      Right $ PlutusScriptWitness langInEra version script
+                                            datum redeemer (ExecutionUnits exUnits exMem)
+                        
 makeTransactionBodyAutoBalance
   :: forall era mode.
      IsShelleyBasedEra era
@@ -62,6 +110,8 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
             (txScriptValidityToScriptValidity (txScriptValidity txbodycontent))
             failures
             exUnitsMap'
+
+    traceM $ "exUnitsMap:" ++ show exUnitsMap
 
     txbodycontent1 <- substituteExecutionUnits exUnitsMap' txbodycontent
 
@@ -257,9 +307,9 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
     | otherwise = do
         let chargeBoxWillBeMerged = isJust $ find (\(TxOut boxAddr _ _ _) -> boxAddr == changeaddr) outs
         if chargeBoxWillBeMerged
-          then 
+          then
             Right ()
-          else 
+          else
             case checkMinUTxOValue (TxOut changeaddr balance TxOutDatumNone ReferenceScriptNone) pparams of
               Left (TxBodyErrorMinUTxONotMet txOutAny minUTxO) ->
                 Left $ TxBodyErrorAdaBalanceTooSmall txOutAny minUTxO (txOutValueToLovelace balance)
@@ -271,8 +321,11 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
      -> ProtocolParameters
      -> Either TxBodyErrorAutoBalance ()
    checkMinUTxOValue txout@(TxOut addr v _ _) pparams' = do
+     traceM $ "Going to check min utxo for box: " ++ show txout
      minUTxO  <- first TxBodyErrorMinUTxOMissingPParams
                    $ calculateMinimumUTxO era txout pparams'
+     traceM $ "Min utxo is: " ++ show minUTxO
+     traceM $ "Lovelace in box is: " ++ show (txOutValueToLovelace v)
      let chargeBoxWillBeMerged = addr == changeaddr
      if txOutValueToLovelace v >= selectLovelace minUTxO || chargeBoxWillBeMerged
      then Right ()

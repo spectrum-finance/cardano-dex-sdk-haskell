@@ -19,25 +19,36 @@ import qualified NetworkAPI.Service  as Network
 import           NetworkAPI.Types
 import           WalletAPI.Utxos
 import           WalletAPI.Vault
+import           Cardano.Crypto.DSIGN.SchnorrSecp256k1
+import Cardano.Api (Lovelace(Lovelace))
+import Plutus.V1.Ledger.Value (assetClass)
+import Plutus.V1.Ledger.Api (adaSymbol)
+import Plutus.V1.Ledger.Api (adaToken)
+import Ledger.Value (assetClassValueOf)
+import System.Logging.Hlog
 
 data Transactions f era = Transactions
   { estimateTxFee :: Set.Set Sdk.FullCollateralTxIn -> Sdk.TxCandidate -> f C.Lovelace
   , finalizeTx    :: Sdk.TxCandidate -> f (C.Tx era)
+  , finalizeTxUnsafe :: Sdk.TxCandidate -> Integer -> f (C.Tx era)
   , submitTx      :: C.Tx era -> f C.TxId
   }
 
 mkTransactions
   :: (MonadThrow f, MonadIO f)
-  => CardanoNetwork f C.BabbageEra
+  => UnsafeEvalConfig
+  -> Logging f
+  -> CardanoNetwork f C.BabbageEra
   -> C.NetworkId
   -> Map P.Script C.TxIn
   -> WalletOutputs f
   -> Vault f
   -> TxAssemblyConfig
   -> Transactions f C.BabbageEra
-mkTransactions network networkId refScriptsMap utxos wallet conf = Transactions
+mkTransactions cfg logging network networkId refScriptsMap utxos wallet conf = Transactions
   { estimateTxFee = estimateTxFee' network networkId refScriptsMap
   , finalizeTx    = finalizeTx' network networkId refScriptsMap utxos wallet conf
+  , finalizeTxUnsafe = finalizeTxUnsafe' cfg logging network networkId refScriptsMap utxos wallet conf
   , submitTx      = submitTx' network
   }
 
@@ -52,7 +63,7 @@ estimateTxFee'
   -> f C.Lovelace
 estimateTxFee' CardanoNetwork{..} network refScriptsMap collateral txc = do
   SystemEnv{pparams} <- getSystemEnv
-  Internal.estimateTxFee pparams network refScriptsMap collateral txc 
+  Internal.estimateTxFee pparams network refScriptsMap collateral txc
 
 finalizeTx'
   :: MonadThrow f
@@ -69,6 +80,32 @@ finalizeTx' CardanoNetwork{..} network refScriptsMap utxos Vault{..} conf@TxAsse
   collaterals <- selectCollaterals utxos sysenv refScriptsMap network conf txc
 
   (C.BalancedTxBody txb _ _) <- Internal.buildBalancedTx sysenv refScriptsMap network (getChangeAddr deafultChangeAddr) collaterals txc
+  let
+    allInputs   = (Set.elems txCandidateInputs <&> Sdk.fullTxInTxOut) ++ (Set.elems collaterals <&> Sdk.fullCollateralTxInTxOut)
+    signatories = allInputs >>= getPkh
+      where
+        getPkh Sdk.FullTxOut{fullTxOutAddress=P.Address (P.PubKeyCredential pkh) _} = [pkh]
+        getPkh _                                                                    = []
+  signers <- mapM (\pkh -> getSigningKey pkh >>= maybe (throwM $ SignerNotFound pkh) pure) signatories
+  pure $ Internal.signTx txb signers
+
+finalizeTxUnsafe'
+  :: MonadThrow f
+  => UnsafeEvalConfig
+  -> Logging f
+  -> CardanoNetwork f C.BabbageEra
+  -> C.NetworkId
+  -> Map P.Script C.TxIn
+  -> WalletOutputs f
+  -> Vault f
+  -> TxAssemblyConfig
+  -> Sdk.TxCandidate
+  -> Integer
+  -> f (C.Tx C.BabbageEra)
+finalizeTxUnsafe' cfg Logging{..} CardanoNetwork{..} network refScriptsMap utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} changeValue = do
+  sysenv                   <- getSystemEnv
+  (collaterals, colAmount) <- selectCollateralsUnsafe utxos sysenv conf txc
+  (C.BalancedTxBody txb _ _) <- Internal.buildBalancedTxUnsafe cfg sysenv refScriptsMap network (getChangeAddr deafultChangeAddr) collaterals txc changeValue colAmount
   let
     allInputs   = (Set.elems txCandidateInputs <&> Sdk.fullTxInTxOut) ++ (Set.elems collaterals <&> Sdk.fullCollateralTxInTxOut)
     signatories = allInputs >>= getPkh
@@ -121,3 +158,25 @@ selectCollaterals WalletOutputs{selectUtxosStrict} SystemEnv{..} refScriptsMap n
     ([], _)    -> pure mempty
     (_, Cover) -> collectCollaterals mempty
     _          -> throwM CollateralNotAllowed
+
+selectCollateralsUnsafe
+  :: MonadThrow f
+  => WalletOutputs f
+  -> SystemEnv
+  -> TxAssemblyConfig
+  -> Sdk.TxCandidate
+  -> f (Set.Set Sdk.FullCollateralTxIn, Integer)
+selectCollateralsUnsafe WalletOutputs{selectUtxosStrict} SystemEnv{..} TxAssemblyConfig{..} Sdk.TxCandidate{..} = do
+  let 
+      collectCollaterals = do
+        utxos      <- selectUtxosStrict (P.toValue (P.Lovelace 1300000)) >>= maybe (throwM FailedToSatisfyCollateral) pure
+        let 
+          collaterals = Set.fromList $ Set.elems utxos <&> Sdk.FullCollateralTxIn
+          adaAC = assetClass adaSymbol adaToken
+          origValue = foldl (\acc Sdk.FullTxOut{..} -> acc + assetClassValueOf fullTxOutValue adaAC) 0 utxos
+
+        pure (collaterals, origValue)
+
+  case collateralPolicy of
+    Cover -> collectCollaterals
+    _     -> pure (mempty, 0)

@@ -111,6 +111,7 @@ library
         either,
         extra,
         transformers,
+        submit-api,
         cardano-api,
         text,
         serialise,

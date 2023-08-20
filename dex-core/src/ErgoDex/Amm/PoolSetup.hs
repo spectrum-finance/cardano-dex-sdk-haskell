@@ -44,6 +44,7 @@ mkPoolSetup pv changeAddr = PoolSetup
   { poolDeploy = poolDeploy' pv burnLqInitial changeAddr
   }
 
+-- todo: remove me
 poolDeploy'
   :: PoolValidatorV1
   -> Amount Liquidity 

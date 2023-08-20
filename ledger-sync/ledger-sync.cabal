@@ -164,3 +164,4 @@ library
                   , dependent-sum-template >= 0.1 && < 0.2
                   , dependent-map >= 0.3 && < 0.5
                   , aeson-gadt-th
+                  , strict-containers

@@ -93,7 +93,7 @@ selectUtxos'' logging explorer ustore@UtxoStore{..} pkh strict requiredValue = d
       let entriesLeft = Explorer.total utxoBatch - (offset + limit)
 
       if entriesLeft > 0
-      then fetchUtxos (offset + limit) limit
+      then pure () -- fetchUtxos (offset + limit) limit
       else pure ()
 
     extractAssets v = Set.fromList (flattenValue v <&> (\(cs, tn, _) -> (cs, tn)))
