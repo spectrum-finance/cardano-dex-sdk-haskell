@@ -14,7 +14,7 @@ import qualified Plutus.V2.Ledger.Api as PV2
 import ErgoDex.Amm.PoolActions 
   ( AmmValidators (..) )
 import ErgoDex.Validators 
-  ( V1, PoolValidator (..), OrderValidator (..) )
+  ( Version(..), PoolValidator (..), OrderValidator (..) )
 import System.Logging.Hlog
 import CardanoTx.Models (FullTxOut(..))
 import ErgoDex.State (Confirmed(Confirmed), OnChain (OnChain))

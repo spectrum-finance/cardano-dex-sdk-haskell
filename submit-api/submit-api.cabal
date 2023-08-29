@@ -154,6 +154,7 @@ test-suite submit-api-tests
     , plutus-script-utils
     , plutus-ledger
     , containers
+    , either
     , random-strings
     , plutus-core
     , cardano-ledger-shelley

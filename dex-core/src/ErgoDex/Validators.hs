@@ -1,5 +1,5 @@
 module ErgoDex.Validators
-  ( V1
+  ( Version(..)
   , PoolValidator(..)
   , OrderValidator(..)
   , orderValidator
@@ -23,7 +23,7 @@ import ErgoDex.PValidators
 
 newtype PoolValidator ver = PoolValidator PV2.Validator
 
-data V1
+data Version = V1 | V2
 
 data SwapK
 data DepositK
