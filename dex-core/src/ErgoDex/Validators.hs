@@ -20,6 +20,7 @@ import RIO ((<&>))
 import qualified Plutus.V2.Ledger.Api as PV2
 
 import ErgoDex.PValidators
+    ( depositValidator, poolValidator, redeemValidator, swapValidator )
 
 newtype PoolValidator ver = PoolValidator PV2.Validator
 
