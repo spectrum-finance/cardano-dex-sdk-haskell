@@ -15,16 +15,18 @@ module ErgoDex.Validators
   ) where
 
 import Control.Monad.IO.Class (MonadIO)
-import RIO ((<&>))
+import RIO ((<&>), Generic)
 
 import qualified Plutus.V2.Ledger.Api as PV2
 
 import ErgoDex.PValidators
     ( depositValidator, poolValidator, redeemValidator, swapValidator )
+import Data.Aeson
 
 newtype PoolValidator ver = PoolValidator PV2.Validator
 
 data Version = V1 | V2
+  deriving (Generic, Eq, Show, FromJSON, ToJSON)
 
 data SwapK
 data DepositK
@@ -46,16 +48,16 @@ orderValidator (RedeemValidator rv)  = rv
 
 type AnyOrderValidator ver = forall kind. OrderValidator kind ver
 
-type PoolValidatorV1 = PoolValidator V1
+type PoolValidatorV1 = PoolValidator 'V1
 
-fetchPoolValidatorV1 :: MonadIO m => m (PoolValidator V1) 
+fetchPoolValidatorV1 :: MonadIO m => m (PoolValidator 'V1) 
 fetchPoolValidatorV1 = poolValidator <&> PoolValidator
 
-fetchSwapValidatorV1 :: MonadIO m => m (SwapValidator V1)
+fetchSwapValidatorV1 :: MonadIO m => m (SwapValidator 'V1)
 fetchSwapValidatorV1 = swapValidator <&> SwapValidator
 
-fetchDepositValidatorV1 :: MonadIO m => m (DepositValidator V1)
+fetchDepositValidatorV1 :: MonadIO m => m (DepositValidator 'V1)
 fetchDepositValidatorV1 = depositValidator <&> DepositValidator
 
-fetchRedeemValidatorV1 :: MonadIO m => m (RedeemValidator V1)
+fetchRedeemValidatorV1 :: MonadIO m => m (RedeemValidator 'V1)
 fetchRedeemValidatorV1 = redeemValidator <&> RedeemValidator
