@@ -54,6 +54,10 @@ import ErgoDex.Contracts.Proxy.Order (OrderRedeemer(OrderRedeemer), OrderAction 
 import Control.Monad.IO.Class (MonadIO(liftIO))
 import RIO (lift, (&))
 import Control.Monad.Trans.Except (runExceptT)
+import ErgoDex.Contracts.Proxy.Swap (SwapConfig(SwapConfig, baseAmount, base))
+import ErgoDex.Contracts.Types (Amount(unAmount, Amount), Coin (Coin))
+import CardanoTx.Models (FullTxOut(fullTxOutValue))
+import PlutusTx.Prelude (divide)
 
 
 data TokenInfo = TokenInfo
@@ -248,21 +252,40 @@ test3 = do
   pure ()
 
 test123 = do
-  let
-    trustStore = mkTrustStore @_ @C.PaymentKey C.AsPaymentKey (SecretFile "/home/bromel/projects/cardano-dex-sdk-haskell/wallet1TS.json")
-    vault      = mkVault trustStore $ KeyPass $ T.pack "test1234" :: Vault IO
+  -- let
+  --   trustStore = mkTrustStore @_ @C.PaymentKey C.AsPaymentKey (SecretFile "/home/bromel/projects/cardano-dex-sdk-haskell/wallet1TS.json")
+  --   vault      = mkVault trustStore $ KeyPass $ T.pack "test1234" :: Vault IO
 
-    mkPCred = Explorer.PaymentCred . T.decodeUtf8 . convertToBase Base16 . serialiseToRawBytes
+  --   mkPCred = Explorer.PaymentCred . T.decodeUtf8 . convertToBase Base16 . serialiseToRawBytes
 
-  pkh <- getPaymentKeyHash vault
+  -- pkh <- getPaymentKeyHash vault
 
-  let
-    address = (mkPCred pkh)
+  -- let
+  --   address = (mkPCred pkh)
 
-  print address
+  -- print address
 
     -- defaultMain tests
   let
+
+    testData = BuiltinData $ deserialise $ LBS.fromStrict $ mkByteString $ T.pack "d8799fd8799f4040ffd8799f581c533bb94a8850ee3ccbe483106489399112b74c905342cb1792a797a044494e4459ffd8799f581cd0861c6a8e913001a9ceaca2c8f3d403c7ed541e27fab570c0d17a324c494e44495f4144415f4e4654ff1903e51b00355554f1c7a8f41b002386f26fc10000581cc06d3c6c1fd24aab874cfb35a7fe5d090a501e4df0d9a58d00fd5678d8799f581c63481073ae1ea98b21c55b4ea2ab133ad85288c67b51c06edea79459ff1a000f42401a00124bc1ff"
+
+  case fromBuiltinData testData of
+      (Just SwapConfig{..}) -> do
+        let
+          swapBase = Coin base
+          baseIn   = Amount 4800000
+          minBase  =
+            if True
+              --   1000000 + (1199041 * 15011997087672564) / 10000000000000000
+              then baseAmount + divide (1199041 * 15011997087672564) 10000000000000000
+              else baseAmount
+        --                     2 799 999      
+        print (unAmount baseIn < minBase)
+      _ -> print "test-"
+  
+  let
+
     wallet1PubKeyHash = "9b697975d20d891cc1713a3c4d3f881490880a780019337037ef079c"
     wallet2PubKeyHash = "a6e1973e53af80c473cafb288235864f66240d305d9ce9df992125ea"
 

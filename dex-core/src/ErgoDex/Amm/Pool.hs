@@ -90,7 +90,7 @@ instance FromLedger Pool where
       _ -> Nothing
   parseFromLedger _ = Nothing
 
-instance ToLedger PoolValidatorV1 Pool where
+instance ToLedger (PoolValidator ver) Pool where
   toLedger (PoolValidator poolValidator) Pool{..} =
       TxOutCandidate
         { txOutCandidateAddress   = poolAddress
@@ -159,7 +159,7 @@ initPool poolValidator S.PoolConfig{..} burnLq (inX, inY) = do
   pure (Predicted poolOut pool, releasedLq)
 
 
-applyDeposit :: PoolValidator V1 -> Pool -> (Amount X, Amount Y) -> Predicted Pool
+applyDeposit :: PoolValidator ver -> Pool -> (Amount X, Amount Y) -> Predicted Pool
 applyDeposit poolValidator p@Pool{..} (inX, inY) =
     Predicted nextPoolOut nextPool
   where
@@ -187,7 +187,7 @@ rewardLp p@Pool{poolLiquidity=(Amount lq), poolReservesX=(Amount poolX), poolRes
         else (Amount $ (minByX - minByY) * poolX `div` lq, Amount 0)
     unlockedLq = Amount (min minByX minByY)
 
-applyRedeem :: PoolValidator V1 -> Pool -> Amount Liquidity -> Predicted Pool
+applyRedeem :: PoolValidator ver -> Pool -> Amount Liquidity -> Predicted Pool
 applyRedeem poolValidator p@Pool{..} burnedLq =
     Predicted nextPoolOut nextPool
   where
@@ -200,7 +200,7 @@ applyRedeem poolValidator p@Pool{..} burnedLq =
       }
     nextPoolOut = toLedger poolValidator nextPool
 
-applySwap :: PoolValidator V1 -> Pool -> AssetAmount Base -> Predicted Pool
+applySwap :: PoolValidator ver -> Pool -> AssetAmount Base -> Predicted Pool
 applySwap poolValidator p@Pool{..} base =
     Predicted nextPoolOut nextPool
   where
