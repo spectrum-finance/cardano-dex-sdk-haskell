@@ -81,7 +81,7 @@ fetchValidatorsV1 =
     <*> fetchDepositValidatorV1
     <*> fetchRedeemValidatorV1
 
-data PoolActions = PoolActions
+data PoolActions ver = PoolActions
   { runSwapWithDebug    :: [FullTxOut] -> OnChain Swap    -> (FullTxOut, Pool) -> Either (OrderExecErr, OrderInfo) (TxCandidate, Predicted Pool, OrderInfo)
   , runDepositWithDebug :: [FullTxOut] -> OnChain Deposit -> (FullTxOut, Pool) -> Either (OrderExecErr, OrderInfo) (TxCandidate, Predicted Pool, OrderInfo)
   , runRedeemWithDebug  :: [FullTxOut] -> OnChain Redeem  -> (FullTxOut, Pool) -> Either (OrderExecErr, OrderInfo) (TxCandidate, Predicted Pool, OrderInfo)
@@ -90,7 +90,7 @@ data PoolActions = PoolActions
   , runRedeem  :: [FullTxOut] -> OnChain Redeem  -> (FullTxOut, Pool) -> Either OrderExecErr (TxCandidate, Predicted Pool, Integer)
   }
 
-mkPoolActions :: UnsafeEvalConfig -> PaymentPubKeyHash -> AmmValidators V1 -> PoolActions
+mkPoolActions :: UnsafeEvalConfig -> PaymentPubKeyHash -> AmmValidators ver -> PoolActions ver
 mkPoolActions evalCfg executorPkh AmmValidators{..} = PoolActions
   { runSwapWithDebug    = runSwapWithDebug' executorPkh poolV swapV
   , runDepositWithDebug = runDepositWithDebug' executorPkh poolV depositV
@@ -104,9 +104,9 @@ newtype PoolIn  = PoolIn FullTxOut
 newtype OrderIn = OrderIn FullTxOut
 
 mkOrderInputs
-  :: forall kind. P.PoolAction
-  -> PoolValidator V1
-  -> OrderValidator kind V1
+  :: forall ver kind. P.PoolAction
+  -> PoolValidator ver
+  -> OrderValidator kind ver
   -> PoolIn
   -> OrderIn
   -> Set.Set FullTxIn
@@ -123,8 +123,8 @@ mkOrderInputs action (PoolValidator pv) ov' (PoolIn poolOut) (OrderIn orderOut) 
 runSwapUnsafe'
   :: UnsafeEvalConfig
   -> PaymentPubKeyHash
-  -> PoolValidator V1
-  -> SwapValidator V1
+  -> PoolValidator ver
+  -> SwapValidator ver
   -> [FullTxOut]
   -> OnChain Swap
   -> (FullTxOut, Pool)
@@ -183,8 +183,8 @@ runSwapUnsafe' UnsafeEvalConfig{..} executorPkh pv sv refInputs (OnChain swapOut
 runDepositUnsafe'
   :: UnsafeEvalConfig
   -> PaymentPubKeyHash
-  -> PoolValidator V1
-  -> DepositValidator V1
+  -> PoolValidator ver
+  -> DepositValidator ver
   -> [FullTxOut]
   -> OnChain Deposit
   -> (FullTxOut, Pool)
@@ -260,8 +260,8 @@ runDepositUnsafe' UnsafeEvalConfig{..} executorPkh pv dv refInputs (OnChain depo
 runRedeemUnsafe'
   :: UnsafeEvalConfig
   -> PaymentPubKeyHash
-  -> PoolValidator V1
-  -> RedeemValidator V1
+  -> PoolValidator ver
+  -> RedeemValidator ver
   -> [FullTxOut]
   -> OnChain Redeem
   -> (FullTxOut, Pool)
@@ -321,8 +321,8 @@ runRedeemUnsafe' UnsafeEvalConfig{..} executorPkh pv rv refInputs (OnChain redee
 
 runSwapWithDebug'
   :: PaymentPubKeyHash
-  -> PoolValidator V1
-  -> SwapValidator V1
+  -> PoolValidator ver
+  -> SwapValidator ver
   -> [FullTxOut]
   -> OnChain Swap
   -> (FullTxOut, Pool)
@@ -385,8 +385,8 @@ runSwapWithDebug' executorPkh pv sv refInputs (OnChain swapOut s@Swap{swapExFee=
 
 runDepositWithDebug'
   :: PaymentPubKeyHash
-  -> PoolValidator V1
-  -> DepositValidator V1
+  -> PoolValidator ver
+  -> DepositValidator ver
   -> [FullTxOut]
   -> OnChain Deposit
   -> (FullTxOut, Pool)
@@ -473,8 +473,8 @@ runDepositWithDebug' executorPkh pv dv refInputs (OnChain depositOut d@Deposit{.
 
 runRedeemWithDebug'
   :: PaymentPubKeyHash
-  -> PoolValidator V1
-  -> RedeemValidator V1
+  -> PoolValidator ver
+  -> RedeemValidator ver
   -> [FullTxOut]
   -> OnChain Redeem
   -> (FullTxOut, Pool)
