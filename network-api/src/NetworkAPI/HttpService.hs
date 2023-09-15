@@ -10,9 +10,12 @@ import qualified Cardano.Api                 as C
 
 import Network.HTTP.Client.Conduit (Request(..))
 
+import Dhall
+  ( FromDhall)
+
 data HttpServiceConfig = HttpServiceConfig
   { submitUri :: String
-  }
+  } deriving (Generic, FromDhall)
 
 data CardanoHttpNetwork f era = CardanoHttpNetwork
   { submitTx     :: Tx era -> f C.TxId
