@@ -82,6 +82,7 @@ library
         network-api,
         wallet-api,
         plutus-chain-index,
+        base16-bytestring,
         plutus-tx,
         plutus-ledger-api,
         plutus-ledger-constraints,

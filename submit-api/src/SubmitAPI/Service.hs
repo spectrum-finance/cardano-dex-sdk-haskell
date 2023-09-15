@@ -79,7 +79,7 @@ finalizeTx' CardanoNetwork{..} network refScriptsMap utxos Vault{..} conf@TxAsse
   sysenv      <- getSystemEnv
   collaterals <- selectCollaterals utxos sysenv refScriptsMap network conf txc
 
-  (C.BalancedTxBody txb _ _) <- Internal.buildBalancedTx sysenv refScriptsMap network (getChangeAddr deafultChangeAddr) collaterals txc
+  (C.BalancedTxBody txb _ _) <- Internal.buildBalancedTx sysenv refScriptsMap network (getChangeAddr deafultChangeAddr) collaterals txc feePolicy
   let
     allInputs   = (Set.elems txCandidateInputs <&> Sdk.fullTxInTxOut) ++ (Set.elems collaterals <&> Sdk.fullCollateralTxInTxOut)
     signatories = allInputs >>= getPkh
