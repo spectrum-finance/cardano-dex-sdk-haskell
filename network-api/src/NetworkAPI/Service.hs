@@ -77,7 +77,8 @@ submitTx'
 submitTx' Logging{..} era conn tx =
   case toEraInMode era CardanoMode of
     Just eraInMode -> do
-      let txInMode = TxInMode tx eraInMode
+      let 
+        txInMode = TxInMode tx eraInMode
       res <- liftIO $ submitTxToNodeLocal conn txInMode
       case res of
         Net.Tx.SubmitSuccess     -> infoM @String "Transaction successfully submitted."

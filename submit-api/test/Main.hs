@@ -339,7 +339,7 @@ convertUplcMintingPolicy pi@PoolInfo{..} =
         lqscr = PlutusScriptSerialised shortLqBS
         script = deserialise (LBS.fromStrict lqBytes)
         policy = (PlutusV2.MintingPolicy script)
-      -- writeFileTextEnvelope "/home/bromel/test-mainnet-pools/spfMinting.plutus" Nothing lqscr
+      writeFileTextEnvelope "/home/bromel/test-mainnet-pools/spfMinting.plutus" Nothing lqscr
       let
         (PlutusV2.MintingPolicyHash mpPolicyHash) = mintingPolicyHash policy
         mpCS = CurrencySymbol mpPolicyHash
