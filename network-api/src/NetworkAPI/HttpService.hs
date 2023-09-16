@@ -46,14 +46,16 @@ mkPostRequest :: (MonadIO f, MonadThrow f) => Logging f -> HttpServiceConfig -> 
 mkPostRequest Logging{..} HttpServiceConfig{..} tx = do
   request <- parseRequest submitUri
 
-  let req = setRequestBodyLBS (LBS.fromStrict tx) $ request
+  let req = addRequestHeader "Content-Type" "application/cbor" $ setRequestBodyLBS (LBS.fromStrict tx) $ request
             { method = "POST"
             }
+
+  infoM ("Request is: " ++ show req)
 
   response <- httpJSON req
 
   let parsedResponse = getResponseBody response
 
-  debugM ("Response is: " ++ show parsedResponse)
+  infoM ("Response is: " ++ show parsedResponse)
 
   pure parsedResponse
