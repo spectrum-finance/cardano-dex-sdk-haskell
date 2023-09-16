@@ -12,6 +12,12 @@ import Network.HTTP.Client.Conduit (Request(..))
 
 import Dhall
   ( FromDhall)
+import Data.Text (isInfixOf, pack)
+
+data LocalSubmitException = BadInputsUtxo Text | BudgetError Text
+    deriving Show
+
+instance Exception LocalSubmitException
 
 data HttpServiceConfig = HttpServiceConfig
   { submitUri :: String
@@ -50,12 +56,14 @@ mkPostRequest Logging{..} HttpServiceConfig{..} tx = do
             { method = "POST"
             }
 
-  infoM ("Request is: " ++ show req)
-
   response <- httpJSON req
 
   let parsedResponse = getResponseBody response
 
-  infoM ("Response is: " ++ show parsedResponse)
+  if pack "BadInputsUTxO" `isInfixOf` pack parsedResponse
+    then throwM (BadInputsUtxo (pack parsedResponse))
+    else if "The budget when the machine terminated was" `isInfixOf` pack parsedResponse
+      then throwM (BudgetError (pack parsedResponse))
+      else pure ()
 
   pure parsedResponse
