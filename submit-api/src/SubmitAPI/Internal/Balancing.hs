@@ -146,10 +146,11 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
                 (lovelaceToTxOutValue $ Lovelace (2^(64 :: Integer)) - 1)
                  TxOutDatumNone ReferenceScriptNone
              ]
+      outputs = txOuts txbodycontent ++ chargeBoxes
     txbody1 <- first TxBodyError $ -- TODO: impossible to fail now
                makeTransactionBody txbodycontent1 {
                  txFee  = TxFeeExplicit explicitTxFees $ Lovelace (2^(32 :: Integer) - 1),
-                 txOuts = txOuts txbodycontent ++ chargeBoxes,
+                 txOuts = outputs,
                  txReturnCollateral = dummyCollRet,
                  txTotalCollateral = dummyTotColl
                }
@@ -169,7 +170,8 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
 
     txbody2 <- first TxBodyError $ -- TODO: impossible to fail now
                makeTransactionBody txbodycontent1 {
-                 txFee = TxFeeExplicit explicitTxFees fee
+                 txFee  = TxFeeExplicit explicitTxFees fee,
+                 txOuts = updateOutputsWithFeePolicy feePolicy outputs fee
                }
 
     let balance = evaluateTransactionBalance pparams poolids utxo txbody2
@@ -197,10 +199,10 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
       first TxBodyError $ -- TODO: impossible to fail now
         makeTransactionBody txbodycontent1 {
           txFee  = TxFeeExplicit explicitTxFees fee,
-          txOuts = accountForNoChange
+          txOuts = updateOutputsWithFeePolicy feePolicy (accountForNoChange
                      feePolicy
                      (TxOut changeaddr balance TxOutDatumNone ReferenceScriptNone)
-                     (txOuts txbodycontent),
+                     (txOuts txbodycontent)) fee,
           txReturnCollateral = retColl,
           txTotalCollateral = reqCol
         }
@@ -212,6 +214,25 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
 
    era' :: CardanoEra era
    era' = cardanoEra
+
+   updateOutputsWithFeePolicy :: FeePolicy -> [TxOut CtxTx era] -> Lovelace -> [TxOut CtxTx era]
+   updateOutputsWithFeePolicy policy outputs finalFee = case policy of
+     SplitBetween addresses ->
+       let
+          feeByUser   = finalFee `div` fromIntegral (length addresses)
+          lastUserFee =
+            if (feeByUser * fromIntegral (length addresses)) == finalFee
+              then feeByUser
+              else feeByUser + 1
+          addressesLast = lastMaybe addresses >>= deserialiseAddress (AsAddress AsShelleyAddr) <&> shelleyAddressInEra
+          addressesInit = catMaybes (init addresses <&> deserialiseAddress (AsAddress AsShelleyAddr)) <&> shelleyAddressInEra
+          updatedUtxos = map (\out@(TxOut boxAddr _ _ _) ->
+              if boxAddr `elem` addressesInit then addLovelaceToUtxo out (negate feeByUser)
+              else if Just boxAddr == addressesLast then  addLovelaceToUtxo out (negate lastUserFee)
+              else out
+            ) outputs
+        in updatedUtxos
+     _ -> outputs
 
    calcReturnAndTotalCollateral
      :: Lovelace -- ^ Fee
