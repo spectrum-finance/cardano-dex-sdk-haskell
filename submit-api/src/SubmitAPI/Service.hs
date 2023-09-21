@@ -33,6 +33,7 @@ import Cardano.Api.SerialiseTextEnvelope
 data Transactions f era = Transactions
   { estimateTxFee :: Set.Set Sdk.FullCollateralTxIn -> Sdk.TxCandidate -> f C.Lovelace
   , finalizeTx    :: Sdk.TxCandidate -> f (C.Tx era)
+  , finalizeTxWithExplFeePolicy :: FeePolicy -> Sdk.TxCandidate -> f (C.Tx era)
   , finalizeTxUnsafe :: Sdk.TxCandidate -> Integer -> f (C.Tx era)
   , submitTx         :: C.Tx era -> f C.TxId
   , submitTxByHttp   :: C.Tx era -> f C.TxId
@@ -52,7 +53,8 @@ mkTransactions
   -> Transactions f C.BabbageEra
 mkTransactions cfg logging network httpNetwork networkId refScriptsMap utxos wallet conf = Transactions
   { estimateTxFee    = estimateTxFee' network networkId refScriptsMap
-  , finalizeTx       = finalizeTx' network networkId refScriptsMap utxos wallet conf
+  , finalizeTx       = finalizeTx' network networkId refScriptsMap utxos wallet conf (feePolicy conf)
+  , finalizeTxWithExplFeePolicy = finalizeTx' network networkId refScriptsMap utxos wallet conf
   , finalizeTxUnsafe = finalizeTxUnsafe' cfg logging network networkId refScriptsMap utxos wallet conf
   , submitTx         = submitTx' network
   , submitTxByHttp   = HttpApi.submitTx httpNetwork
@@ -79,13 +81,14 @@ finalizeTx'
   -> WalletOutputs f
   -> Vault f
   -> TxAssemblyConfig
+  -> FeePolicy
   -> Sdk.TxCandidate
   -> f (C.Tx C.BabbageEra)
-finalizeTx' CardanoNetwork{..} network refScriptsMap utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
+finalizeTx' CardanoNetwork{..} network refScriptsMap utxos Vault{..} conf@TxAssemblyConfig{..} feeP txc@Sdk.TxCandidate{..} = do
   sysenv      <- getSystemEnv
   collaterals <- selectCollaterals utxos sysenv refScriptsMap network conf txc
 
-  (C.BalancedTxBody txb _ _) <- Internal.buildBalancedTx sysenv refScriptsMap network (getChangeAddr deafultChangeAddr) collaterals txc feePolicy
+  (C.BalancedTxBody txb _ _) <- Internal.buildBalancedTx sysenv refScriptsMap network (getChangeAddr deafultChangeAddr) collaterals txc feeP
   let
     allInputs   = (Set.elems txCandidateInputs <&> Sdk.fullTxInTxOut) ++ (Set.elems collaterals <&> Sdk.fullCollateralTxInTxOut)
     signatories = allInputs >>= getPkh
