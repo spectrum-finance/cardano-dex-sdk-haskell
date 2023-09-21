@@ -116,6 +116,7 @@ selectUtxos'' logging explorer ustore@UtxoStore{..} pkh strict requiredValue = d
         _ ->
           Just acc
 
+  filterSpentedUtxos ustore explorer
   utxos <- getUtxos
   case collect [] mempty (Set.elems utxos) of
     Just outs -> pure $ Just $ Set.fromList outs
