@@ -323,21 +323,6 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
    accountForNoChange policy change@(TxOut addr balance _ _) rest =
      case (txOutValueToLovelace balance, policy) of
        (Lovelace 0, _) -> rest
-       -- in this case we distibute charge between utxos with address from addresses set
-       (chargeLovelace, SplitBetween addresses) ->
-        let
-          chargeForSingleUser = (chargeLovelace `div` fromIntegral (length addresses))
-          chargeForLastUser   = if (chargeForSingleUser * fromIntegral (length addresses)) == chargeLovelace
-            then chargeForSingleUser
-            else chargeForSingleUser + 1
-          addressesLast = lastMaybe addresses >>= deserialiseAddress (AsAddress AsShelleyAddr) <&> shelleyAddressInEra
-          addressesInit = catMaybes (init addresses <&> deserialiseAddress (AsAddress AsShelleyAddr)) <&> shelleyAddressInEra
-          updatedUtxos = map (\out@(TxOut boxAddr _ _ _) ->
-              if boxAddr `elem` addressesInit then addLovelaceToUtxo out chargeForSingleUser
-              else if Just boxAddr == addressesLast then  addLovelaceToUtxo out chargeForLastUser
-              else out
-            ) rest
-        in updatedUtxos
        -- We append change at the end so a client can predict the indexes
        -- of the outputs
        (chargeLovelace, _) ->
