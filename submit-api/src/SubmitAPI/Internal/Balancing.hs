@@ -211,14 +211,17 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
     -- fit within the encoding size we picked above when calculating the fee.
     -- Yes this could be an over-estimate by a few bytes if the fee or change
     -- would fit within 2^16-1. That's a possible optimisation.
+
+    txBody3Outs <- updateOutputsWithFeePolicy feePolicy (accountForNoChange
+                     feePolicy
+                     (TxOut changeaddr balance TxOutDatumNone ReferenceScriptNone)
+                     (txOuts txbodycontent)) fee
+
     txbody3 <-
       first TxBodyError $ -- TODO: impossible to fail now
         makeTransactionBody txbodycontent1 {
           txFee  = TxFeeExplicit explicitTxFees fee,
-          txOuts = updateOutputsWithFeePolicy feePolicy (accountForNoChange
-                     feePolicy
-                     (TxOut changeaddr balance TxOutDatumNone ReferenceScriptNone)
-                     (txOuts txbodycontent)) fee,
+          txOuts = txBody3Outs,
           txReturnCollateral = retColl,
           txTotalCollateral = reqCol
         }
@@ -233,9 +236,9 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
    era' :: CardanoEra era
    era' = cardanoEra
 
-   updateOutputsWithFeePolicy :: FeePolicy -> [TxOut CtxTx era] -> Lovelace -> [TxOut CtxTx era]
+   updateOutputsWithFeePolicy :: FeePolicy -> [TxOut CtxTx era] -> Lovelace -> Either TxBodyErrorAutoBalance [TxOut CtxTx era]
    updateOutputsWithFeePolicy policy outputs finalFee = case policy of
-     SplitBetween addresses ->
+     SplitBetween addresses -> do
        let
           feeByUser   = finalFee `div` fromIntegral (length addresses)
           lastUserFee =
@@ -246,11 +249,18 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
           addressesInit = catMaybes (init addresses <&> deserialiseAddress (AsAddress AsShelleyAddr)) <&> shelleyAddressInEra
           updatedUtxos = map (\out@(TxOut boxAddr _ _ _) ->
               if boxAddr `elem` addressesInit then addLovelaceToUtxo out (negate feeByUser)
-              else if Just boxAddr == addressesLast then  addLovelaceToUtxo out (negate lastUserFee)
+              else if Just boxAddr == addressesLast then addLovelaceToUtxo out (negate lastUserFee)
               else out
             ) outputs
-        in updatedUtxos
-     _ -> outputs
+       traceM $ "feeByUser: " ++ show feeByUser
+       traceM $ "lastUserFee: " ++ show lastUserFee
+       traceM $ "addresses: " ++ show addresses
+       traceM $ "addressesLast: " ++ show addressesLast
+       traceM $ "addressesInit: " ++ show addressesInit
+       traceM $ "outputs: " ++ show outputs
+       traceM $ "updatedUtxos: " ++ show updatedUtxos
+       pure updatedUtxos
+     _ -> pure outputs
 
    calcReturnAndTotalCollateral
      :: Lovelace -- ^ Fee
