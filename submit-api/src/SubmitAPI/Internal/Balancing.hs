@@ -182,10 +182,14 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
 
     traceM $ "fee:" ++ show fee
 
+    txBody2Outputs <- updateOutputsWithFeePolicy feePolicy (txOuts txbodycontent1) fee
+
+    traceM $ "txBody2Outputs:" ++ show txBody2Outputs
+
     txbody2 <- first TxBodyError $ -- TODO: impossible to fail now
                makeTransactionBody txbodycontent1 {
-                 txFee  = TxFeeExplicit explicitTxFees fee
-                 -- txOuts = outputs
+                 txFee  = TxFeeExplicit explicitTxFees fee,
+                 txOuts = txBody2Outputs
                }
 
     traceM $ "txbody2:" ++ show txbody2
@@ -212,16 +216,21 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
     -- Yes this could be an over-estimate by a few bytes if the fee or change
     -- would fit within 2^16-1. That's a possible optimisation.
 
-    txBody3Outs <- updateOutputsWithFeePolicy feePolicy (accountForNoChange
-                     feePolicy
-                     (TxOut changeaddr balance TxOutDatumNone ReferenceScriptNone)
-                     (txOuts txbodycontent)) fee
+    traceM $ "tx balance:" ++ show balance
+
+    -- txBody3Outs <- updateOutputsWithFeePolicy feePolicy (accountForNoChange
+    --                  feePolicy
+    --                  (TxOut changeaddr balance TxOutDatumNone ReferenceScriptNone)
+    --                  (txBody2Outputs)) fee
 
     txbody3 <-
       first TxBodyError $ -- TODO: impossible to fail now
         makeTransactionBody txbodycontent1 {
           txFee  = TxFeeExplicit explicitTxFees fee,
-          txOuts = txBody3Outs,
+          txOuts = accountForNoChange
+                     feePolicy
+                     (TxOut changeaddr balance TxOutDatumNone ReferenceScriptNone)
+                     (txBody2Outputs),
           txReturnCollateral = retColl,
           txTotalCollateral = reqCol
         }
