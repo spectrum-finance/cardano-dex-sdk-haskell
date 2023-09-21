@@ -27,7 +27,7 @@ import qualified Explorer.Types    as Explorer
 import qualified Explorer.Models   as Explorer
 import qualified Explorer.Class    as Explorer
 import           Explorer.Types    (PaymentCred)
-import           Explorer.Models   (Paging, Items)
+import           Explorer.Models   (Paging, Items, spentByTxHash)
 
 import           Algebra.Natural
 import           WalletAPI.UtxoStoreConfig    (UtxoStoreConfig(..))
@@ -62,7 +62,8 @@ filterSpentedUtxos :: (Monad f) => UtxoStore f -> Explorer f -> f ()
 filterSpentedUtxos UtxoStore{..} Explorer{..} = do
   allUtxos <- getUtxos
   (\FullTxOut{..} -> getOutput fullTxOutRef >>= (\case 
-      Just _  -> pure ()
+      Just utxo  -> 
+        if (isJust (spentByTxHash utxo)) then dropUtxos $ Set.fromList [fullTxOutRef] else pure ()
       Nothing -> dropUtxos $ Set.fromList [fullTxOutRef]
     )) `traverse` toList allUtxos
   pure ()
@@ -116,9 +117,9 @@ selectUtxos'' logging explorer ustore@UtxoStore{..} pkh strict requiredValue = d
         _ ->
           Just acc
 
-  -- filterSpentedUtxos ustore explorer
-  -- utxos <- getUtxos
-  case collect [] mempty mempty of
+  filterSpentedUtxos ustore explorer
+  utxos <- getUtxos
+  case collect [] mempty (Set.elems utxos) of
     Just outs -> pure $ Just $ Set.fromList outs
     Nothing   -> fetchUtxos 0 batchSize >> selectUtxos'' logging explorer ustore pkh strict requiredValue
       where batchSize = 400
