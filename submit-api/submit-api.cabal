@@ -134,7 +134,6 @@ test-suite submit-api-tests
     Gen.CardanoTx
     Spec.Network
     Spec.Transaction
-    TestDatum
     
   build-depends:
     , base
