@@ -184,8 +184,8 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
 
     txbody2 <- first TxBodyError $ -- TODO: impossible to fail now
                makeTransactionBody txbodycontent1 {
-                 txFee  = TxFeeExplicit explicitTxFees fee,
-                 txOuts = updateOutputsWithFeePolicy feePolicy outputs fee
+                 txFee  = TxFeeExplicit explicitTxFees fee
+                 -- txOuts = outputs
                }
 
     traceM $ "txbody2:" ++ show txbody2
