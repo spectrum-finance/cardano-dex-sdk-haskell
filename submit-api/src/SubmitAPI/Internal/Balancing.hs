@@ -88,12 +88,16 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
     -- 3. update tx with fees
     -- 4. balance the transaction and update tx change output
 
+    traceM $ "Going to balance tx:"
+
     let
       -- todo: Add check for outputs with addresses from SplitBetween
       -- if there are empty set of utxos with corresponding address => add to charge set
       initChargeBoxes = case feePolicy of
         (SplitBetween _) -> []
         _ -> [TxOut changeaddr (lovelaceToTxOutValue 0) TxOutDatumNone ReferenceScriptNone]
+
+    traceM $ "initChargeBoxes:" ++ show initChargeBoxes
 
     txbody0 <-
       first TxBodyError $ makeTransactionBody txbodycontent
@@ -102,6 +106,8 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
             --TODO: think about the size of the change output
             -- 1,2,4 or 8 bytes?
         }
+
+    traceM $ "txbody0:" ++ show txbody0
 
     exUnitsMap <- first TxBodyErrorValidityInterval $
                     evaluateTransactionExecutionUnits
@@ -126,6 +132,8 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
 
     explicitTxFees <- first (const TxBodyErrorByronEraNotSupported) $
                         txFeesExplicitInEra era'
+
+    traceM $ "explicitTxFees:" ++ show explicitTxFees
 
     -- Make a txbody that we will use for calculating the fees. For the purpose
     -- of fees we just need to make a txbody of the right size in bytes. We do
@@ -155,6 +163,10 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
                  txTotalCollateral = dummyTotColl
                }
 
+    traceM $ "chargeBoxes:" ++ show chargeBoxes
+    traceM $ "outputs:" ++ show outputs
+    traceM $ "txbody1:" ++ show txbody1
+
     let nkeys = fromMaybe (estimateTransactionKeyWitnessCount txbodycontent1)
                           mnkeys
         fee   = evaluateTransactionFee pparams txbody1 nkeys 0 --TODO: byron keys
@@ -168,11 +180,15 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
     -- Here we do not want to start with any change output, since that's what
     -- we need to calculate.
 
+    traceM $ "fee:" ++ show fee
+
     txbody2 <- first TxBodyError $ -- TODO: impossible to fail now
                makeTransactionBody txbodycontent1 {
                  txFee  = TxFeeExplicit explicitTxFees fee,
                  txOuts = updateOutputsWithFeePolicy feePolicy outputs fee
                }
+
+    traceM $ "txbody2:" ++ show txbody2
 
     let balance = evaluateTransactionBalance pparams poolids utxo txbody2
 
@@ -206,6 +222,8 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
           txReturnCollateral = retColl,
           txTotalCollateral = reqCol
         }
+
+    traceM $ "txbody3:" ++ show txbody3
 
     return (BalancedTxBody txbody3 (TxOut changeaddr balance TxOutDatumNone ReferenceScriptNone) fee)
  where

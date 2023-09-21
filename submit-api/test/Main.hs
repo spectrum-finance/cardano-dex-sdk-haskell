@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE RankNTypes #-}
+
 module Main where
 
 import qualified Data.Text.Encoding as E
@@ -44,7 +45,6 @@ import CardanoTx.Address (readShellyAddress)
 import WalletAPI.Vault (Vault (getPaymentKeyHash), mkVault)
 import qualified Explorer.Types as Explorer
 import qualified Plutus.V1.Ledger.Api as P
-import Cardano.Ledger.Alonzo.Data (Data(..))
 import qualified Plutus.V1.Ledger.Bytes as Data
 import ErgoDex.Contracts.Proxy.Deposit (DepositConfig(..))
 import Plutus.V2.Ledger.Tx (OutputDatum(..))
@@ -56,7 +56,10 @@ import ErgoDex.Contracts.Proxy.Order (OrderRedeemer(OrderRedeemer), OrderAction 
 import Control.Monad.IO.Class (MonadIO(liftIO))
 import RIO (lift, (&))
 import Control.Monad.Trans.Except (runExceptT)
-
+import Common.Throw.Combinators (throwEither)
+import ErgoDex.Contracts.Proxy.Swap (SwapConfig (..))
+import           PlutusTx.Prelude       (divide)
+import TestDatum (LBSPDatum(LBSPDatum))
 
 data TokenInfo = TokenInfo
   { curSymbol :: String
@@ -165,6 +168,9 @@ eraseLeft (Right l) = Right l
 eraseLeft (Left _)  = Left ()
 
 test123 = do
+  
+  importTrustStoreFromCardano @_ @C.PaymentKey C.AsPaymentKey (SecretFile "/home/bromel/projects/cardano-dex-sdk-haskell/lbspSecret.json") "/home/bromel/projects/cardano-dex-sdk-haskell/secret.skey" (KeyPass "lbsp")
+
   print $ "test"
   print $ readShellyAddress "addr1wyqnt3mp3fc75mseaw74j2zxz4l3rj8uaujp20cuz7jva6q2crsut"
   let
@@ -244,8 +250,20 @@ test123 = do
 
   -- print $ readShellyAddress "addr1vxkafxhgw4kp7ahxnmu87kv23e4drml50h4tqu7vj7ddzvs03pqaf"
 
-  -- let testData = "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"
-  --     plutusData = Data.from testData
+  let
+    testData = "d8799fd8799f4040ffd8799f581c5d16cc1a177b5d9ba9cfa9793b07e60f1fb70fea1f8aef064415d11443494147ffd8799f581cb992582b95a3ee20cb4025699808c83caaefa7bae9387b72ba2c57c34b4941475f4144415f4e4654ff1903e51b003ec43ba36ca2901b8000000000000000581cf7d32615876de5429e8f4b596642977912d8c0638fccbe15784cec33d8799f581c75579cbeb4029bebe2a9bdeb7da16bd65bf8bfbe387f368464813cf2ff1a6f4312a61b00000001fa0fc783ff"
+    plutusDataE = (\bs -> deserialise (LBS.fromStrict bs) :: Data) `fmap` (Hex.decode . T.encodeUtf8 $ testData)
+    poolConfig = (\d -> (fromData d) :: Maybe SwapConfig) `fmap` plutusDataE
+    SwapConfig{..} = unsafeFromMaybe . unsafeFromEither $ poolConfig
+    test = baseAmount + divide (minQuoteAmount * exFeePerTokenNum) exFeePerTokenDen
+
+    lbspDatum = LBSPDatum [[stablePkh, stablePkh], [stablePkh], [stablePkh, stablePkh]]
+
+  print ("lbsp " ++ show ((Json.encode
+    . scriptDataToJson ScriptDataJsonDetailedSchema
+    . fromPlutusData
+    . toData
+    $ lbspDatum )))
 
   pool <- poolValidator
   print (PV2.mkValidatorAddress pool)
@@ -257,6 +275,9 @@ test123 = do
   -- print (PV2.mkValidatorAddress redeem)
 
   pure ()
+
+-- 1870666662
+-- 1882929694
 
 -- poolDatum = PoolConfig spectrumTokenNFTClass spectrumTokenAClass spectrumTokenBClass spectrumTokenLPClass 995
 
@@ -427,6 +448,10 @@ mkByteString input = unsafeFromEither (Hex.decode . E.encodeUtf8 $ input)
 unsafeFromEither :: (Show b) => Either b a -> a
 unsafeFromEither (Left err)    = Prelude.error ("Err:" ++ show err)
 unsafeFromEither (Right value) = value
+
+unsafeFromMaybe :: Maybe a -> a
+unsafeFromMaybe Nothing    = Prelude.error ("Err:")
+unsafeFromMaybe (Just value) = value
 
 -- writeDataDatum2 :: FilePath -> IO ()
 -- writeDataDatum2 file = do

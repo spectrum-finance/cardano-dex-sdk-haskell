@@ -94,6 +94,7 @@ library
         from-sum,
         plutus-ledger,
         bytestring,
+        ergo-hs-common,
         aeson,
         servant,
         singletons,
@@ -133,6 +134,8 @@ test-suite submit-api-tests
     Gen.CardanoTx
     Spec.Network
     Spec.Transaction
+    TestDatum
+    
   build-depends:
     , base
     , HUnit
@@ -161,6 +164,7 @@ test-suite submit-api-tests
     , cardano-ledger-shelley
     , cardano-ledger-babbage
     , submit-api
+    , ergo-hs-common
     , cardano-tx
     , network-api
     , wallet-api

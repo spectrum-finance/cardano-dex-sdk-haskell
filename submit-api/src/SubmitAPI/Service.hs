@@ -51,11 +51,11 @@ mkTransactions
   -> TxAssemblyConfig
   -> Transactions f C.BabbageEra
 mkTransactions cfg logging network httpNetwork networkId refScriptsMap utxos wallet conf = Transactions
-  { estimateTxFee = estimateTxFee' network networkId refScriptsMap
-  , finalizeTx    = finalizeTx' network networkId refScriptsMap utxos wallet conf
+  { estimateTxFee    = estimateTxFee' network networkId refScriptsMap
+  , finalizeTx       = finalizeTx' network networkId refScriptsMap utxos wallet conf
   , finalizeTxUnsafe = finalizeTxUnsafe' cfg logging network networkId refScriptsMap utxos wallet conf
-  , submitTx       = submitTx' network
-  , submitTxByHttp = HttpApi.submitTx httpNetwork
+  , submitTx         = submitTx' network
+  , submitTxByHttp   = HttpApi.submitTx httpNetwork
   }
 
 estimateTxFee'

@@ -48,10 +48,8 @@ instance FromLedger Swap where
           baseIn   = Amount $ assetClassValueOf fullTxOutValue base
           minBase  =
             if isAda swapBase
-              --   1000000 + (1199041 * 15011997087672564) / 10000000000000000
               then baseAmount + divide (minQuoteAmount * exFeePerTokenNum) exFeePerTokenDen
               else baseAmount
-        --                     2 799 999      
         when (unAmount baseIn < minBase) Nothing
         Just $ OnChain fout Swap
           { swapPoolId      = PoolId $ Coin poolNft
