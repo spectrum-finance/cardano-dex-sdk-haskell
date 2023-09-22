@@ -60,11 +60,15 @@ mkGetRequest :: (MonadIO f, FromJSON a, Show a) => Logging f -> ExplorerConfig -
 mkGetRequest Logging{..} ExplorerConfig{..} path = do
   let request = parseRequest_ (unUri explorerUri) & setRequestPath (Data.pack path)
 
+  debugM ("Request is: " ++ show request)
+
   response <- httpJSON request
+
+  debugM ("Response is: " ++ show response)
 
   let parsedResponse = getResponseBody response
 
-  debugM ("Response is: " ++ show parsedResponse)
+  debugM ("ParsedResponse is: " ++ show parsedResponse)
 
   pure parsedResponse
 
