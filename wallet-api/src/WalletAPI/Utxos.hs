@@ -41,7 +41,7 @@ data WalletOutputs f = WalletOutputs
   , selectUtxosStrict :: Value -> f (Maybe (Set.Set FullTxOut))
   }
 
-mkPersistentWalletOutputs :: 
+mkPersistentWalletOutputs ::
   ( MonadIO i
   , MonadIO f
   , MonadMask f
@@ -61,8 +61,8 @@ mkPersistentWalletOutputs fToI mkLogging@MakeLogging{..} cfg explorer vaultF = d
 filterSpentedUtxos :: (Monad f) => UtxoStore f -> Explorer f -> f ()
 filterSpentedUtxos UtxoStore{..} Explorer{..} = do
   allUtxos <- getUtxos
-  (\FullTxOut{..} -> getOutput fullTxOutRef >>= (\case 
-      Just utxo  -> 
+  (\FullTxOut{..} -> getOutput fullTxOutRef >>= (\case
+      Just utxo  ->
         if (isJust (spentByTxHash utxo)) then dropUtxos $ Set.fromList [fullTxOutRef] else pure ()
       Nothing -> dropUtxos $ Set.fromList [fullTxOutRef]
     )) `traverse` toList allUtxos
@@ -126,5 +126,7 @@ selectUtxos'' logging explorer ustore@UtxoStore{..} pkh strict requiredValue = d
 
 getUnspentOutputsByPCredWithRetry :: (MonadIO f, MonadMask f) => Logging f -> Explorer f -> PaymentCred -> Paging -> f (Items Explorer.FullTxOut)
 getUnspentOutputsByPCredWithRetry Logging{..} Explorer{..} cred paging = do
-  let backoff = constantDelay 1000000
-  recoverAll backoff (\rs -> infoM ("RetryStatus for getUnspentOutputsByPCredWithRetry " ++ (show rs)) >> (getUnspentOutputsByPCred cred paging))
+  let
+    -- backoff = constantDelay 1000000
+    limitedBackoff = exponentialBackoff 50000 <> limitRetries 5
+  recoverAll limitedBackoff (\rs -> infoM ("RetryStatus for getUnspentOutputsByPCredWithRetry " ++ show rs) >> getUnspentOutputsByPCred cred paging)

@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeApplications #-}
 module Explorer.Service where
 
 import Control.Monad.IO.Class
@@ -13,8 +14,9 @@ import Explorer.Config
 
 import Ledger ( TxOutRef, txOutRefId, txOutRefIdx )
 import Prelude hiding (Ordering)
-import System.Logging.Hlog (Logging (Logging, debugM), MakeLogging (MakeLogging, forComponent))
+import System.Logging.Hlog (Logging (Logging, debugM, infoM), MakeLogging (MakeLogging, forComponent))
 import Common.String.Formatting (toLower)
+import Control.Exception (handle, SomeException)
 
 data Explorer f = Explorer
   { getOutput                :: TxOutRef -> f (Maybe FullTxOut)
@@ -37,7 +39,7 @@ mkExplorer MakeLogging{..} conf = do
 
 getOutput' :: MonadIO f => Logging f -> ExplorerConfig -> TxOutRef -> f (Maybe FullTxOut)
 getOutput' logging conf@ExplorerConfig{..} ref =
-  mkGetRequest logging conf $ "/cardano/" ++ toLower (show network) ++ "/v1/outputs/" ++ renderTxOutRef ref
+  mkSafeGetRequest logging conf $ "/cardano/" ++ toLower (show network) ++ "/v1/outputs/" ++ renderTxOutRef ref
 
 getUnspentOutputs' :: MonadIO f => Logging f -> ExplorerConfig -> Gix -> Limit -> Ordering -> f (Items FullTxOut)
 getUnspentOutputs' logging conf@ExplorerConfig{..} minIndex limit ordering =
@@ -65,6 +67,20 @@ mkGetRequest Logging{..} ExplorerConfig{..} path = do
   debugM ("Response is: " ++ show parsedResponse)
 
   pure parsedResponse
+
+mkSafeGetRequest :: (MonadIO f, FromJSON a) => Logging f -> ExplorerConfig -> String -> f (Maybe a)
+mkSafeGetRequest Logging{..} ExplorerConfig{..} path = 
+  liftIO $ handle @SomeException (\ex -> pure Nothing ) (do
+    let request = parseRequest_ (unUri explorerUri) & setRequestPath (Data.pack path)
+
+    response <- httpJSON request
+
+    let parsedResponse = getResponseBody response
+
+    -- debugM ("Response is: " ++ show parsedResponse)
+
+    pure $ Just parsedResponse
+  )
 
 renderTxOutRef :: TxOutRef -> [Char]
 renderTxOutRef ref = (show . txOutRefId $ ref) ++ T.unpack txOutRefSep ++ (show . txOutRefIdx $ ref)
