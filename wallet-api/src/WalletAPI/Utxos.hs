@@ -163,6 +163,7 @@ selectUtxosLbsp'' logging explorer ustore@UtxoStore{..} pkh attempt strict requi
           Just acc
 
   filterSpentedUtxos ustore explorer
+  fetchUtxos 0 400
   utxos <- getUtxos
   if attempt == 1 then pure Nothing
   else case collect [] mempty (Set.elems utxos) of
