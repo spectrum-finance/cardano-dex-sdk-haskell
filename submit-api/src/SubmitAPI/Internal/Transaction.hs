@@ -46,8 +46,9 @@ buildBalancedTx
   -> Sdk.ChangeAddress
   -> Set.Set Sdk.FullCollateralTxIn
   -> Sdk.TxCandidate
+  -> FeePolicy
   -> f (BalancedTxBody BabbageEra)
-buildBalancedTx SystemEnv{..} refScriptsMap network defaultChangeAddr collateral txc@Sdk.TxCandidate{..} = do
+buildBalancedTx SystemEnv{..} refScriptsMap network defaultChangeAddr collateral txc@Sdk.TxCandidate{..} feePolicy = do
   let eraInMode    = BabbageEraInCardanoMode
       witOverrides = Nothing
   txBody     <- buildTxBodyContent pparams network refScriptsMap collateral txc
@@ -56,7 +57,7 @@ buildBalancedTx SystemEnv{..} refScriptsMap network defaultChangeAddr collateral
     Just (Sdk.ReturnTo addr) -> Interop.toCardanoAddressInEra network addr
     _                        -> Interop.toCardanoAddressInEra network $ Sdk.getAddress defaultChangeAddr
   absorbBalancingError $
-    Balancing.makeTransactionBodyAutoBalance eraInMode sysstart eraHistory pparams pools inputsMap txBody changeAddr witOverrides
+    Balancing.makeTransactionBodyAutoBalance eraInMode sysstart eraHistory pparams pools inputsMap txBody changeAddr witOverrides feePolicy
       where
         absorbBalancingError (Left e)  = throwM $ BalancingError $ T.pack $ displayError e
         absorbBalancingError (Right a) = pure a

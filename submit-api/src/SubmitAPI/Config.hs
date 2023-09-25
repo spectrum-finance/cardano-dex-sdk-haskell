@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
 module SubmitAPI.Config
   ( FeePolicy(..)
   , CollateralPolicy(..)
@@ -13,6 +14,7 @@ import           GHC.Generics
 
 import           Ledger               (Address)
 import qualified Cardano.Api          as C
+import qualified Data.Text            as T
 import qualified Ledger.Tx.CardanoAPI as Interop
 import           CardanoTx.Models     (ChangeAddress(..))
 import Dhall (Natural)
@@ -20,6 +22,7 @@ import Dhall (Natural)
 data FeePolicy
   = Strict  -- Require existing TX inputs to cover fee entirely
   | Balance -- Allow adding new inputs to cover fee
+  | SplitBetween [T.Text] -- Generally for lbsp rewards distributionpurposes
   deriving Generic
 
 instance D.FromDhall FeePolicy

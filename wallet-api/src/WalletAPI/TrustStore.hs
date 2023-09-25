@@ -27,7 +27,8 @@ import qualified Cardano.Api         as Crypto
 import WalletAPI.Internal.Crypto
 import WalletAPI.Internal.Models (SecretEnvelope(..), TrustStoreFile(..))
 import Cardano.Api.Byron         (AsType)
-import Cardano.Api.Shelley       (SerialiseAsRawBytes)
+import Cardano.Api.Shelley       (SerialiseAsRawBytes, castVerificationKey)
+import Cardano.Api (castSigningKey)
 
 newtype SecretFile = SecretFile { unSigningKeyFile :: FilePath }
   deriving (Show, Eq, Generic)
@@ -107,7 +108,8 @@ importTrustStoreFromCardano
   -> f (TrustStore f krole)
 importTrustStoreFromCardano krole targetFile srcFile pass = do
   sk <- absorbEnvelopeError =<< liftIO (Crypto.readFileTextEnvelope (Crypto.AsSigningKey krole) srcFile)
-  let vkEncoded = EncodedVK $ Crypto.serialiseToRawBytes $ Crypto.getVerificationKey sk
+  let 
+    vkEncoded = EncodedVK $ Crypto.serialiseToRawBytes $ Crypto.getVerificationKey sk
   envelope <- encryptKey sk pass
   writeTS targetFile $ TrustStoreFile envelope vkEncoded
   pure $ mkTrustStore krole targetFile

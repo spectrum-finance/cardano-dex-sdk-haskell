@@ -2,7 +2,7 @@ module SubmitAPI.Internal.Balancing where
 
 import Prelude
 
-import           RIO.List       (find)
+import           RIO.List       (find, lastMaybe)
 import           RIO            (isJust)
 import           Data.Bifunctor (first)
 import           Data.Map       (Map)
@@ -17,7 +17,8 @@ import Cardano.Api.Shelley   (ProtocolParameters(..), PoolId, ReferenceScript (.
 import qualified Cardano.Ledger.Coin as Ledger
 import Debug.Trace
 import Control.FromSum ( fromMaybe, maybeToEitherOr )
-import SubmitAPI.Config (UnsafeEvalConfig (..))
+import SubmitAPI.Config (UnsafeEvalConfig (..), FeePolicy (SplitBetween), TxAssemblyConfig (feePolicy))
+import qualified Ledger.Tx.CardanoAPI as Interop
 
 -- exUnitsMap:fromList [(ScriptWitnessIndexTxIn 0,Right (ExecutionUnits {executionSteps = 130605779, executionMemory = 298198})),
 -- (ScriptWitnessIndexTxIn 1,Right (ExecutionUnits {executionSteps = 133934187, executionMemory = 302164}))]
@@ -29,7 +30,7 @@ makeTransactionBodyBalanceUnsafe
   -> TxBodyContent BuildTx era
   -> AddressInEra era -- ^ Change address
   -> Integer
-  -> Integer 
+  -> Integer
   -> Either TxBodyErrorAutoBalance (BalancedTxBody era)
 makeTransactionBodyBalanceUnsafe cfg@UnsafeEvalConfig{..} txbodycontent changeaddr changeValue colAmount = do
   let era' = cardanoEra
@@ -37,7 +38,7 @@ makeTransactionBodyBalanceUnsafe cfg@UnsafeEvalConfig{..} txbodycontent changead
   let
     fee = unsafeTxFee
     totalCollateral = TxTotalCollateral retColSup (Lovelace colAmount)
-    (retColl, reqCol) = 
+    (retColl, reqCol) =
       ( TxReturnCollateralNone
       , totalCollateral
       )
@@ -63,7 +64,7 @@ substituteExecutionUnitsUnsafe UnsafeEvalConfig{..} =
     f _ (PlutusScriptWitness langInEra version script datum redeemer _) =
       Right $ PlutusScriptWitness langInEra version script
                                             datum redeemer (ExecutionUnits exUnits exMem)
-                        
+
 makeTransactionBodyAutoBalance
   :: forall era mode.
      IsShelleyBasedEra era
@@ -76,9 +77,10 @@ makeTransactionBodyAutoBalance
   -> TxBodyContent BuildTx era
   -> AddressInEra era -- ^ Change address
   -> Maybe Word       -- ^ Override key witnesses
+  -> FeePolicy
   -> Either TxBodyErrorAutoBalance (BalancedTxBody era)
 makeTransactionBodyAutoBalance eraInMode systemstart history pparams
-                            poolids utxo txbodycontent changeaddr mnkeys = do
+                            poolids utxo txbodycontent changeaddr mnkeys feePolicy = do
 
     -- Our strategy is to:
     -- 1. evaluate all the scripts to get the exec units, update with ex units
@@ -86,13 +88,26 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
     -- 3. update tx with fees
     -- 4. balance the transaction and update tx change output
 
+    traceM $ "Going to balance tx:"
+
+    let
+      -- todo: Add check for outputs with addresses from SplitBetween
+      -- if there are empty set of utxos with corresponding address => add to charge set
+      initChargeBoxes = case feePolicy of
+        (SplitBetween _) -> []
+        _ -> [TxOut changeaddr (lovelaceToTxOutValue 0) TxOutDatumNone ReferenceScriptNone]
+
+    traceM $ "initChargeBoxes:" ++ show initChargeBoxes
+
     txbody0 <-
       first TxBodyError $ makeTransactionBody txbodycontent
         { txOuts =
-            txOuts txbodycontent ++ [TxOut changeaddr (lovelaceToTxOutValue 0) TxOutDatumNone ReferenceScriptNone]
+            txOuts txbodycontent ++ initChargeBoxes
             --TODO: think about the size of the change output
             -- 1,2,4 or 8 bytes?
         }
+
+    traceM $ "txbody0:" ++ show txbody0
 
     exUnitsMap <- first TxBodyErrorValidityInterval $
                     evaluateTransactionExecutionUnits
@@ -118,6 +133,8 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
     explicitTxFees <- first (const TxBodyErrorByronEraNotSupported) $
                         txFeesExplicitInEra era'
 
+    traceM $ "explicitTxFees:" ++ show explicitTxFees
+
     -- Make a txbody that we will use for calculating the fees. For the purpose
     -- of fees we just need to make a txbody of the right size in bytes. We do
     -- not need the right values for the fee or change output. We use
@@ -126,18 +143,29 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
     -- output and fee. Yes this means this current code will only work for
     -- final fee of less than around 4000 ada (2^32-1 lovelace) and change output
     -- of less than around 18 trillion ada  (2^64-1 lovelace).
-    let (dummyCollRet, dummyTotColl) = maybeDummyTotalCollAndCollReturnOutput txbodycontent changeaddr
+    let
+      (dummyCollRet, dummyTotColl) = maybeDummyTotalCollAndCollReturnOutput txbodycontent changeaddr
+
+      -- todo: Add check for outputs with addresses from SplitBetween
+      -- if there are empty set of utxos with corresponding address => add to charge set
+      chargeBoxes = case feePolicy of
+        (SplitBetween _) -> []
+        _ -> [TxOut changeaddr
+                (lovelaceToTxOutValue $ Lovelace (2^(64 :: Integer)) - 1)
+                 TxOutDatumNone ReferenceScriptNone
+             ]
+      outputs = txOuts txbodycontent ++ chargeBoxes
     txbody1 <- first TxBodyError $ -- TODO: impossible to fail now
                makeTransactionBody txbodycontent1 {
                  txFee  = TxFeeExplicit explicitTxFees $ Lovelace (2^(32 :: Integer) - 1),
-                 txOuts = txOuts txbodycontent ++
-                            [TxOut changeaddr
-                              (lovelaceToTxOutValue $ Lovelace (2^(64 :: Integer)) - 1)
-                              TxOutDatumNone ReferenceScriptNone
-                            ],
+                 txOuts = outputs,
                  txReturnCollateral = dummyCollRet,
                  txTotalCollateral = dummyTotColl
                }
+
+    traceM $ "chargeBoxes:" ++ show chargeBoxes
+    traceM $ "outputs:" ++ show outputs
+    traceM $ "txbody1:" ++ show txbody1
 
     let nkeys = fromMaybe (estimateTransactionKeyWitnessCount txbodycontent1)
                           mnkeys
@@ -152,10 +180,19 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
     -- Here we do not want to start with any change output, since that's what
     -- we need to calculate.
 
+    traceM $ "fee:" ++ show fee
+
+    txBody2Outputs <- updateOutputsWithFeePolicy feePolicy (txOuts txbodycontent1) fee
+
+    traceM $ "txBody2Outputs:" ++ show txBody2Outputs
+
     txbody2 <- first TxBodyError $ -- TODO: impossible to fail now
                makeTransactionBody txbodycontent1 {
-                 txFee = TxFeeExplicit explicitTxFees fee
+                 txFee  = TxFeeExplicit explicitTxFees fee,
+                 txOuts = txBody2Outputs
                }
+
+    traceM $ "txbody2:" ++ show txbody2
 
     let balance = evaluateTransactionBalance pparams poolids utxo txbody2
 
@@ -178,16 +215,28 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
     -- fit within the encoding size we picked above when calculating the fee.
     -- Yes this could be an over-estimate by a few bytes if the fee or change
     -- would fit within 2^16-1. That's a possible optimisation.
+
+    traceM $ "tx balance:" ++ show balance
+
+    -- txBody3Outs <- updateOutputsWithFeePolicy feePolicy (accountForNoChange
+    --                  feePolicy
+    --                  (TxOut changeaddr balance TxOutDatumNone ReferenceScriptNone)
+    --                  (txBody2Outputs)) fee
+
     txbody3 <-
       first TxBodyError $ -- TODO: impossible to fail now
         makeTransactionBody txbodycontent1 {
           txFee  = TxFeeExplicit explicitTxFees fee,
           txOuts = accountForNoChange
+                     feePolicy
                      (TxOut changeaddr balance TxOutDatumNone ReferenceScriptNone)
-                     (txOuts txbodycontent),
+                     (txBody2Outputs),
           txReturnCollateral = retColl,
           txTotalCollateral = reqCol
         }
+
+    traceM $ "txbody3:" ++ show txbody3
+
     return (BalancedTxBody txbody3 (TxOut changeaddr balance TxOutDatumNone ReferenceScriptNone) fee)
  where
    era :: ShelleyBasedEra era
@@ -195,6 +244,32 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
 
    era' :: CardanoEra era
    era' = cardanoEra
+
+   updateOutputsWithFeePolicy :: FeePolicy -> [TxOut CtxTx era] -> Lovelace -> Either TxBodyErrorAutoBalance [TxOut CtxTx era]
+   updateOutputsWithFeePolicy policy outputs finalFee = case policy of
+     SplitBetween addresses -> do
+       let
+          feeByUser   = finalFee `div` fromIntegral (length addresses)
+          lastUserFee =
+            if (feeByUser * fromIntegral (length addresses)) == finalFee
+              then feeByUser
+              else feeByUser + 1
+          addressesLast = lastMaybe addresses >>= deserialiseAddress (AsAddress AsShelleyAddr) <&> shelleyAddressInEra
+          addressesInit = catMaybes (init addresses <&> deserialiseAddress (AsAddress AsShelleyAddr)) <&> shelleyAddressInEra
+          updatedUtxos = map (\out@(TxOut boxAddr _ _ _) ->
+              if boxAddr `elem` addressesInit then addLovelaceToUtxo out (negate feeByUser)
+              else if Just boxAddr == addressesLast then addLovelaceToUtxo out (negate lastUserFee)
+              else out
+            ) outputs
+       traceM $ "feeByUser: " ++ show feeByUser
+       traceM $ "lastUserFee: " ++ show lastUserFee
+       traceM $ "addresses: " ++ show addresses
+       traceM $ "addressesLast: " ++ show addressesLast
+       traceM $ "addressesInit: " ++ show addressesInit
+       traceM $ "outputs: " ++ show outputs
+       traceM $ "updatedUtxos: " ++ show updatedUtxos
+       pure updatedUtxos
+     _ -> pure outputs
 
    calcReturnAndTotalCollateral
      :: Lovelace -- ^ Fee
@@ -249,28 +324,30 @@ makeTransactionBodyAutoBalance eraInMode systemstart history pparams
                   )
                 else (TxReturnCollateralNone, TxTotalCollateralNone)
 
+   addLovelaceToUtxo :: TxOut CtxTx era -> Lovelace -> TxOut CtxTx era
+   addLovelaceToUtxo (TxOut boxAddr prevValue d ref) toAdd =
+    let
+      newValue =
+        case prevValue of
+          TxOutAdaOnly supportedEra lovelace -> TxOutAdaOnly supportedEra (lovelace + toAdd)
+          TxOutValue multiSupport value -> TxOutValue multiSupport (value <> lovelaceToValue toAdd)
+    in TxOut boxAddr newValue d ref
+
    -- In the event of spending the exact amount of lovelace in
    -- the specified input(s), this function excludes the change
    -- output. Note that this does not save any fees because by default
    -- the fee calculation includes a change address for simplicity and
    -- we make no attempt to recalculate the tx fee without a change address.
-   accountForNoChange :: TxOut CtxTx era -> [TxOut CtxTx era] -> [TxOut CtxTx era]
-   accountForNoChange change@(TxOut addr balance _ _) rest =
-     case txOutValueToLovelace balance of
-       Lovelace 0 -> rest
+   accountForNoChange :: FeePolicy -> TxOut CtxTx era -> [TxOut CtxTx era] -> [TxOut CtxTx era]
+   accountForNoChange policy change@(TxOut addr balance _ _) rest =
+     case (txOutValueToLovelace balance, policy) of
+       (Lovelace 0, _) -> rest
        -- We append change at the end so a client can predict the indexes
        -- of the outputs
-       chargeLovelace ->
+       (chargeLovelace, _) ->
         let
           chargeUserBox = find (\(TxOut boxAddr _ _ _) -> boxAddr == addr) rest
-          updatedChargeUserBox = chargeUserBox <&> (\(TxOut boxAddr prevValue d ref) ->
-               let
-                 newValue =
-                  case prevValue of
-                    TxOutAdaOnly supportedEra lovelace -> TxOutAdaOnly supportedEra (lovelace + chargeLovelace)
-                    TxOutValue multiSupport value -> TxOutValue multiSupport (value <> lovelaceToValue chargeLovelace)
-                in TxOut boxAddr newValue d ref
-            )
+          updatedChargeUserBox = chargeUserBox <&> (`addLovelaceToUtxo` chargeLovelace)
           outputs =
             case updatedChargeUserBox of
                 Nothing -> rest ++ [change]

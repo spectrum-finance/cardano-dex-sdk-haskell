@@ -18,6 +18,8 @@ import           NetworkAPI.Service  hiding (submitTx)
 import qualified NetworkAPI.Service  as Network
 import           NetworkAPI.Types
 import           WalletAPI.Utxos
+import           NetworkAPI.HttpService hiding (submitTx, submitTx')
+import qualified NetworkAPI.HttpService as HttpApi
 import           WalletAPI.Vault
 import           Cardano.Crypto.DSIGN.SchnorrSecp256k1
 import Cardano.Api (Lovelace(Lovelace))
@@ -26,12 +28,15 @@ import Plutus.V1.Ledger.Api (adaSymbol)
 import Plutus.V1.Ledger.Api (adaToken)
 import Ledger.Value (assetClassValueOf)
 import System.Logging.Hlog
+import Cardano.Api.SerialiseTextEnvelope
 
 data Transactions f era = Transactions
   { estimateTxFee :: Set.Set Sdk.FullCollateralTxIn -> Sdk.TxCandidate -> f C.Lovelace
   , finalizeTx    :: Sdk.TxCandidate -> f (C.Tx era)
+  , finalizeTxWithExplFeePolicy :: FeePolicy -> Sdk.TxCandidate -> f (C.Tx era)
   , finalizeTxUnsafe :: Sdk.TxCandidate -> Integer -> f (C.Tx era)
-  , submitTx      :: C.Tx era -> f C.TxId
+  , submitTx         :: C.Tx era -> f C.TxId
+  , submitTxByHttp   :: C.Tx era -> f C.TxId
   }
 
 mkTransactions
@@ -39,17 +44,20 @@ mkTransactions
   => UnsafeEvalConfig
   -> Logging f
   -> CardanoNetwork f C.BabbageEra
+  -> CardanoHttpNetwork f C.BabbageEra
   -> C.NetworkId
   -> Map P.Script C.TxIn
   -> WalletOutputs f
   -> Vault f
   -> TxAssemblyConfig
   -> Transactions f C.BabbageEra
-mkTransactions cfg logging network networkId refScriptsMap utxos wallet conf = Transactions
-  { estimateTxFee = estimateTxFee' network networkId refScriptsMap
-  , finalizeTx    = finalizeTx' network networkId refScriptsMap utxos wallet conf
+mkTransactions cfg logging network httpNetwork networkId refScriptsMap utxos wallet conf = Transactions
+  { estimateTxFee    = estimateTxFee' network networkId refScriptsMap
+  , finalizeTx       = finalizeTx' network networkId refScriptsMap utxos wallet conf (feePolicy conf)
+  , finalizeTxWithExplFeePolicy = finalizeTx' network networkId refScriptsMap utxos wallet conf
   , finalizeTxUnsafe = finalizeTxUnsafe' cfg logging network networkId refScriptsMap utxos wallet conf
-  , submitTx      = submitTx' network
+  , submitTx         = submitTx' network
+  , submitTxByHttp   = HttpApi.submitTx httpNetwork
   }
 
 estimateTxFee'
@@ -73,13 +81,14 @@ finalizeTx'
   -> WalletOutputs f
   -> Vault f
   -> TxAssemblyConfig
+  -> FeePolicy
   -> Sdk.TxCandidate
   -> f (C.Tx C.BabbageEra)
-finalizeTx' CardanoNetwork{..} network refScriptsMap utxos Vault{..} conf@TxAssemblyConfig{..} txc@Sdk.TxCandidate{..} = do
+finalizeTx' CardanoNetwork{..} network refScriptsMap utxos Vault{..} conf@TxAssemblyConfig{..} feeP txc@Sdk.TxCandidate{..} = do
   sysenv      <- getSystemEnv
   collaterals <- selectCollaterals utxos sysenv refScriptsMap network conf txc
 
-  (C.BalancedTxBody txb _ _) <- Internal.buildBalancedTx sysenv refScriptsMap network (getChangeAddr deafultChangeAddr) collaterals txc
+  (C.BalancedTxBody txb _ _) <- Internal.buildBalancedTx sysenv refScriptsMap network (getChangeAddr deafultChangeAddr) collaterals txc feeP
   let
     allInputs   = (Set.elems txCandidateInputs <&> Sdk.fullTxInTxOut) ++ (Set.elems collaterals <&> Sdk.fullCollateralTxInTxOut)
     signatories = allInputs >>= getPkh
@@ -117,6 +126,7 @@ finalizeTxUnsafe' cfg Logging{..} CardanoNetwork{..} network refScriptsMap utxos
 
 submitTx' :: Monad f => CardanoNetwork f C.BabbageEra -> C.Tx C.BabbageEra -> f C.TxId
 submitTx' CardanoNetwork{submitTx} tx = do
+  let test = textEnvelopeToJSON Nothing tx
   submitTx tx
   pure . C.getTxId . C.getTxBody $ tx
 

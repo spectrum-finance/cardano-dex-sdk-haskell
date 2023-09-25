@@ -27,7 +27,7 @@ import qualified Explorer.Types    as Explorer
 import qualified Explorer.Models   as Explorer
 import qualified Explorer.Class    as Explorer
 import           Explorer.Types    (PaymentCred)
-import           Explorer.Models   (Paging, Items)
+import           Explorer.Models   (Paging, Items, spentByTxHash)
 
 import           Algebra.Natural
 import           WalletAPI.UtxoStoreConfig    (UtxoStoreConfig(..))
@@ -39,9 +39,10 @@ data WalletOutputs f = WalletOutputs
   { selectUtxos       :: Value -> f (Maybe (Set.Set FullTxOut))
   -- Assets other than present in the given minimal Value are not allowed.
   , selectUtxosStrict :: Value -> f (Maybe (Set.Set FullTxOut))
+  , selectUtxosStrictLbsp :: Value -> f (Maybe (Set.Set FullTxOut))
   }
 
-mkPersistentWalletOutputs :: 
+mkPersistentWalletOutputs ::
   ( MonadIO i
   , MonadIO f
   , MonadMask f
@@ -56,13 +57,15 @@ mkPersistentWalletOutputs fToI mkLogging@MakeLogging{..} cfg explorer vaultF = d
   pure $ WalletOutputs
     { selectUtxos       = selectUtxos'' logging explorer ustore pkh False
     , selectUtxosStrict = selectUtxos'' logging explorer ustore pkh True
+    , selectUtxosStrictLbsp = selectUtxosLbsp'' logging explorer ustore pkh 0 True
     }
 
 filterSpentedUtxos :: (Monad f) => UtxoStore f -> Explorer f -> f ()
 filterSpentedUtxos UtxoStore{..} Explorer{..} = do
   allUtxos <- getUtxos
-  (\FullTxOut{..} -> getOutput fullTxOutRef >>= (\case 
-      Just _  -> pure ()
+  (\FullTxOut{..} -> getOutput fullTxOutRef >>= (\case
+      Just utxo  ->
+        if (isJust (spentByTxHash utxo)) then dropUtxos $ Set.fromList [fullTxOutRef] else pure ()
       Nothing -> dropUtxos $ Set.fromList [fullTxOutRef]
     )) `traverse` toList allUtxos
   pure ()
@@ -74,6 +77,7 @@ mkWalletOutputs mkLogging@MakeLogging{..} explorer pkh = do
   pure $ WalletOutputs
     { selectUtxos       = selectUtxos'' logging explorer ustore pkh False
     , selectUtxosStrict = selectUtxos'' logging explorer ustore pkh True
+    , selectUtxosStrictLbsp = selectUtxosLbsp'' logging explorer ustore pkh 0 True
     }
 
 mkWalletOutputs' :: forall i f. (MonadIO i, MonadIO f, MonadMask f) => (f ~> i) -> MakeLogging i f -> Explorer f -> Vault f -> i (WalletOutputs f)
@@ -116,13 +120,60 @@ selectUtxos'' logging explorer ustore@UtxoStore{..} pkh strict requiredValue = d
         _ ->
           Just acc
 
+  filterSpentedUtxos ustore explorer
   utxos <- getUtxos
   case collect [] mempty (Set.elems utxos) of
     Just outs -> pure $ Just $ Set.fromList outs
     Nothing   -> fetchUtxos 0 batchSize >> selectUtxos'' logging explorer ustore pkh strict requiredValue
       where batchSize = 400
 
+selectUtxosLbsp'' :: (MonadIO f, MonadMask f) => Logging f -> Explorer f -> UtxoStore f -> Hash PaymentKey -> Integer -> Bool -> Value -> f (Maybe (Set.Set FullTxOut))
+selectUtxosLbsp'' logging explorer ustore@UtxoStore{..} pkh attempt strict requiredValue = do
+  let
+    fetchUtxos offset limit = do
+      let
+        paging  = Explorer.Paging offset limit
+        mkPCred = Explorer.PaymentCred . T.decodeUtf8 . convertToBase Base16 . serialiseToRawBytes
+      utxoBatch <- getUnspentOutputsByPCredWithRetry logging explorer (mkPCred pkh) paging
+      putUtxos (Set.fromList $ Explorer.items utxoBatch <&> Explorer.toCardanoTx)
+      let entriesLeft = Explorer.total utxoBatch - (offset + limit)
+
+      if entriesLeft > 0
+      then pure () -- fetchUtxos (offset + limit) limit
+      else pure ()
+
+    extractAssets v = Set.fromList (flattenValue v <&> (\(cs, tn, _) -> (cs, tn)))
+    requiredAssets = extractAssets requiredValue
+
+    collect :: [FullTxOut] -> Value -> [FullTxOut] -> Maybe [FullTxOut]
+    collect acc valueAcc outs =
+      case outs of
+        fout@FullTxOut{..} : tl | valueAcc `lt` requiredValue ->
+          if satisfies
+          then collect (fout : acc) (fullTxOutValue <> valueAcc) tl
+          else collect acc valueAcc tl -- current output doesn't contain the required asset at all, so skipping it
+          where
+            assets              = extractAssets fullTxOutValue
+            containsTargetAsset = not $ Set.null $ Set.intersection assets requiredAssets
+            containsOtherAssets = not $ Set.null $ Set.difference assets requiredAssets
+            satisfies           = (containsTargetAsset && not strict) || (containsTargetAsset && not containsOtherAssets)
+        [] | valueAcc `lt` requiredValue ->
+          Nothing
+        _ ->
+          Just acc
+
+  filterSpentedUtxos ustore explorer
+  fetchUtxos 0 400
+  utxos <- getUtxos
+  if attempt == 1 then pure Nothing
+  else case collect [] mempty (Set.elems utxos) of
+        Just outs -> pure $ Just $ Set.fromList outs
+        Nothing   -> fetchUtxos 0 batchSize >> selectUtxosLbsp'' logging explorer ustore pkh (attempt + 1) strict requiredValue
+          where batchSize = 400
+
 getUnspentOutputsByPCredWithRetry :: (MonadIO f, MonadMask f) => Logging f -> Explorer f -> PaymentCred -> Paging -> f (Items Explorer.FullTxOut)
 getUnspentOutputsByPCredWithRetry Logging{..} Explorer{..} cred paging = do
-  let backoff = constantDelay 1000000
-  recoverAll backoff (\rs -> infoM ("RetryStatus for getUnspentOutputsByPCredWithRetry " ++ (show rs)) >> (getUnspentOutputsByPCred cred paging))
+  let
+    -- backoff = constantDelay 1000000
+    limitedBackoff = exponentialBackoff 50000 <> limitRetries 5
+  recoverAll limitedBackoff (\rs -> infoM ("RetryStatus for getUnspentOutputsByPCredWithRetry " ++ show rs) >> getUnspentOutputsByPCred cred paging)
