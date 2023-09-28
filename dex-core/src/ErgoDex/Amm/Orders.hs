@@ -50,7 +50,7 @@ instance FromLedger Swap where
             if isAda swapBase
               then baseAmount + divide (minQuoteAmount * exFeePerTokenNum) exFeePerTokenDen
               else baseAmount
-        when (unAmount baseIn < minBase) Nothing
+        -- when (unAmount baseIn < minBase) Nothing
         Just $ OnChain fout Swap
           { swapPoolId      = PoolId $ Coin poolNft
           , swapBaseIn      = Amount baseAmount
@@ -80,7 +80,7 @@ instance FromLedger Deposit where
       (Just DepositConfig{..}) -> do
         let adaIn       = Ada.getLovelace $ Ada.fromValue fullTxOutValue
             adaDeclared = exFee + collateralAda
-        when (adaIn < adaDeclared) Nothing
+        --  when (adaIn < adaDeclared) Nothing
         case extractPairValue fullTxOutValue of
           [assetX, assetY] ->
               Just $ OnChain fout Deposit
