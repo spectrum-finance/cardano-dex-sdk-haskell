@@ -42,7 +42,7 @@ import Cardano.Api.Shelley ( fromPlutusData )
 import WalletAPI.TrustStore (importTrustStoreFromCardano, SecretFile (SecretFile), KeyPass (KeyPass), mkTrustStore)
 import qualified Ledger as PV2
 import CardanoTx.Address (readShellyAddress)
-import WalletAPI.Vault (Vault (getPaymentKeyHash), mkVault)
+import WalletAPI.Vault (Vault (getPaymentKeyHash, getSigningKey), mkVault)
 import qualified Explorer.Types as Explorer
 import qualified Plutus.V1.Ledger.Api as P
 import qualified Plutus.V1.Ledger.Bytes as Data
@@ -52,14 +52,14 @@ import Ledger.Ada              (lovelaceValueOf)
 import           Ledger.Value        (assetClassValue)
 import qualified PlutusTx.AssocMap  as Map
 import qualified Plutus.V1.Ledger.Interval as Interval
-import ErgoDex.Contracts.Proxy.Order (OrderRedeemer(OrderRedeemer), OrderAction (Refund))
+import ErgoDex.Contracts.Proxy.Order (OrderRedeemer(OrderRedeemer), OrderAction (..))
 import Control.Monad.IO.Class (MonadIO(liftIO))
 import RIO (lift, (&))
 import Control.Monad.Trans.Except (runExceptT)
 import Common.Throw.Combinators (throwEither)
 import ErgoDex.Contracts.Proxy.Swap (SwapConfig (..))
 import           PlutusTx.Prelude       (divide)
-import TestDatum (LBSPDatum(LBSPDatum))
+-- import TestDatum (LBSPDatum(LBSPDatum))
 
 data TokenInfo = TokenInfo
   { curSymbol :: String
@@ -168,11 +168,24 @@ eraseLeft (Right l) = Right l
 eraseLeft (Left _)  = Left ()
 
 test123 = do
-  
-  importTrustStoreFromCardano @_ @C.PaymentKey C.AsPaymentKey (SecretFile "/home/bromel/projects/cardano-dex-sdk-haskell/lbspSecret.json") "/home/bromel/projects/cardano-dex-sdk-haskell/secret.skey" (KeyPass "lbsp")
+
+  -- importTrustStoreFromCardano @_ @C.PaymentKey C.AsPaymentKey (SecretFile "/home/bromel/projects/cardano-dex-sdk-haskell/lbspSecret.json") "/home/bromel/projects/cardano-dex-sdk-haskell/secret.skey" (KeyPass "Wy4ECCEj5V7mfCl5")
+
+  let
+    trustStore = mkTrustStore @_ @C.PaymentKey C.AsPaymentKey (SecretFile "/home/bromel/projects/cardano-dex-sdk-haskell/test.json")
+    vault      = mkVault trustStore $ (KeyPass "lbsp") :: Vault IO
+
+  test123 <- getPaymentKeyHash vault
+
+  print $ "keyHash: " ++ show test123
 
   print $ "test"
-  print $ readShellyAddress "addr1wyqnt3mp3fc75mseaw74j2zxz4l3rj8uaujp20cuz7jva6q2crsut"
+  print $ readShellyAddress "addr1zy6r74xk4haj26c7jpq6w25t2xt8qzr9wr2kz805n8re02ktxjcad958hxmsqdvrvx8h6exaauck5qvxcskptdhe2u2swxmc3t"
+  print $ readShellyAddress "addr1qykdlv8vv7cg4ehw20w06q5st63xf2cqw8m9wmcrjdj248wtxjcad958hxmsqdvrvx8h6exaauck5qvxcskptdhe2u2s682lku"
+  -- print $ readShellyAddress "addr1x8nz307k3sr60gu0e47cmajssy4fmld7u493a4xztjrll0aj764lvrxdayh2ux30fl0ktuh27csgmpevdu89jlxppvrswgxsta"
+
+  print $ "==============="
+
   let
 
     stablePkh :: P.PubKeyHash
@@ -251,19 +264,46 @@ test123 = do
   -- print $ readShellyAddress "addr1vxkafxhgw4kp7ahxnmu87kv23e4drml50h4tqu7vj7ddzvs03pqaf"
 
   let
-    testData = "d8799fd8799f4040ffd8799f581c5d16cc1a177b5d9ba9cfa9793b07e60f1fb70fea1f8aef064415d11443494147ffd8799f581cb992582b95a3ee20cb4025699808c83caaefa7bae9387b72ba2c57c34b4941475f4144415f4e4654ff1903e51b003ec43ba36ca2901b8000000000000000581cf7d32615876de5429e8f4b596642977912d8c0638fccbe15784cec33d8799f581c75579cbeb4029bebe2a9bdeb7da16bd65bf8bfbe387f368464813cf2ff1a6f4312a61b00000001fa0fc783ff"
+    testData = "d8799fd8799f581cdda5fdb1002f7389b33e036b6afee82a8189becb6cba852e8b79b4fb480014df1047454e53ffd8799f4040ffd8799f581cce809b9081e15b890e6fad395e7581b82ff3769224df72573821ae4d520014efbfbd1047454e535f4144415f4e4654ff1903e51a002625a01b000000024408757b581ce3a0254c00994f731550f81239f12a60c9fd3ce9b9b191543152ec22d8799f581cb1bec305ddc80189dac8b628ee0adfbe5245c53b84e678ed7ec23d75ff1a0168cc891b000000024408757bff"
     plutusDataE = (\bs -> deserialise (LBS.fromStrict bs) :: Data) `fmap` (Hex.decode . T.encodeUtf8 $ testData)
     poolConfig = (\d -> (fromData d) :: Maybe SwapConfig) `fmap` plutusDataE
-    SwapConfig{..} = unsafeFromMaybe . unsafeFromEither $ poolConfig
+    swap@SwapConfig{..} = unsafeFromMaybe . unsafeFromEither $ poolConfig
+
+
+    testDataP = "d8799fd8799f581cce809b9081e15b890e6fad395e7581b82ff3769224df72573821ae4d520014efbfbd1047454e535f4144415f4e4654ffd8799f4040ffd8799f581cdda5fdb1002f7389b33e036b6afee82a8189becb6cba852e8b79b4fb4a0014efbfbd1047454e53ffd8799f581c59e5f3deabe0bb52d8a1619595ac8096ecd073ffc37ca4bb0fa88942510014efbfbd1047454e535f4144415f4c51ff1903e58000ff"
+    plutusDataEP = (\bs -> deserialise (LBS.fromStrict bs) :: Data) `fmap` (Hex.decode . T.encodeUtf8 $ testDataP)
+    poolConfigP = (\d -> (fromData d) :: Maybe PoolConfig) `fmap` plutusDataEP
+    pool = unsafeFromMaybe . unsafeFromEither $ poolConfigP
+
     test = baseAmount + divide (minQuoteAmount * exFeePerTokenNum) exFeePerTokenDen
+    minFee = divide (minQuoteAmount * exFeePerTokenNum) exFeePerTokenDen
 
-    lbspDatum = LBSPDatum [[stablePkh, stablePkh], [stablePkh], [stablePkh, stablePkh]]
+    -- lbspDatum = LBSPDatum [[stablePkh, stablePkh], [stablePkh], [stablePkh, stablePkh]]
 
-  print ("lbsp " ++ show ((Json.encode
-    . scriptDataToJson ScriptDataJsonDetailedSchema
-    . fromPlutusData
-    . toData
-    $ lbspDatum )))
+    swapRedeemer = toData $ OrderRedeemer 1 0 0 Refund
+    poolRedeemer = toData $ PoolRedeemer Destroy 0
+
+    -- testA = unAmount baseIn < test
+
+  print $ "pool Swap redeemer:" ++ T.unpack ((T.decodeUtf8 . Hex.encode $ (LBS.toStrict $ serialise $ poolRedeemer)))
+
+  print $ "Swap cfg: " ++ show (Prelude.snd . unAssetClass $ base)
+
+  print $ "Pool cfg: " ++ show (Prelude.snd . unAssetClass $ (poolY pool))
+
+  print $ "equal x:" ++ show ((Prelude.snd . unAssetClass $ base) == (Prelude.snd . unAssetClass $ (poolY pool)))
+
+  print $ "test: " ++ (show test)
+  print $ "baseIn: " ++ (show 1005500000)
+
+  print $ "base amount: " ++ show baseAmount
+  print $ "Min fee: " ++ show minFee
+
+  -- print ("lbsp " ++ show ((Json.encode
+  --   . scriptDataToJson ScriptDataJsonDetailedSchema
+  --   . fromPlutusData
+  --   . toData
+  --   $ lbspDatum )))
 
   pool <- poolValidator
   print (PV2.mkValidatorAddress pool)

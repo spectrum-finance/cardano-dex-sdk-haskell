@@ -25,6 +25,7 @@ import ErgoDex.Contracts.Types
 import ErgoDex.Contracts.Proxy.Swap
 import ErgoDex.Contracts.Proxy.Deposit
 import ErgoDex.Contracts.Proxy.Redeem
+import Debug.Trace
 
 data Swap = Swap
   { swapPoolId      :: PoolId
@@ -40,7 +41,7 @@ data Swap = Swap
 -- 10 000 000 000 000 000
 
 instance FromLedger Swap where
-  parseFromLedger fout@FullTxOut{fullTxOutDatum=(KnownDatum (Datum d)), ..} =
+  parseFromLedger fout@FullTxOut{fullTxOutDatum=(KnownDatum (Datum d)), fullTxOutRef, ..} =
     case fromBuiltinData d of
       (Just SwapConfig{..}) -> do
         let
@@ -50,7 +51,16 @@ instance FromLedger Swap where
             if isAda swapBase
               then baseAmount + divide (minQuoteAmount * exFeePerTokenNum) exFeePerTokenDen
               else baseAmount
-        -- when (unAmount baseIn < minBase) Nothing
+        traceM $ "Found swap config for " ++ show (PoolId $ Coin poolNft)
+        traceM $ "baseIn " ++ show baseIn
+        traceM $ "baseAmount" ++ show baseAmount
+        traceM $ "minQuoteAmount" ++ show minQuoteAmount
+        traceM $ "exFeePerTokenNum" ++ show exFeePerTokenNum
+        traceM $ "exFeePerTokenDen" ++ show exFeePerTokenDen
+        traceM $ "divide (minQuoteAmount * exFeePerTokenNum) exFeePerTokenDen" ++ show (divide (minQuoteAmount * exFeePerTokenNum) exFeePerTokenDen)
+        traceM $ "minBase " ++ show minBase
+        traceM $ "(unAmount baseIn < minBase) " ++ show (unAmount baseIn < minBase)
+        when (unAmount baseIn < minBase) Nothing
         Just $ OnChain fout Swap
           { swapPoolId      = PoolId $ Coin poolNft
           , swapBaseIn      = Amount baseAmount

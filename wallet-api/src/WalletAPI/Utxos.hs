@@ -175,5 +175,5 @@ getUnspentOutputsByPCredWithRetry :: (MonadIO f, MonadMask f) => Logging f -> Ex
 getUnspentOutputsByPCredWithRetry Logging{..} Explorer{..} cred paging = do
   let
     -- backoff = constantDelay 1000000
-    limitedBackoff = exponentialBackoff 50000 <> limitRetries 5
+    limitedBackoff = constantDelay 50000 <> limitRetries 5
   recoverAll limitedBackoff (\rs -> infoM ("RetryStatus for getUnspentOutputsByPCredWithRetry " ++ show rs) >> getUnspentOutputsByPCred cred paging)

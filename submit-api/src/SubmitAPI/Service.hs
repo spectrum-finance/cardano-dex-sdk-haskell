@@ -29,6 +29,7 @@ import Plutus.V1.Ledger.Api (adaToken)
 import Ledger.Value (assetClassValueOf)
 import System.Logging.Hlog
 import Cardano.Api.SerialiseTextEnvelope
+import Debug.Trace
 
 data Transactions f era = Transactions
   { estimateTxFee :: Set.Set Sdk.FullCollateralTxIn -> Sdk.TxCandidate -> f C.Lovelace
@@ -95,6 +96,8 @@ finalizeTx' CardanoNetwork{..} network refScriptsMap utxos Vault{..} conf@TxAsse
       where
         getPkh Sdk.FullTxOut{fullTxOutAddress=P.Address (P.PubKeyCredential pkh) _} = [pkh]
         getPkh _                                                                    = []
+  Debug.Trace.traceM $ "Inputs: " ++ show allInputs
+  Debug.Trace.traceM $ "Pkhs to sign: " ++ show signatories
   signers <- mapM (\pkh -> getSigningKey pkh >>= maybe (throwM $ SignerNotFound pkh) pure) signatories
   pure $ Internal.signTx txb signers
 

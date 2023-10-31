@@ -15,6 +15,7 @@ import Plutus.V1.Ledger.Api           (StakingCredential(..))
 import PlutusTx.Numeric               (AdditiveMonoid(zero))
 import Ledger.Ada                     (lovelaceValueOf)
 import Plutus.Script.Utils.V2.Address (mkValidatorAddress)
+import Debug.Trace
 
 import CardanoTx.Models
     ( FullTxOut(FullTxOut, fullTxOutDatum, fullTxOutValue,
@@ -30,8 +31,12 @@ import           ErgoDex.Validators
 import qualified ErgoDex.Contracts.Typed       as S
 import           ErgoDex.Contracts.Types
 import qualified ErgoDex.Contracts.Proxy.Order as W
-import           ErgoDex.Contracts.Pool
+import ErgoDex.Contracts.Pool
+    ( PoolConfig(PoolConfig, lqBound, stakeAdminPolicy, poolFeeNum,
+                 poolLq, poolY, poolX, poolNft),
+      maxLqCapAmount )
 import           ErgoDex.Amm.Constants         (minSafeOutputAmount)
+import Debug.Trace
 
 newtype PoolId = PoolId { unPoolId :: Coin Nft }
   deriving (Show, Eq, Generic)
@@ -201,7 +206,7 @@ applyRedeem poolValidator p@Pool{..} burnedLq =
     nextPoolOut = toLedger poolValidator nextPool
 
 applySwap :: PoolValidator ver -> Pool -> AssetAmount Base -> Predicted Pool
-applySwap poolValidator p@Pool{..} base =
+applySwap poolValidator p@Pool{..} base = do
     Predicted nextPoolOut nextPool
   where
     xy             = unCoin (getAsset base) == unCoin poolCoinX

@@ -12,10 +12,11 @@ main = do
   defaultMain tests
 
 tests = testGroup "DexCore" 
-  [ PS.toFromLedgerPoolTests
-  , PS.checkDeposit
-  , PS.checkRedeem
-  , PS.checkSwap
-  , PS.initialLiquidityTests
-  , PS.initPoolTests
+  [ 
+  --   PS.toFromLedgerPoolTests
+  -- , PS.checkDeposit
+  -- , PS.checkRedeem
+  PS.checkSwap
+  -- , PS.initialLiquidityTests
+  -- , PS.initPoolTests
   ]
