@@ -82,6 +82,7 @@ library
         network-api,
         wallet-api,
         plutus-chain-index,
+        base16-bytestring,
         plutus-tx,
         plutus-ledger-api,
         plutus-ledger-constraints,
@@ -90,11 +91,14 @@ library
         cardano-slotting,
         cardano-api,
         mtl,
+        from-sum,
         plutus-ledger,
         bytestring,
+        ergo-hs-common,
         aeson,
         servant,
         singletons,
+        hlog,
         either,
         aeson-gadt-th,
         plutus-script-utils,
@@ -111,6 +115,7 @@ library
         cardano-ledger-shelley,
         cardano-ledger-core,
         cardano-ledger-shelley-ma,
+        cardano-crypto-class,
         cardano-ledger-byron,
         cardano-ledger-babbage,
         ouroboros-consensus,
@@ -129,12 +134,15 @@ test-suite submit-api-tests
     Gen.CardanoTx
     Spec.Network
     Spec.Transaction
+    
   build-depends:
     , base
     , HUnit
     , hedgehog
+    , rio
     , tasty
     , tasty-hunit
+    , transformers
     , tasty-hedgehog
     , aeson
     , text
@@ -149,14 +157,19 @@ test-suite submit-api-tests
     , plutus-script-utils
     , plutus-ledger
     , containers
+    , either
     , random-strings
     , plutus-core
     , cardano-ledger-shelley
     , cardano-ledger-babbage
     , submit-api
+    , ergo-hs-common
     , cardano-tx
     , network-api
     , wallet-api
+    , cardano-cli
     , serialise
     , cardano-dex-contracts-offchain
     , cardano-ledger-alonzo
+    , memory
+    , quickblue

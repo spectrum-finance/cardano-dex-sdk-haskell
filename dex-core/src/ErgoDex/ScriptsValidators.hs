@@ -14,7 +14,7 @@ import qualified Plutus.V2.Ledger.Api as PV2
 import ErgoDex.Amm.PoolActions 
   ( AmmValidators (..) )
 import ErgoDex.Validators 
-  ( V1, PoolValidator (..), OrderValidator (..) )
+  ( Version(..), PoolValidator (..), OrderValidator (..) )
 import System.Logging.Hlog
 import CardanoTx.Models (FullTxOut(..))
 import ErgoDex.State (Confirmed(Confirmed), OnChain (OnChain))
@@ -41,7 +41,7 @@ parsePool Logging{..} ScriptsValidators{poolValidator} out@FullTxOut{..} = do
   let
     pool        = parseFromLedger out :: Maybe (OnChain Pool)
     poolAddress = mkValidatorAddress poolValidator
-  if fullTxOutAddress == poolAddress
+  if (PV2.addressCredential fullTxOutAddress) == (PV2.addressCredential poolAddress)
     then case pool of
       Just a    -> do
         infoM ("Pool found in: " ++ show out)

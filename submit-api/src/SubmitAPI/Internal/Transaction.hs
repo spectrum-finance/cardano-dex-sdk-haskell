@@ -28,6 +28,7 @@ import qualified CardanoTx.Models             as Sdk
 import qualified SubmitAPI.Internal.Balancing as Balancing
 import           CardanoTx.ToPlutus
 import           NetworkAPI.Types
+import SubmitAPI.Config
 
 signTx
   :: TxBody BabbageEra
@@ -45,8 +46,9 @@ buildBalancedTx
   -> Sdk.ChangeAddress
   -> Set.Set Sdk.FullCollateralTxIn
   -> Sdk.TxCandidate
+  -> FeePolicy
   -> f (BalancedTxBody BabbageEra)
-buildBalancedTx SystemEnv{..} refScriptsMap network defaultChangeAddr collateral txc@Sdk.TxCandidate{..} = do
+buildBalancedTx SystemEnv{..} refScriptsMap network defaultChangeAddr collateral txc@Sdk.TxCandidate{..} feePolicy = do
   let eraInMode    = BabbageEraInCardanoMode
       witOverrides = Nothing
   txBody     <- buildTxBodyContent pparams network refScriptsMap collateral txc
@@ -55,7 +57,30 @@ buildBalancedTx SystemEnv{..} refScriptsMap network defaultChangeAddr collateral
     Just (Sdk.ReturnTo addr) -> Interop.toCardanoAddressInEra network addr
     _                        -> Interop.toCardanoAddressInEra network $ Sdk.getAddress defaultChangeAddr
   absorbBalancingError $
-    Balancing.makeTransactionBodyAutoBalance eraInMode sysstart eraHistory pparams pools inputsMap txBody changeAddr witOverrides
+    Balancing.makeTransactionBodyAutoBalance eraInMode sysstart eraHistory pparams pools inputsMap txBody changeAddr witOverrides feePolicy
+      where
+        absorbBalancingError (Left e)  = throwM $ BalancingError $ T.pack $ displayError e
+        absorbBalancingError (Right a) = pure a
+
+buildBalancedTxUnsafe
+  :: (MonadThrow f)
+  => UnsafeEvalConfig
+  -> SystemEnv
+  -> Map P.Script C.TxIn
+  -> NetworkId
+  -> Sdk.ChangeAddress
+  -> Set.Set Sdk.FullCollateralTxIn
+  -> Sdk.TxCandidate
+  -> Integer
+  -> Integer
+  -> f (BalancedTxBody BabbageEra)
+buildBalancedTxUnsafe cfg SystemEnv{..} refScriptsMap network defaultChangeAddr collateral txc@Sdk.TxCandidate{..} changeValue colAmount = do
+  txBody     <- buildTxBodyContent pparams network refScriptsMap collateral txc
+  changeAddr <- absorbError $ case txCandidateChangePolicy of
+    Just (Sdk.ReturnTo addr) -> Interop.toCardanoAddressInEra network addr
+    _                        -> Interop.toCardanoAddressInEra network $ Sdk.getAddress defaultChangeAddr
+  absorbBalancingError $
+    Balancing.makeTransactionBodyBalanceUnsafe cfg txBody changeAddr changeValue colAmount
       where
         absorbBalancingError (Left e)  = throwM $ BalancingError $ T.pack $ displayError e
         absorbBalancingError (Right a) = pure a

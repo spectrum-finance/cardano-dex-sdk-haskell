@@ -24,6 +24,7 @@ import SubmitAPI.Internal.Transaction
 import CardanoTx.Models
 import CardanoTx.Interop as Interop
 import Cardano.Api.Shelley (NetworkId(Mainnet))
+import SubmitAPI.Config (FeePolicy(Strict))
 
 inputsOrderPreservedBuildTxBody :: Property
 inputsOrderPreservedBuildTxBody = property $ do
@@ -76,7 +77,7 @@ buildTxBodyContentTests = testGroup "BuildTxBodyContent"
 inputsOrderPreservedBalancing :: Property
 inputsOrderPreservedBalancing = property $ do
   txc <- forAll genPlainTxCandidate
-  (C.BalancedTxBody txb _ _) <- buildBalancedTx staticSystemEnv mempty Mainnet (ChangeAddress stableAddress) mempty txc
+  (C.BalancedTxBody txb _ _) <- buildBalancedTx staticSystemEnv mempty Mainnet (ChangeAddress stableAddress) mempty txc Strict
   let
     candidateInputs = Set.elems (txCandidateInputs txc) <&> (fullTxOutRef . fullTxInTxOut)
     balancedInputs  = Interop.extractCardanoTxBodyInputs txb
@@ -85,7 +86,7 @@ inputsOrderPreservedBalancing = property $ do
 outputsOrderPreservedBalancing :: Property
 outputsOrderPreservedBalancing = property $ do
   txc <- forAll genPlainTxCandidate
-  (C.BalancedTxBody txb _ _) <- buildBalancedTx staticSystemEnv mempty Mainnet (ChangeAddress stableAddress) mempty txc
+  (C.BalancedTxBody txb _ _) <- buildBalancedTx staticSystemEnv mempty Mainnet (ChangeAddress stableAddress) mempty txc Strict
   let
     candidateOutputs = zip [0..] $ txCandidateOutputs txc
     balancedOutputs  = Interop.extractCardanoTxBodyOutputs txb

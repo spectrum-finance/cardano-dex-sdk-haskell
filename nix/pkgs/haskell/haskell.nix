@@ -43,7 +43,7 @@ let
       "https://github.com/input-output-hk/cardano-ledger"."c7c63dabdb215ebdaed8b63274965966f2bf408f" = "zTQbMOGPD1Oodv6VUsfF6NUiXkbN8SWI98W3Atv4wbI=";
       "https://github.com/input-output-hk/plutus-apps"."593ffafa59dd30ad28cfaf144c526c66328595d2" = "CIuI/Nz7O67ljOHDg7UBbXgWuIE7VPRdPX4VK0/DI3A=";
       "https://github.com/input-output-hk/hedgehog-extras"."714ee03a5a786a05fc57ac5d2f1c2edce4660d85" = "6KQFEzb9g2a0soVvwLKESEbA+a8ygpROcMr6bkatROE=";
-      "https://github.com/ergolabs/cardano-dex-contracts"."2fb44f444897d84e313ceb4d3d467441385802dd" = "Kih0IS6Ty3EnXlgqAyF04nWIWJAnHOEVfraebh5RsNI=";
+      "https://github.com/ergolabs/cardano-dex-contracts"."c25c8ab7daf52871d29efd00d3dac236cc9d6a36" = "/A2kO/ABqElTxeIcyA2SIqwX9StNLTe5GyE80h+Rf8w=";
       "https://github.com/ergolabs/hlog"."19dfa3a6e696a3f63fc3539cd6b7a3fc4d999853" = "Lvmj1oLuXmktrboXh/BrXqLPf8FxSCXIf99GnBXu0Bk=";
       "https://github.com/daleiz/rocksdb-haskell"."109af08f95b40f458d4933e3725ecb3e59337c39" = "1i1ya491fapa0g96527krarv0w0iybizqcz518741iw06hhpikiy";
     };

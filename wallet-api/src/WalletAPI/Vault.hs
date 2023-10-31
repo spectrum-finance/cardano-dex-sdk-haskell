@@ -7,6 +7,7 @@ import           Ledger              (PubKeyHash(..))
 import qualified Cardano.Api         as C
 import           Cardano.Api.Shelley
 import           Algebra.Natural
+import Debug.Trace
 
 import WalletAPI.TrustStore (TrustStore(TrustStore, readSK, readVK), KeyPass)
 
@@ -37,6 +38,8 @@ getSigningKey' TrustStore{readSK} pass pkh = do
   sk <- readSK pass <&> WitnessPaymentKey
   let vk   = extractVK (toShelleySigningKey sk)
       pkh' = PubKeyHash $ PlutusTx.toBuiltin $ C.serialiseToRawBytes $ C.verificationKeyHash vk
+  Debug.Trace.traceM $ "Pkh in storage:" ++ show pkh'
+  Debug.Trace.traceM $ "Pkh to check:" ++ show pkh
   unless (pkh == pkh') (throwM VaultCorrupted)
   pure sk <&> Just
 
