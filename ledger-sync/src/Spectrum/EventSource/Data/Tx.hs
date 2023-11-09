@@ -41,6 +41,9 @@ import qualified Cardano.Ledger.TxIn       as Ledger
 
 import qualified PlutusTx.Prelude as PlutusTx
 
+import qualified Cardano.Ledger.Babbage.TxBody as TxBody
+import Cardano.Ledger.Coin (Coin (..))
+
 import CardanoTx.Models
   ( FullTxOut (FullTxOut), TxOutDatum (EmptyDatum, KnownDatumHash, KnownDatum) )
 import Cardano.Api.Shelley 
@@ -68,6 +71,7 @@ data MinimalUnconfirmedTx = MinimalUnconfirmedTx
   , txInputs  :: Set.Set P.TxIn
   , txOutputs :: [FullTxOut]
   , slotNo    :: SlotNo
+  , txFee     :: Integer
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 -- | A minimal sufficient representation of a confirmed transaction
@@ -77,6 +81,7 @@ data MinimalConfirmedTx = MinimalConfirmedTx
   , txInputs  :: Set.Set P.TxIn
   , txOutputs :: [FullTxOut]
   , slotNo    :: SlotNo
+  , txFee     :: Integer
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 data MinimalTx ctx where
@@ -117,6 +122,7 @@ fromBabbageLedgerTx blockHash slotNo vtx =
           txOutValue
           (parseDatum txOutDatum)
           txOutReferenceScript)
+    txFee = unCoin $ TxBody.txfee' body
     parseDatum datum = case datum of
       PV2.NoOutputDatum      -> EmptyDatum
       PV2.OutputDatumHash dh -> KnownDatumHash dh
@@ -128,7 +134,8 @@ fromBabbageLedgerTx blockHash slotNo vtx =
     , txOutputs = zip [0..] (toList $ Al.outputs body)
                     <&> uncurry fromCardanoTxOut
                     >>= either mempty pure
-    , slotNo    = slotNo
+    , slotNo    = slotNo,
+    , txFee     = txFee
     }
 
 fromMempoolBabbageLedgerTx
@@ -156,6 +163,7 @@ fromMempoolBabbageLedgerTx vtx slotNo =
           txOutValue
           (parseDatum txOutDatum)
           txOutReferenceScript)
+    txFee = unCoin $ TxBody.txfee' body
     parseDatum datum = case datum of
       PV2.NoOutputDatum      -> EmptyDatum
       PV2.OutputDatumHash dh -> KnownDatumHash dh
@@ -167,4 +175,5 @@ fromMempoolBabbageLedgerTx vtx slotNo =
                     <&> uncurry fromCardanoTxOut
                     >>= either mempty pure
     , slotNo    = slotNo
+    , txFee     = txFee
     }
