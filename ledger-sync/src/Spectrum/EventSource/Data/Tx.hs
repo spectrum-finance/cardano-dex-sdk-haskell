@@ -65,13 +65,17 @@ import qualified Plutus.V2.Ledger.Tx  as PV2
 import Cardano.Api (ToJSON, FromJSON)
 import GHC.Generics (Generic1)
 
+newtype TxFee = TxFee { unTxFee :: Integer }
+  deriving (Eq, Generic)
+  deriving newtype (Show, FromJSON, ToJSON)
+
 -- | A minimal sufficient representation of an unconfirmed transaction
 data MinimalUnconfirmedTx = MinimalUnconfirmedTx
   { txId      :: P.TxId
   , txInputs  :: Set.Set P.TxIn
   , txOutputs :: [FullTxOut]
   , slotNo    :: SlotNo
-  , txFee     :: Integer
+  , txFee     :: TxFee
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 -- | A minimal sufficient representation of a confirmed transaction
@@ -81,7 +85,7 @@ data MinimalConfirmedTx = MinimalConfirmedTx
   , txInputs  :: Set.Set P.TxIn
   , txOutputs :: [FullTxOut]
   , slotNo    :: SlotNo
-  , txFee     :: Integer
+  , txFee     :: TxFee
   } deriving (Show, Eq, Generic, FromJSON, ToJSON)
 
 data MinimalTx ctx where
@@ -135,7 +139,7 @@ fromBabbageLedgerTx blockHash slotNo vtx =
                     <&> uncurry fromCardanoTxOut
                     >>= either mempty pure
     , slotNo    = slotNo
-    , txFee     = txFee
+    , txFee     = TxFee $ txFee
     }
 
 fromMempoolBabbageLedgerTx
@@ -175,5 +179,5 @@ fromMempoolBabbageLedgerTx vtx slotNo =
                     <&> uncurry fromCardanoTxOut
                     >>= either mempty pure
     , slotNo    = slotNo
-    , txFee     = txFee
+    , txFee     = TxFee $ txFee
     }
