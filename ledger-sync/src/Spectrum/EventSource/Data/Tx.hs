@@ -134,7 +134,7 @@ fromBabbageLedgerTx blockHash slotNo vtx =
     , txOutputs = zip [0..] (toList $ Al.outputs body)
                     <&> uncurry fromCardanoTxOut
                     >>= either mempty pure
-    , slotNo    = slotNo,
+    , slotNo    = slotNo
     , txFee     = txFee
     }
 
